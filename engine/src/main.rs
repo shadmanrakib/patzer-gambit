@@ -1,6 +1,8 @@
-mod masks;
+mod constants;
 mod moves;
 mod state;
+
+use state::bitboards::BitBoard;
 
 fn main() {
     // let game = state::game::GameState::from_fen(
@@ -11,11 +13,16 @@ fn main() {
     let cache = moves::precalculate::cache::PrecalculatedCache::create();
     // let game = state::game::GameState::from_fen("r7/pPPppp2/p2P/p7/p7/4p/PppPpPPP/R2R4 w KQkq - 0 1".into()).unwrap();
     game.print_state();
-    pawns_test(&game, &cache, state::player::Player::White);
-    knights_test(&game, &cache, state::player::Player::White);
-    king_test(&game, &cache, state::player::Player::White);
-    rooks_test(&game, &cache, state::player::Player::White);
-    bishops_test(&game, &cache, state::player::Player::White);
+    // pawns_test(&game, &cache, state::player::Player::White);
+    // knights_test(&game, &cache, state::player::Player::White);
+    // king_test(&game, &cache, state::player::Player::White);
+    // rooks_test(&game, &cache, state::player::Player::White);
+    // bishops_test(&game, &cache, state::player::Player::White);
+    // let mask = moves::precalculate::rook::create_rook_potential_blockers_mask(0);
+    // for bit_set in 0..(2_u64.pow(cache.rook_bit_counts[0].try_into().unwrap())) {
+    //     let subset = moves::precalculate::magic_bitboards::get_subset_of_mask_by_bit_set(mask, cache.rook_bit_counts[0], bit_set);
+    //     subset.print_board();
+    // }
 }
 
 fn pawns_test(

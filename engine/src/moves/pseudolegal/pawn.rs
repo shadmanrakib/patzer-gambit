@@ -1,4 +1,4 @@
-use crate::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
+use crate::constants::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
 use crate::moves::move_data::Move;
 use crate::state::bitboards::BitBoard;
 use crate::state::square::Square;

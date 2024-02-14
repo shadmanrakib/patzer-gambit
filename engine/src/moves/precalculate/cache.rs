@@ -12,7 +12,7 @@ pub struct PrecalculatedCache {
 }
 
 impl PrecalculatedCache {
-    pub fn create() -> Self {
+    pub fn create() -> PrecalculatedCache {
         PrecalculatedCache {
             knight_moves_masks: create_knight_moves_masks(),
             king_moves_masks: create_king_moves_masks(),
