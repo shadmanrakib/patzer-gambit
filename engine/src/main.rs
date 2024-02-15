@@ -2,7 +2,14 @@ mod constants;
 mod moves;
 mod state;
 
+use std::time::SystemTime;
+
+use moves::precalculate::magic_bitboards::find_rook_magic_numbers;
 use state::bitboards::BitBoard;
+
+extern crate xorshift;
+use xorshift::{Rand, Rng, SeedableRng, SplitMix64, Xoroshiro128};
+
 
 fn main() {
     // let game = state::game::GameState::from_fen(
@@ -23,6 +30,11 @@ fn main() {
     //     let subset = moves::precalculate::magic_bitboards::get_subset_of_mask_by_bit_set(mask, cache.rook_bit_counts[0], bit_set);
     //     subset.print_board();
     // }
+
+    let now: u64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos().try_into().unwrap();
+    let mut sm: SplitMix64 = SeedableRng::from_seed(now);
+    let mut rng: Xoroshiro128 = Rand::rand(&mut sm);
+    find_rook_magic_numbers(&mut rng, &cache.rook_bit_counts);
 }
 
 fn pawns_test(
