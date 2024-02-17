@@ -32,7 +32,6 @@ fn main() {
             .as_millis()
     );
     // let game = state::game::GameState::from_fen("r7/pPPppp2/p2P/p7/p7/4p/PppPpPPP/R2R4 w KQkq - 0 1".into()).unwrap();
-    println!("{}", game.to_fen());
     game.print_state();
 
     pawns_test(&game, &cache, state::player::Player::White);

@@ -78,6 +78,8 @@ impl GameState {
         }
         println!("  -----------------");
         println!("    A B C D E F G H");
+        println!();
+        println!("fen: {}", self.to_fen());
     }
     
     pub fn print_state(&self) {
