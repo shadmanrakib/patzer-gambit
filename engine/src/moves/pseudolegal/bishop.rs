@@ -1,5 +1,8 @@
 use crate::{
-    moves::{move_data::Move, precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic}},
+    moves::{
+        move_item::MoveItem,
+        precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
+    },
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
@@ -7,9 +10,9 @@ pub fn generate_bishops_moves(
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
-) -> (Vec<Move>, Vec<Move>) {
-    let mut silents: Vec<Move> = vec![];
-    let mut captures: Vec<Move> = vec![];
+) -> Vec<MoveItem> {
+    let mut silents: Vec<MoveItem> = vec![];
+    let mut captures: Vec<MoveItem> = vec![];
 
     let mut bishops = game
         .bitboards
@@ -39,12 +42,18 @@ pub fn generate_bishops_moves(
 
             let to = Square::from(capture_pos);
 
-            captures.push(Move {
-                from_rank: from.rank,
-                from_file: from.file,
-                to_rank: to.rank,
-                to_file: to.file,
-                promotion: Piece::Bishop(player),
+            captures.push(MoveItem {
+                from_pos: from.into(),
+                to_pos: to.into(),
+                piece: Piece::Bishop(player),
+                promotion_piece: Piece::Empty,
+                captured_piece: game.bitboards.get_piece_by_bit_pos(capture_pos),
+                promoting: false,
+                capturing: true,
+                double: false,
+                enpassant: false,
+                castling: false,
+                score: 0.,
             })
         }
 
@@ -53,15 +62,26 @@ pub fn generate_bishops_moves(
 
             let to = Square::from(silent_pos);
 
-            silents.push(Move {
-                from_rank: from.rank,
-                from_file: from.file,
-                to_rank: to.rank,
-                to_file: to.file,
-                promotion: Piece::Bishop(player),
+            silents.push(MoveItem {
+                from_pos: from.into(),
+                to_pos: to.into(),
+                piece: Piece::Bishop(player),
+                promotion_piece: Piece::Empty,
+                captured_piece: Piece::Empty,
+                promoting: false,
+                capturing: false,
+                double: false,
+                enpassant: false,
+                castling: false,
+                score: 0.,
             })
         }
     }
 
-    return (silents, captures);
+    // temporarily as i figure out how i want to structure things
+    let mut moves = Vec::<MoveItem>::new();
+    moves.append(&mut silents);
+    moves.append(&mut captures);
+
+    return moves;
 }

@@ -5,17 +5,14 @@ mod fen;
 
 use std::time::SystemTime;
 
-use crate::{
-    moves::attacked::square_attacked::times_square_attacked,
-    state::{bitboards::BitBoard, pieces::Piece, player::Player},
-};
-
 fn main() {
     // let game = state::game::GameState::from_fen(
     //     "2b5/4Bpbp/7r/p1Np4/2pP1P1P/5P1p/1k6/1B3R1K b - d3 0 13".into(),
     // )
     // .unwrap();
-    let game = state::game::GameState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into()).unwrap();
+    // let game = state::game::GameState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into()).unwrap();
+    let game = state::game::GameState::from_fen("r3k2r/pppppppp/8/8/8/8/PPPPnPPP/R3K2R w KQkq - 0 1".into()).unwrap();
+
     // "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
     // let game = state::game::GameState::from_fen("1pK5/1p1p4/b7/1PP5/1k4b1/1PP1b3/8/2R5 b - - 0 1".into())
     //     .unwrap();
@@ -40,6 +37,7 @@ fn main() {
     rooks_test(&game, &cache, state::player::Player::White);
     bishops_test(&game, &cache, state::player::Player::White);
     queens_test(&game, &cache, state::player::Player::White);
+    castling_test(&game, &cache, state::player::Player::White);
 }
 
 fn pawns_test(
@@ -47,31 +45,9 @@ fn pawns_test(
     _cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
-    let (
-        single_forward_non_promotion,
-        single_forward_promotion,
-        double_foreward,
-        capture_non_promotion,
-        capture_promotion,
-    ) = moves::pseudolegal::pawn::generate_pawn_moves(&game, player);
-    println!("pawn single_forward_non_promotion:");
-    for m in single_forward_non_promotion {
-        println!("{:?}", m);
-    }
-    println!("pawn single_forward_promotion:");
-    for m in single_forward_promotion {
-        println!("{:?}", m);
-    }
-    println!("pawn double_foreward:");
-    for m in double_foreward {
-        println!("{:?}", m);
-    }
-    println!("pawn capture_non_promotion:");
-    for m in capture_non_promotion {
-        println!("{:?}", m);
-    }
-    println!("pawn capture_promotion:");
-    for m in capture_promotion {
+    let moves = moves::pseudolegal::pawn::generate_pawn_moves(&game, player);
+    println!("pawn moves:");
+    for m in moves {
         println!("{:?}", m);
     }
 }
@@ -81,15 +57,11 @@ fn knights_test(
     cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
-    let (silents, captures) =
+    let moves =
         moves::pseudolegal::knight::generate_knight_moves(&game, player, cache);
 
-    println!("knight silents:");
-    for m in silents {
-        println!("{:?}", m);
-    }
-    println!("knight captures:");
-    for m in captures {
+    println!("knight moves:");
+    for m in moves {
         println!("{:?}", m);
     }
 }
@@ -99,14 +71,10 @@ fn king_test(
     cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
-    let (silents, captures) = moves::pseudolegal::king::generate_king_moves(&game, player, cache);
+    let moves = moves::pseudolegal::king::generate_king_moves(&game, player, cache);
 
-    println!("king silents:");
-    for m in silents {
-        println!("{:?}", m);
-    }
-    println!("king captures:");
-    for m in captures {
+    println!("king moves:");
+    for m in moves {
         println!("{:?}", m);
     }
 }
@@ -116,15 +84,11 @@ fn bishops_test(
     cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
-    let (silents, captures) =
+    let moves =
         moves::pseudolegal::bishop::generate_bishops_moves(&game, player, cache);
 
-    println!("bishop silents:");
-    for m in silents {
-        println!("{:?}", m);
-    }
-    println!("bishop captures:");
-    for m in captures {
+    println!("bishop moves:");
+    for m in moves {
         println!("{:?}", m);
     }
 }
@@ -134,15 +98,11 @@ fn rooks_test(
     cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
-    let (silents, captures) =
+    let moves =
         moves::pseudolegal::rook::generate_rooks_moves(&game, player, cache);
 
-    println!("rook silents:");
-    for m in silents {
-        println!("{:?}", m);
-    }
-    println!("rook captures:");
-    for m in captures {
+    println!("rook moves:");
+    for m in moves {
         println!("{:?}", m);
     }
 }
@@ -152,15 +112,25 @@ fn queens_test(
     cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
-    let (silents, captures) =
+    let moves =
         moves::pseudolegal::queen::generate_queens_moves(&game, player, cache);
 
-    println!("queens silents:");
-    for m in silents {
+    println!("queens moves:");
+    for m in moves {
         println!("{:?}", m);
     }
-    println!("queens captures:");
-    for m in captures {
+}
+
+fn castling_test(
+    game: &state::game::GameState,
+    cache: &moves::precalculate::cache::PrecalculatedCache,
+    player: state::player::Player,
+) {
+    let moves =
+        moves::pseudolegal::castling::generate_castling_moves(&game, player, cache);
+
+    println!("castling moves:");
+    for m in moves {
         println!("{:?}", m);
     }
 }

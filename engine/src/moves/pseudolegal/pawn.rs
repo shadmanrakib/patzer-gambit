@@ -1,5 +1,5 @@
 use crate::constants::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
-use crate::moves::move_data::Move;
+use crate::moves::move_item::MoveItem;
 use crate::state::bitboards::BitBoard;
 use crate::state::square::Square;
 use crate::state::{game::GameState, pieces::Piece, player::Player};
@@ -7,28 +7,20 @@ use crate::state::{game::GameState, pieces::Piece, player::Player};
 // use crate::masks::RANK_1_MASK;
 
 // single forward non promotion, double, promotion, capture
-pub fn generate_pawn_moves(
-    game: &GameState,
-    player: Player,
-) -> (Vec<Move>, Vec<Move>, Vec<Move>, Vec<Move>, Vec<Move>) {
-    let (single_forward_non_promotion, single_forward_promotion) =
-        generate_pawn_single_forward_moves(game, player);
-    let double_foreward = generate_pawn_double_forward_moves(game, player);
-    let (capture_non_promotion, capture_promotion) = generate_pawn_attack_moves(game, player);
+pub fn generate_pawn_moves(game: &GameState, player: Player) -> Vec<MoveItem> {
+    let mut single_forward_moves = generate_pawn_single_forward_moves(game, player);
+    let mut double_foreward_moves = generate_pawn_double_forward_moves(game, player);
+    let mut capture_moves = generate_pawn_attack_moves(game, player);
 
-    return (
-        single_forward_non_promotion,
-        single_forward_promotion,
-        double_foreward,
-        capture_non_promotion,
-        capture_promotion,
-    );
+    let mut moves = Vec::<MoveItem>::new();
+    moves.append(&mut capture_moves);
+    moves.append(&mut single_forward_moves);
+    moves.append(&mut double_foreward_moves);
+
+    return moves;
 }
 
-pub fn generate_pawn_single_forward_moves(
-    game: &GameState,
-    player: Player,
-) -> (Vec<Move>, Vec<Move>) {
+pub fn generate_pawn_single_forward_moves(game: &GameState, player: Player) -> Vec<MoveItem> {
     let pawnboard = game.bitboards.get_board_by_piece(Piece::Pawn(player));
     let can_move = pawnboard & !RANK_1_MASK & !RANK_8_MASK;
     let moved_forward = {
@@ -40,23 +32,23 @@ pub fn generate_pawn_single_forward_moves(
     // let (player_occupied, opponent_occupied) = (game.bitboards.get_occupied_by_player(player).uint(), game.bitboards.get_occupied_by_player(player.opponent()).uint());
     let mut valid = moved_forward & !game.bitboards.get_occupied();
 
-    let mut non_promotion_moves = Vec::<Move>::new();
-    let mut promotion_moves = Vec::<Move>::new();
+    let mut non_promotion_moves = Vec::<MoveItem>::new();
+    let mut promotion_moves = Vec::<MoveItem>::new();
 
     while valid != 0 {
         let pos = valid.pop_mut();
 
-        let to_rank = pos / 8;
-        let to_file = pos % 8;
-        let from_rank = {
-            match player {
+        let to = Square::from(pos);
+
+        let from = Square {
+            file: pos % 8,
+            rank: match player {
                 Player::White => pos / 8 - 1,
                 Player::Black => pos / 8 + 1,
-            }
+            },
         };
-        let from_file = pos % 8;
 
-        if to_rank == 0 || to_rank == 7 {
+        if to.rank == 0 || to.rank == 7 {
             // we can prob only do queen and knight, should help reduce tree without hurting performance
             // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
             let promotion_pieces = vec![
@@ -65,31 +57,48 @@ pub fn generate_pawn_single_forward_moves(
                 Piece::Knight(player),
                 Piece::Bishop(player),
             ];
-            for promotion in promotion_pieces {
-                promotion_moves.push(Move {
-                    from_rank,
-                    from_file,
-                    to_rank,
-                    to_file,
-                    promotion,
+            for promotion_piece in promotion_pieces {
+                promotion_moves.push(MoveItem {
+                    from_pos: from.into(),
+                    to_pos: to.into(),
+                    piece: Piece::Pawn(player),
+                    promotion_piece,
+                    captured_piece: Piece::Empty,
+                    promoting: true,
+                    capturing: false,
+                    double: false,
+                    enpassant: false,
+                    castling: false,
+                    score: 0.,
                 })
             }
         } else {
             let promotion = Piece::Pawn(player);
-            non_promotion_moves.push(Move {
-                from_rank,
-                from_file,
-                to_rank,
-                to_file,
-                promotion,
+            non_promotion_moves.push(MoveItem {
+                from_pos: from.into(),
+                to_pos: to.into(),
+                piece: Piece::Pawn(player),
+                promotion_piece: Piece::Empty,
+                captured_piece: Piece::Empty,
+                promoting: false,
+                capturing: false,
+                double: false,
+                enpassant: false,
+                castling: false,
+                score: 0.,
             })
         }
     }
 
-    return (non_promotion_moves, promotion_moves);
+    // temporarily as i figure out how i want to structure things
+    let mut moves = Vec::<MoveItem>::new();
+    moves.append(&mut non_promotion_moves);
+    moves.append(&mut promotion_moves);
+
+    return moves;
 }
 
-pub fn generate_pawn_double_forward_moves(game: &GameState, player: Player) -> Vec<Move> {
+pub fn generate_pawn_double_forward_moves(game: &GameState, player: Player) -> Vec<MoveItem> {
     let pawnboard = game.bitboards.get_board_by_piece(Piece::Pawn(player));
     let can_move = pawnboard & {
         match player {
@@ -113,19 +122,13 @@ pub fn generate_pawn_double_forward_moves(game: &GameState, player: Player) -> V
     });
     let mut valid = moved_forward & mask;
 
-    let mut moves = Vec::<Move>::new();
+    let mut moves = Vec::<MoveItem>::new();
 
     while valid != 0 {
         let pos = valid.pop_mut();
 
-        let Square {
-            rank: to_rank,
-            file: to_file,
-        } = Square::from(pos);
-        let Square {
-            rank: from_rank,
-            file: from_file,
-        } = Square::from({
+        let to = Square::from(pos);
+        let from = Square::from({
             match player {
                 Player::White => pos - 16,
                 Player::Black => pos + 16,
@@ -133,19 +136,25 @@ pub fn generate_pawn_double_forward_moves(game: &GameState, player: Player) -> V
         });
 
         let promotion = Piece::Pawn(player);
-        moves.push(Move {
-            from_rank,
-            from_file,
-            to_rank,
-            to_file,
-            promotion,
+        moves.push(MoveItem {
+            from_pos: from.into(),
+            to_pos: to.into(),
+            piece: Piece::Pawn(player),
+            promotion_piece: Piece::Empty,
+            captured_piece: Piece::Empty,
+            promoting: false,
+            capturing: false,
+            double: true,
+            enpassant: false,
+            castling: false,
+            score: 0.,
         })
     }
 
     return moves;
 }
 
-pub fn generate_pawn_attack_moves(game: &GameState, player: Player) -> (Vec<Move>, Vec<Move>) {
+pub fn generate_pawn_attack_moves(game: &GameState, player: Player) -> Vec<MoveItem> {
     let mut pawns = game
         .bitboards
         .get_board_by_piece(Piece::Pawn(player))
@@ -154,8 +163,8 @@ pub fn generate_pawn_attack_moves(game: &GameState, player: Player) -> (Vec<Move
 
     // pawns.print_board();
 
-    let mut non_promotion_moves: Vec<Move> = vec![];
-    let mut promotion_moves: Vec<Move> = vec![];
+    let mut non_promotion_moves: Vec<MoveItem> = vec![];
+    let mut promotion_moves: Vec<MoveItem> = vec![];
 
     while pawns != 0 {
         let pos = pawns.pop_mut();
@@ -189,11 +198,11 @@ pub fn generate_pawn_attack_moves(game: &GameState, player: Player) -> (Vec<Move
         for to in to_check {
             // println!("{:?} {:?}", square, to);
             // occupied or en passant capture
-            if opposite_occupied.get(to.into())
-                || (game.enpassant_square.exists
-                    && to.rank == game.enpassant_square.pos.rank
-                    && to.file == game.enpassant_square.pos.file)
-            {
+            let can_enpassant = game.enpassant_square.exists
+                && to.rank == game.enpassant_square.pos.rank
+                && to.file == game.enpassant_square.pos.file;
+
+            if opposite_occupied.get(to.into()) || can_enpassant {
                 // promotion on capture
                 if to.rank == 0 || to.rank == 7 {
                     // we can prob only do queen and knight, should help reduce tree without hurting performance
@@ -204,27 +213,44 @@ pub fn generate_pawn_attack_moves(game: &GameState, player: Player) -> (Vec<Move
                         Piece::Knight(player),
                         Piece::Bishop(player),
                     ];
-                    for promotion in promotion_pieces {
-                        promotion_moves.push(Move {
-                            from_rank: rank,
-                            from_file: file,
-                            to_rank: to.rank,
-                            to_file: to.file,
-                            promotion,
+                    for promotion_piece in promotion_pieces {
+                        promotion_moves.push(MoveItem {
+                            from_pos: pos,
+                            to_pos: to.into(),
+                            piece: Piece::Pawn(player),
+                            promotion_piece,
+                            captured_piece: game.bitboards.get_piece_by_bit_pos(to.into()),
+                            promoting: true,
+                            capturing: true,
+                            double: false,
+                            enpassant: false,
+                            castling: false,
+                            score: 0.,
                         })
                     }
                 } else {
-                    non_promotion_moves.push(Move {
-                        from_rank: rank,
-                        from_file: file,
-                        to_rank: to.rank,
-                        to_file: to.file,
-                        promotion: Piece::Pawn(player),
+                    non_promotion_moves.push(MoveItem {
+                        from_pos: pos,
+                        to_pos: to.into(),
+                        piece: Piece::Pawn(player),
+                        promotion_piece: Piece::Empty,
+                        captured_piece: game.bitboards.get_piece_by_bit_pos(to.into()),
+                        promoting: false,
+                        capturing: true,
+                        double: false,
+                        enpassant: can_enpassant,
+                        castling: false,
+                        score: 0.,
                     })
                 }
             }
         }
     }
 
-    return (non_promotion_moves, promotion_moves);
+    // temporarily as i figure out how i want to structure things
+    let mut moves = Vec::<MoveItem>::new();
+    moves.append(&mut non_promotion_moves);
+    moves.append(&mut promotion_moves);
+
+    return moves;
 }

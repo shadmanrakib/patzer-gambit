@@ -1,4 +1,4 @@
-use crate::moves::move_data::Move;
+use crate::moves::move_item::MoveItem;
 use crate::moves::precalculate::cache::PrecalculatedCache;
 use crate::state::bitboards::BitBoard;
 use crate::state::game::GameState;
@@ -11,9 +11,9 @@ pub fn generate_knight_moves(
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
-) -> (Vec<Move>, Vec<Move>) {
-    let mut silents: Vec<Move> = vec![];
-    let mut captures: Vec<Move> = vec![];
+) -> Vec<MoveItem> {
+    let mut silents: Vec<MoveItem> = vec![];
+    let mut captures: Vec<MoveItem> = vec![];
 
     let mut knights = game
         .bitboards
@@ -35,12 +35,18 @@ pub fn generate_knight_moves(
 
             let to = Square::from(capture_pos);
 
-            captures.push(Move {
-                from_rank: from.rank,
-                from_file: from.file,
-                to_rank: to.rank,
-                to_file: to.file,
-                promotion: Piece::Knight(player),
+            captures.push(MoveItem {
+                from_pos: from.into(),
+                to_pos: to.into(),
+                piece: Piece::Knight(player),
+                promotion_piece: Piece::Empty,
+                captured_piece: game.bitboards.get_piece_by_bit_pos(capture_pos),
+                promoting: false,
+                capturing: true,
+                double: false,
+                enpassant: false,
+                castling: false,
+                score: 0.,
             })
         }
 
@@ -50,15 +56,26 @@ pub fn generate_knight_moves(
 
             let to = Square::from(silent_pos);
 
-            silents.push(Move {
-                from_rank: from.rank,
-                from_file: from.file,
-                to_rank: to.rank,
-                to_file: to.file,
-                promotion: Piece::Knight(player),
+            silents.push(MoveItem {
+                from_pos: from.into(),
+                to_pos: to.into(),
+                piece: Piece::Knight(player),
+                promotion_piece: Piece::Empty,
+                captured_piece: Piece::Empty,
+                promoting: false,
+                capturing: false,
+                double: false,
+                enpassant: false,
+                castling: false,
+                score: 0.,
             })
         }
     }
 
-    return (silents, captures);
+    // temporarily as i figure out how i want to structure things
+    let mut moves = Vec::<MoveItem>::new();
+    moves.append(&mut silents);
+    moves.append(&mut captures);
+
+    return moves;
 }

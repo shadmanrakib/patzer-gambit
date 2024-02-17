@@ -121,3 +121,14 @@ pub fn times_square_attacked(
 
     return attacked_count;
 }
+
+
+#[inline]
+pub fn is_square_attacked(pos: i8, attacker: Player, game: &GameState, cache: &PrecalculatedCache) -> bool {
+    return times_square_attacked(
+        pos,
+        attacker,
+        game,
+        cache,
+    ) > 0;
+}
