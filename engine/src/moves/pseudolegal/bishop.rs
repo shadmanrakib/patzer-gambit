@@ -3,7 +3,7 @@ use crate::{
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-pub fn generate_bishops_moves_on_the_fly(
+pub fn generate_bishops_moves(
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,

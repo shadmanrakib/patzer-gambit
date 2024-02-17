@@ -24,9 +24,9 @@ pub fn times_square_attacked(
             .get_board_by_piece(Piece::Knight(attacker));
     attacked_count += attacking_knights.count_ones() as i8;
 
-    println!("knights");
-    knight_move_mask.print_board();
-    attacking_knights.print_board();
+    // println!("knights");
+    // knight_move_mask.print_board();
+    // attacking_knights.print_board();
 
     // rook and queen vertical and horizontal
     let rook_magic_index = hash_with_magic(
@@ -49,10 +49,10 @@ pub fn times_square_attacked(
     attacked_count += attacking_queens_straight.count_ones() as i8;
 
 
-    println!("rooks & q straight");
-    rook_moves_mask.print_board();
-    attacking_rooks.print_board();
-    attacking_queens_straight.print_board();
+    // println!("rooks & q straight");
+    // rook_moves_mask.print_board();
+    // attacking_rooks.print_board();
+    // attacking_queens_straight.print_board();
 
     // bishop and queen diagonal
     let bishop_magic_index = hash_with_magic(
@@ -75,16 +75,16 @@ pub fn times_square_attacked(
     attacked_count += attacking_bishops.count_ones() as i8;
     attacked_count += attacking_queens_diagonal.count_ones() as i8;
 
-    println!("bishops & q diag");
-    bishop_moves_mask.print_board();
-    attacking_bishops.print_board();
-    attacking_queens_diagonal.print_board();
+    // println!("bishops & q diag");
+    // bishop_moves_mask.print_board();
+    // attacking_bishops.print_board();
+    // attacking_queens_diagonal.print_board();
 
 
     // pawn attack
     let opponent_pawns = game.bitboards.get_board_by_piece(Piece::Pawn(attacker));
-    println!("pawns");
-    opponent_pawns.print_board();
+    // println!("pawns");
+    // opponent_pawns.print_board();
     let mut attacking_pawns = 0;
     // left file capture
     let attacking_pawn_rank = match attacker {
@@ -117,7 +117,7 @@ pub fn times_square_attacked(
             attacking_pawns.set(to_check.into());
         }
     }
-    attacking_pawns.print_board();
+    // attacking_pawns.print_board();
 
     return attacked_count;
 }

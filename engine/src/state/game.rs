@@ -1,7 +1,8 @@
 use std::fs::Permissions;
 
 use regex::Regex;
-use super::{bitboards::BitBoards, fen, pieces::Piece, player::Player, square::Square};
+use super::{bitboards::BitBoards, pieces::Piece, player::Player, square::Square};
+use crate::fen;
 
 #[derive(Default, Debug)]
 pub struct CastlePermissions {
@@ -46,13 +47,24 @@ impl GameState {
 
         // need to make this cleaner
         return Ok(GameState {
-            bitboards: fen::parse_fen_board(parts[0]).unwrap(),
-            side_to_move: fen::parse_fen_side(parts[1]).unwrap(),
-            castle_permissions: fen::parse_fen_castle(parts[2]).unwrap(),
-            enpassant_square: fen::parse_fen_enpassant(parts[3]).unwrap(),
+            bitboards: fen::parse::parse_fen_board(parts[0]).unwrap(),
+            side_to_move: fen::parse::parse_fen_side(parts[1]).unwrap(),
+            castle_permissions: fen::parse::parse_fen_castle(parts[2]).unwrap(),
+            enpassant_square: fen::parse::parse_fen_enpassant(parts[3]).unwrap(),
             half_move_clock: parts[4].parse::<u32>().unwrap(),
             full_move_clock: parts[5].parse::<u32>().unwrap(),
         });
+    }
+
+    pub fn to_fen(&self) -> String {
+        let board = fen::stringify::stringify_board(self);
+        let side = fen::stringify::stringify_side(self);
+        let castling = fen::stringify::stringify_castling(self);
+        let enpassant = fen::stringify::stringify_enpassant(self);
+        let half_move: u32 = self.half_move_clock;
+        let full_move: u32 = self.full_move_clock;
+
+        return format!("{board} {side} {castling} {enpassant} {half_move} {full_move}");
     }
     
     pub fn print_board(&self) {

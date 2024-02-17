@@ -8,7 +8,7 @@ use crate::{
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-pub fn generate_queens_moves_on_the_fly(
+pub fn generate_queens_moves(
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
@@ -44,18 +44,10 @@ pub fn generate_queens_moves_on_the_fly(
         );
         let bishop_moves_mask = cache.bishop_magic_attack_tables[pos as usize][bishop_magic_index];
 
-        let moves_mask = create_rook_potential_moves_mask_on_the_fly(pos, occupied)
-            | create_bishop_potential_moves_mask_on_the_fly(pos, occupied);
+        let moves_mask = rook_moves_mask | bishop_moves_mask;
+
         let mut valid_silents = moves_mask & !game.bitboards.get_occupied();
         let mut valid_captures = moves_mask & opponent_occupied;
-
-
-        let a = rook_moves_mask | bishop_moves_mask;
-        if a != moves_mask {
-            a.print_board();
-            moves_mask.print_board();
-            println!("does not");
-        }
 
         while valid_captures != 0 {
             let capture_pos = valid_captures.pop_mut();

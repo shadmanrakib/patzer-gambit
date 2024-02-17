@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use super::{bitboards::BitBoards, game::{CastlePermissions, EnpassantSquare}, pieces::Piece, player::Player, square::Square};
+use crate::state::{bitboards::BitBoards, game::{CastlePermissions, EnpassantSquare}, pieces::Piece, player::Player, square::Square};
 
 pub fn parse_fen_board(part: &str) -> Result<BitBoards, String> {
     let mut bitboards: BitBoards = Default::default();

@@ -152,7 +152,7 @@ pub fn generate_pawn_attack_moves(game: &GameState, player: Player) -> (Vec<Move
         .clone();
     let opposite_occupied = game.bitboards.get_occupied_by_player(player.opponent());
 
-    pawns.print_board();
+    // pawns.print_board();
 
     let mut non_promotion_moves: Vec<Move> = vec![];
     let mut promotion_moves: Vec<Move> = vec![];

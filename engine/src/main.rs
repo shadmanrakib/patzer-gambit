@@ -1,6 +1,7 @@
 mod constants;
 mod moves;
 mod state;
+mod fen;
 
 use std::time::SystemTime;
 
@@ -14,9 +15,12 @@ fn main() {
     //     "2b5/4Bpbp/7r/p1Np4/2pP1P1P/5P1p/1k6/1B3R1K b - d3 0 13".into(),
     // )
     // .unwrap();
-    // let game = state::game::GameState::from_fen("rnbqkbnr/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1".into()).unwrap();
-    let game = state::game::GameState::from_fen("1pK5/1p1p4/b7/1PP5/1k4b1/1PP1b3/8/2R5 b - - 0 1".into())
-        .unwrap();
+    let game = state::game::GameState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into()).unwrap();
+    // "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    // let game = state::game::GameState::from_fen("1pK5/1p1p4/b7/1PP5/1k4b1/1PP1b3/8/2R5 b - - 0 1".into())
+    //     .unwrap();
+    // let game = state::game::GameState::from_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1".into())
+    // .unwrap();
 
     let start_time = SystemTime::now();
     let cache = moves::precalculate::cache::PrecalculatedCache::create();
@@ -28,24 +32,15 @@ fn main() {
             .as_millis()
     );
     // let game = state::game::GameState::from_fen("r7/pPPppp2/p2P/p7/p7/4p/PppPpPPP/R2R4 w KQkq - 0 1".into()).unwrap();
+    println!("{}", game.to_fen());
     game.print_state();
-    println!(
-        "attacked: {}",
-        times_square_attacked(
-            game.bitboards
-                .get_board_by_piece(Piece::King(Player::Black))
-                .clone()
-                .pop_mut(),
-            Player::White,
-            &game,
-            &cache,
-        )
-    );
-    // pawns_test(&game, &cache, state::player::Player::White);
-    // knights_test(&game, &cache, state::player::Player::White);
-    // king_test(&game, &cache, state::player::Player::White);
-    // rooks_test(&game, &cache, state::player::Player::White);
-    // bishops_test(&game, &cache, state::player::Player::White);
+
+    pawns_test(&game, &cache, state::player::Player::White);
+    knights_test(&game, &cache, state::player::Player::White);
+    king_test(&game, &cache, state::player::Player::White);
+    rooks_test(&game, &cache, state::player::Player::White);
+    bishops_test(&game, &cache, state::player::Player::White);
+    queens_test(&game, &cache, state::player::Player::White);
 }
 
 fn pawns_test(
@@ -123,7 +118,7 @@ fn bishops_test(
     player: state::player::Player,
 ) {
     let (silents, captures) =
-        moves::pseudolegal::bishop::generate_bishops_moves_on_the_fly(&game, player, cache);
+        moves::pseudolegal::bishop::generate_bishops_moves(&game, player, cache);
 
     println!("bishop silents:");
     for m in silents {
@@ -141,7 +136,7 @@ fn rooks_test(
     player: state::player::Player,
 ) {
     let (silents, captures) =
-        moves::pseudolegal::rook::generate_rooks_moves_on_the_fly(&game, player, cache);
+        moves::pseudolegal::rook::generate_rooks_moves(&game, player, cache);
 
     println!("rook silents:");
     for m in silents {
@@ -159,7 +154,7 @@ fn queens_test(
     player: state::player::Player,
 ) {
     let (silents, captures) =
-        moves::pseudolegal::rook::generate_rooks_moves_on_the_fly(&game, player, cache);
+        moves::pseudolegal::queen::generate_queens_moves(&game, player, cache);
 
     println!("queens silents:");
     for m in silents {
