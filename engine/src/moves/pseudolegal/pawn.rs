@@ -1,5 +1,5 @@
 use crate::constants::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
-use crate::moves::move_item::MoveItem;
+use crate::moves::move_data::MoveItem;
 use crate::state::bitboards::BitBoard;
 use crate::state::square::Square;
 use crate::state::{game::GameState, pieces::Piece, player::Player};
@@ -7,6 +7,7 @@ use crate::state::{game::GameState, pieces::Piece, player::Player};
 // use crate::masks::RANK_1_MASK;
 
 // single forward non promotion, double, promotion, capture
+#[inline(always)]
 pub fn generate_pawn_moves(game: &GameState, player: Player) -> Vec<MoveItem> {
     let mut single_forward_moves = generate_pawn_single_forward_moves(game, player);
     let mut double_foreward_moves = generate_pawn_double_forward_moves(game, player);
@@ -223,7 +224,7 @@ pub fn generate_pawn_attack_moves(game: &GameState, player: Player) -> Vec<MoveI
                             promoting: true,
                             capturing: true,
                             double: false,
-                            enpassant: false,
+                            enpassant: can_enpassant,
                             castling: false,
                             score: 0.,
                         })

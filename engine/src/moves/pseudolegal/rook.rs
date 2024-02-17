@@ -1,6 +1,6 @@
 use crate::{
     moves::{
-        move_item::MoveItem,
+        move_data::MoveItem,
         precalculate::{
             cache::PrecalculatedCache, magic_bitboards::hash_with_magic,
         },
@@ -8,7 +8,8 @@ use crate::{
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-pub fn generate_rooks_moves(
+#[inline(always)]
+pub fn generate_rook_moves(
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
@@ -18,7 +19,7 @@ pub fn generate_rooks_moves(
 
     let mut rooks = game
         .bitboards
-        .get_board_by_piece(Piece::Bishop(player))
+        .get_board_by_piece(Piece::Rook(player))
         .clone();
     let occupied = game.bitboards.get_occupied().clone();
     let opponent_occupied = game.bitboards.get_occupied_by_player(player.opponent());

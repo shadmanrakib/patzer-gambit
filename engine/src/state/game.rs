@@ -1,10 +1,10 @@
-use std::fs::Permissions;
-
-use regex::Regex;
 use super::{bitboards::BitBoards, pieces::Piece, player::Player, square::Square};
-use crate::fen;
+use crate::{
+    fen,
+    moves::move_data::{MoveItem, UnmakeMoveMetadata},
+};
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct CastlePermissions {
     pub white_queen_side: bool,
     pub white_king_side: bool,
@@ -12,14 +12,25 @@ pub struct CastlePermissions {
     pub black_king_side: bool,
 }
 
-#[derive(Debug)]
+impl CastlePermissions {
+    pub fn none() -> CastlePermissions {
+        CastlePermissions {
+            white_queen_side: false,
+            white_king_side: false,
+            black_queen_side: false,
+            black_king_side: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct EnpassantSquare {
     pub exists: bool,
     pub pos: Square,
 }
 
 // inspired by FEN notation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GameState {
     pub bitboards: BitBoards,
     pub side_to_move: Player,
@@ -29,12 +40,160 @@ pub struct GameState {
     // It marks the number of moves since the last pawn push or piece capture.
     pub half_move_clock: u32,
     // It marks the number of full moves. It starts at 1 and is incremented after black's move.
-    pub full_move_clock: u32,
+    pub full_move_number: u32,
 }
 
 impl GameState {
+    pub fn set(&mut self, other: GameState) {
+        self.bitboards = other.bitboards;
+        self.side_to_move = other.side_to_move;
+        self.castle_permissions = other.castle_permissions;
+        self.enpassant_square = other.enpassant_square;
+        self.half_move_clock = other.half_move_clock;
+        self.full_move_number = other.full_move_number;
+    }
+    pub fn make_move(&mut self, move_item: &MoveItem) -> UnmakeMoveMetadata {
+        let prev_castle_permissions = self.castle_permissions.clone();
+        let prev_enpassant_square = self.enpassant_square.clone();
+        let prev_half_move_clock = self.half_move_clock;
+
+        // ==============================================
+
+        // lets now make the move
+        // all other moves get handled
+        self.bitboards.unset_by_bit_pos(move_item.from_pos);
+        self.bitboards
+            .set_or_replace_piece_by_bit_pos(move_item.piece.clone(), move_item.to_pos);
+
+        // handle pawn left from enpassant capture
+        if move_item.enpassant {
+            let from = Square::from(move_item.from_pos);
+            let to = Square::from(move_item.to_pos);
+
+            let rank = from.rank;
+            let file = to.file;
+
+            let leftover_square = Square { rank, file };
+
+            self.bitboards.unset_by_bit_pos(leftover_square.into());
+        }
+
+        if move_item.castling {
+            // move rook to place
+            match (self.side_to_move, move_item.to_pos) {
+                (Player::White, 2) => {
+                    self.bitboards.unset_by_bit_pos(0);
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 3);
+                }
+                (Player::White, 6) => {
+                    self.bitboards.unset_by_bit_pos(7);
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 5);
+                }
+                (Player::Black, 58) => {
+                    self.bitboards.unset_by_bit_pos(56);
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 59);
+                }
+                (Player::Black, 62) => {
+                    self.bitboards.unset_by_bit_pos(63);
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 61);
+                }
+                (_, _) => {
+                    // TODO: handle error
+                }
+            }
+        }
+
+        // ==============================================
+
+        // half move clock needs to be incremented if no capture, castle, or pawn move
+        // to enforce draw by 50 moves rule, else set to 0 to reset
+        if !move_item.capturing
+            && !move_item.castling
+            && move_item.piece != Piece::Pawn(self.side_to_move)
+        {
+            self.half_move_clock += 1;
+        } else {
+            self.half_move_clock = 0;
+        }
+
+        // we want to create new enpassant square if needed, or revoke old
+        if move_item.double {
+            let Square {
+                rank: to_rank,
+                file,
+            } = Square::from(move_item.to_pos);
+            let Square {
+                rank: from_rank,
+                file: _,
+            } = Square::from(move_item.from_pos);
+            let enpassant_rank: i8 = {
+                if to_rank > from_rank {
+                    to_rank - 1
+                } else {
+                    to_rank + 1
+                }
+            };
+            self.enpassant_square = EnpassantSquare {
+                exists: true,
+                pos: Square {
+                    rank: enpassant_rank,
+                    file,
+                },
+            }
+        } else {
+            // no enpassant square
+            self.enpassant_square = EnpassantSquare {
+                exists: false,
+                pos: Square { rank: 8, file: 8 },
+            }
+        }
+
+        // full move number needs to be incremented if side to play is black
+        if self.side_to_move == Player::Black {
+            self.full_move_number += 1;
+        }
+
+        // side to play needs to change to opposite
+        self.side_to_move = self.side_to_move.opponent();
+
+        // revoke necessary castling permissions
+        if move_item.castling || move_item.piece == Piece::King(self.side_to_move) {
+            self.castle_permissions = CastlePermissions::none();
+        } else if move_item.piece == Piece::Rook(self.side_to_move) {
+            match (self.side_to_move, move_item.from_pos) {
+                (Player::White, 0) => {
+                    self.castle_permissions.white_queen_side = false;
+                }
+                (Player::White, 7) => {
+                    self.castle_permissions.white_king_side = false;
+                }
+                (Player::Black, 56) => {
+                    self.castle_permissions.black_queen_side = false;
+                }
+                (Player::Black, 63) => {
+                    self.castle_permissions.black_king_side = false;
+                }
+                (_, _) => {}
+            }
+        }
+
+        UnmakeMoveMetadata {
+            captured_piece: move_item.captured_piece.clone(),
+            prev_castle_permissions,
+            prev_enpassant_square,
+            prev_half_move_clock,
+        }
+    }
+
+    pub fn unmake_move(&mut self, move_item: MoveItem, unmake_metadata: UnmakeMoveMetadata) {}
+
     pub fn new() -> GameState {
-        let start_board_fen = String::from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        let start_board_fen =
+            String::from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         return Self::from_fen(start_board_fen).unwrap();
     }
 
@@ -52,7 +211,7 @@ impl GameState {
             castle_permissions: fen::parse::parse_fen_castle(parts[2]).unwrap(),
             enpassant_square: fen::parse::parse_fen_enpassant(parts[3]).unwrap(),
             half_move_clock: parts[4].parse::<u32>().unwrap(),
-            full_move_clock: parts[5].parse::<u32>().unwrap(),
+            full_move_number: parts[5].parse::<u32>().unwrap(),
         });
     }
 
@@ -62,11 +221,11 @@ impl GameState {
         let castling = fen::stringify::stringify_castling(self);
         let enpassant = fen::stringify::stringify_enpassant(self);
         let half_move: u32 = self.half_move_clock;
-        let full_move: u32 = self.full_move_clock;
+        let full_move: u32 = self.full_move_number;
 
         return format!("{board} {side} {castling} {enpassant} {half_move} {full_move}");
     }
-    
+
     pub fn print_board(&self) {
         for rank in (0..8).rev() {
             print!("{} | ", rank + 1);
@@ -81,13 +240,15 @@ impl GameState {
         println!();
         println!("fen: {}", self.to_fen());
     }
-    
+
     pub fn print_state(&self) {
         self.print_board();
         println!("Player to move: {}", self.side_to_move.to_string());
         println!("Castling: {:?}", self.castle_permissions);
         println!("Enpassant: {:?}", self.enpassant_square);
-        println!("Half move: {} \t Full move: {}", self.half_move_clock, self.full_move_clock);
-
+        println!(
+            "Half move: {} \t Full move: {}",
+            self.half_move_clock, self.full_move_number
+        );
     }
 }

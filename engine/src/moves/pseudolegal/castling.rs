@@ -1,12 +1,12 @@
 use crate::{
     moves::{
         attacked::{in_check::is_in_check, square_attacked::is_square_attacked},
-        move_item::MoveItem,
+        move_data::MoveItem,
         precalculate::cache::PrecalculatedCache,
     },
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player},
 };
-
+#[inline(always)]
 pub fn generate_castling_moves(
     game: &GameState,
     player: Player,
@@ -53,6 +53,7 @@ pub fn generate_castling_moves(
                 && !occupied.get(3)
                 && !is_square_attacked(3, player.opponent(), game, cache)
             {
+                // TODO: need to change this to use king
                 moves.push(MoveItem {
                     from_pos: 4,
                     to_pos: 2,

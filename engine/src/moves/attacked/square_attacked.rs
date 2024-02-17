@@ -3,7 +3,7 @@ use crate::{
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-#[inline]
+#[inline(always)]
 pub fn times_square_attacked(
     pos: i8,
     attacker: Player,
@@ -98,7 +98,7 @@ pub fn times_square_attacked(
         };
         if opponent_pawns.get(to_check.into()) {
             attacked_count += 1;
-            println!("pawn left {}", <Square as Into<i8>>::into(to_check));
+            // println!("pawn left {}", <Square as Into<i8>>::into(to_check));
             attacking_pawns.set(to_check.into());
         }
     }
@@ -113,7 +113,7 @@ pub fn times_square_attacked(
         };
         if opponent_pawns.get(to_check.into()) {
             attacked_count += 1;
-            println!("pawn right {}", <Square as Into<i8>>::into(to_check));
+            // println!("pawn right {}", <Square as Into<i8>>::into(to_check));
             attacking_pawns.set(to_check.into());
         }
     }

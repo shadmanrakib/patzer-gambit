@@ -1,12 +1,13 @@
 use crate::{
     moves::{
-        move_item::MoveItem,
+        move_data::MoveItem,
         precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
     },
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-pub fn generate_queens_moves(
+#[inline(always)]
+pub fn generate_queen_moves(
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,

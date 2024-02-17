@@ -1,4 +1,4 @@
-use crate::moves::move_item::MoveItem;
+use crate::moves::move_data::MoveItem;
 use crate::moves::precalculate::cache::PrecalculatedCache;
 use crate::state::bitboards::BitBoard;
 use crate::state::game::GameState;
@@ -7,6 +7,7 @@ use crate::state::player::Player;
 use crate::state::square::Square;
 
 // single forward non promotion, double, promotion, capture
+#[inline(always)]
 pub fn generate_king_moves(
     game: &GameState,
     player: Player,
