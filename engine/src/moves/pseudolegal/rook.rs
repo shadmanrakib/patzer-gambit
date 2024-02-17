@@ -1,9 +1,18 @@
 use crate::{
-    moves::{move_data::Move, precalculate::rook::create_rook_potential_moves_mask_on_the_fly},
+    moves::{
+        move_data::Move,
+        precalculate::{
+            cache::PrecalculatedCache, magic_bitboards::hash_with_magic,
+        },
+    },
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-pub fn generate_rooks_moves_on_the_fly(game: &GameState, player: Player) -> (Vec<Move>, Vec<Move>) {
+pub fn generate_rooks_moves_on_the_fly(
+    game: &GameState,
+    player: Player,
+    cache: &PrecalculatedCache,
+) -> (Vec<Move>, Vec<Move>) {
     let mut silents: Vec<Move> = vec![];
     let mut captures: Vec<Move> = vec![];
 
@@ -19,8 +28,15 @@ pub fn generate_rooks_moves_on_the_fly(game: &GameState, player: Player) -> (Vec
 
         let from = Square::from(pos);
 
-        let moves_mask = create_rook_potential_moves_mask_on_the_fly(pos, occupied);
-        let mut valid_silents = moves_mask & !game.bitboards.get_occupied();
+        let magic_index = hash_with_magic(
+            cache.rook_potential_blockers_masks[pos as usize],
+            occupied,
+            cache.rook_magics[pos as usize],
+            cache.rook_bit_counts[pos as usize],
+        );
+        let moves_mask = cache.rook_magic_attack_tables[pos as usize][magic_index];
+
+        let mut valid_silents = moves_mask & !occupied;
         let mut valid_captures = moves_mask & opponent_occupied;
 
         while valid_captures != 0 {

@@ -4,37 +4,48 @@ mod state;
 
 use std::time::SystemTime;
 
-use moves::precalculate::magic_bitboards::find_rook_magic_numbers;
-use state::bitboards::BitBoard;
-
-extern crate xorshift;
-use xorshift::{Rand, Rng, SeedableRng, SplitMix64, Xoroshiro128};
-
+use crate::{
+    moves::attacked::square_attacked::times_square_attacked,
+    state::{bitboards::BitBoard, pieces::Piece, player::Player},
+};
 
 fn main() {
     // let game = state::game::GameState::from_fen(
     //     "2b5/4Bpbp/7r/p1Np4/2pP1P1P/5P1p/1k6/1B3R1K b - d3 0 13".into(),
     // )
     // .unwrap();
-    let game = state::game::GameState::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into()).unwrap();
+    // let game = state::game::GameState::from_fen("rnbqkbnr/8/8/8/8/8/8/RNBQKBNR w KQkq - 0 1".into()).unwrap();
+    let game = state::game::GameState::from_fen("1pK5/1p1p4/b7/1PP5/1k4b1/1PP1b3/8/2R5 b - - 0 1".into())
+        .unwrap();
+
+    let start_time = SystemTime::now();
     let cache = moves::precalculate::cache::PrecalculatedCache::create();
+    println!(
+        "Pre-calculated cache create time: {} ms",
+        SystemTime::now()
+            .duration_since(start_time)
+            .unwrap()
+            .as_millis()
+    );
     // let game = state::game::GameState::from_fen("r7/pPPppp2/p2P/p7/p7/4p/PppPpPPP/R2R4 w KQkq - 0 1".into()).unwrap();
     game.print_state();
+    println!(
+        "attacked: {}",
+        times_square_attacked(
+            game.bitboards
+                .get_board_by_piece(Piece::King(Player::Black))
+                .clone()
+                .pop_mut(),
+            Player::White,
+            &game,
+            &cache,
+        )
+    );
     // pawns_test(&game, &cache, state::player::Player::White);
     // knights_test(&game, &cache, state::player::Player::White);
     // king_test(&game, &cache, state::player::Player::White);
     // rooks_test(&game, &cache, state::player::Player::White);
     // bishops_test(&game, &cache, state::player::Player::White);
-    // let mask = moves::precalculate::rook::create_rook_potential_blockers_mask(0);
-    // for bit_set in 0..(2_u64.pow(cache.rook_bit_counts[0].try_into().unwrap())) {
-    //     let subset = moves::precalculate::magic_bitboards::get_subset_of_mask_by_bit_set(mask, cache.rook_bit_counts[0], bit_set);
-    //     subset.print_board();
-    // }
-
-    let now: u64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_nanos().try_into().unwrap();
-    let mut sm: SplitMix64 = SeedableRng::from_seed(now);
-    let mut rng: Xoroshiro128 = Rand::rand(&mut sm);
-    find_rook_magic_numbers(&mut rng, &cache.rook_bit_counts);
 }
 
 fn pawns_test(
@@ -77,7 +88,7 @@ fn knights_test(
     player: state::player::Player,
 ) {
     let (silents, captures) =
-        moves::pseudolegal::knight::generate_knight_moves(&game, &cache.knight_moves_masks, player);
+        moves::pseudolegal::knight::generate_knight_moves(&game, player, cache);
 
     println!("knight silents:");
     for m in silents {
@@ -94,8 +105,7 @@ fn king_test(
     cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
-    let (silents, captures) =
-        moves::pseudolegal::king::generate_king_moves(&game, &cache.king_moves_masks, player);
+    let (silents, captures) = moves::pseudolegal::king::generate_king_moves(&game, player, cache);
 
     println!("king silents:");
     for m in silents {
@@ -113,7 +123,7 @@ fn bishops_test(
     player: state::player::Player,
 ) {
     let (silents, captures) =
-        moves::pseudolegal::bishop::generate_bishops_moves_on_the_fly(&game, player);
+        moves::pseudolegal::bishop::generate_bishops_moves_on_the_fly(&game, player, cache);
 
     println!("bishop silents:");
     for m in silents {
@@ -125,20 +135,37 @@ fn bishops_test(
     }
 }
 
-
 fn rooks_test(
     game: &state::game::GameState,
     cache: &moves::precalculate::cache::PrecalculatedCache,
     player: state::player::Player,
 ) {
     let (silents, captures) =
-        moves::pseudolegal::rook::generate_rooks_moves_on_the_fly(&game, player);
+        moves::pseudolegal::rook::generate_rooks_moves_on_the_fly(&game, player, cache);
 
     println!("rook silents:");
     for m in silents {
         println!("{:?}", m);
     }
     println!("rook captures:");
+    for m in captures {
+        println!("{:?}", m);
+    }
+}
+
+fn queens_test(
+    game: &state::game::GameState,
+    cache: &moves::precalculate::cache::PrecalculatedCache,
+    player: state::player::Player,
+) {
+    let (silents, captures) =
+        moves::pseudolegal::rook::generate_rooks_moves_on_the_fly(&game, player, cache);
+
+    println!("queens silents:");
+    for m in silents {
+        println!("{:?}", m);
+    }
+    println!("queens captures:");
     for m in captures {
         println!("{:?}", m);
     }

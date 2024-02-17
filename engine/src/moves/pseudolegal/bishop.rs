@@ -1,11 +1,12 @@
 use crate::{
-    moves::{move_data::Move, precalculate::bishop::create_bishop_potential_moves_mask_on_the_fly},
+    moves::{move_data::Move, precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic}},
     state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
 pub fn generate_bishops_moves_on_the_fly(
     game: &GameState,
     player: Player,
+    cache: &PrecalculatedCache,
 ) -> (Vec<Move>, Vec<Move>) {
     let mut silents: Vec<Move> = vec![];
     let mut captures: Vec<Move> = vec![];
@@ -22,7 +23,14 @@ pub fn generate_bishops_moves_on_the_fly(
 
         let from = Square::from(pos);
 
-        let moves_mask = create_bishop_potential_moves_mask_on_the_fly(pos, occupied);
+        let magic_index = hash_with_magic(
+            cache.bishop_potential_blockers_masks[pos as usize],
+            occupied,
+            cache.bishop_magics[pos as usize],
+            cache.bishop_bit_counts[pos as usize],
+        );
+        let moves_mask = cache.bishop_magic_attack_tables[pos as usize][magic_index];
+
         let mut valid_silents = moves_mask & !game.bitboards.get_occupied();
         let mut valid_captures = moves_mask & opponent_occupied;
 

@@ -1,4 +1,5 @@
 use crate::moves::move_data::Move;
+use crate::moves::precalculate::cache::PrecalculatedCache;
 use crate::state::bitboards::BitBoard;
 use crate::state::game::GameState;
 use crate::state::pieces::Piece;
@@ -8,8 +9,8 @@ use crate::state::square::Square;
 // single forward non promotion, double, promotion, capture
 pub fn generate_knight_moves(
     game: &GameState,
-    knight_moves_masks: &[u64; 64],
     player: Player,
+    cache: &PrecalculatedCache,
 ) -> (Vec<Move>, Vec<Move>) {
     let mut silents: Vec<Move> = vec![];
     let mut captures: Vec<Move> = vec![];
@@ -25,7 +26,7 @@ pub fn generate_knight_moves(
 
         let from = Square::from(pos);
 
-        let moves_mask = knight_moves_masks[pos as usize];
+        let moves_mask = cache.knight_moves_masks[pos as usize];
         let mut valid_silents = moves_mask & !game.bitboards.get_occupied();
         let mut valid_captures = moves_mask & opponent_occupied;
 
