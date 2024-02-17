@@ -119,6 +119,15 @@ pub fn times_square_attacked(
     }
     // attacking_pawns.print_board();
 
+
+    // king attack
+    let king_move_mask = cache.king_moves_masks[pos as usize];
+    let attacking_king = king_move_mask
+        & game
+            .bitboards
+            .get_board_by_piece(Piece::King(attacker));
+    attacked_count += attacking_king.count_ones() as i8;
+
     return attacked_count;
 }
 
