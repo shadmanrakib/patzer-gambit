@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::state::{bitboards::BitBoards, game::{CastlePermissions, EnpassantSquare}, pieces::Piece, player::Player, square::Square};
+use crate::state::{bitboards::BitBoards, game::{CastlePermissions, EnpassantSquare}, pieces::Piece, player::Player, square::{self, Square}};
 
 pub fn parse_fen_board(part: &str) -> Result<BitBoards, String> {
     let mut bitboards: BitBoards = Default::default();
@@ -84,11 +84,13 @@ pub fn parse_fen_enpassant(part: &str) -> Result<EnpassantSquare, String> {
     match part {
         "-" => Ok(EnpassantSquare{exists: false, pos: Square{rank: 8,file: 8}}),
         part3 if re.is_match(part3) => {
-            let rank = (part3.chars().nth(1).unwrap() as u32 - '1' as u32) as i8;
-            let file = (part3.chars().nth(0).unwrap() as u32 - 'a' as u32) as i8;
-            Ok(EnpassantSquare{exists: true, pos: Square{rank, file}})
+            if let Ok(square) = Square::parse_string(part3.into()) {
+                return Ok(EnpassantSquare{exists: true, pos: square});
+            }
+            
+            return Err("Invalid enpassant square".into());
         }
-        _ => Err("Invalid player character".into()),
+        _ => Err("Invalid enpassant square".into()),
     }
 }
 pub fn parse_fen_castle(part: &str) -> Result<CastlePermissions, String> {

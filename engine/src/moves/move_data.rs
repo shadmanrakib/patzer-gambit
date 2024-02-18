@@ -5,6 +5,7 @@ use crate::state::{
 
 // rough draft as i figure out how i want to structure things
 // we will use more than needed initially
+
 #[derive(Debug, Clone)]
 pub struct MoveItem {
     pub from_pos: i8,
@@ -53,4 +54,13 @@ pub struct UnmakeMoveMetadata {
     pub prev_half_move_clock: u32,
     // pub prev_zorbist_hash
     pub captured_piece: Piece,
+}
+
+
+// we will convert this to our standard move item
+#[derive(Debug, Clone)]
+pub struct SimpleMoveItem {
+    pub from: Square,
+    pub to: Square,
+    pub promotion_piece: Piece,
 }

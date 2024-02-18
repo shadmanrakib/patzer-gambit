@@ -1,7 +1,9 @@
+use regex::Regex;
+
 use super::{bitboards::BitBoards, pieces::Piece, player::Player, square::Square};
 use crate::{
     fen,
-    moves::move_data::{MoveItem, UnmakeMoveMetadata},
+    moves::move_data::{MoveItem, SimpleMoveItem, UnmakeMoveMetadata},
 };
 
 #[derive(Default, Debug, Clone)]
@@ -13,6 +15,14 @@ pub struct CastlePermissions {
 }
 
 impl CastlePermissions {
+    pub fn revoke_white(&mut self) {
+        self.white_queen_side = false;
+        self.white_king_side = false;
+    }
+    pub fn revoke_black(&mut self) {
+        self.black_queen_side = false;
+        self.black_king_side = false;
+    }
     pub fn none() -> CastlePermissions {
         CastlePermissions {
             white_queen_side: false,
@@ -52,6 +62,60 @@ impl GameState {
         self.half_move_clock = other.half_move_clock;
         self.full_move_number = other.full_move_number;
     }
+    // TODO: will implement later
+    pub fn notation_to_simple_move(&self, notation: String) -> Result<SimpleMoveItem, String> {
+        let re = Regex::new(r"([a-h][1-8])([a-h][1-8])([nbrq])?").unwrap();
+
+        if let Some(captures) = re.captures(&notation) {
+            println!("{:?}", captures);
+            if let (Some(from_match), Some(to_match), promotion_match) =
+                (captures.get(1), captures.get(2), captures.get(3))
+            {
+                let from = Square::parse_string(from_match.as_str().into()).unwrap();
+                let to = Square::parse_string(to_match.as_str().into()).unwrap();
+                let promotion_piece = promotion_match.map_or(Piece::Empty, |promotion| {
+                    match promotion.as_str() {
+                        "n" => Piece::Knight(self.side_to_move),
+                        "b" => Piece::Bishop(self.side_to_move),
+                        "r" => Piece::Rook(self.side_to_move),
+                        "q" => Piece::Queen(self.side_to_move),
+                        _ => unreachable!(), // shouldnt happen,
+                    }
+                });
+
+                let piece = self.bitboards.get_piece(from.rank, from.file);
+                let capturing_piece = self.bitboards.get_piece(to.rank, to.file);
+
+                // we need to consider if this is a valid pattern
+                // we need to consider if we are going to castle
+                // we need to consider enpassant
+                // we need to consider whether this is double move
+                // we need to consider whether we are capturing our own piece
+                // or the opponents
+
+                return Ok(SimpleMoveItem {
+                    from,
+                    to,
+                    promotion_piece,
+                });
+            }
+        }
+
+        return Err("Invalid long algrebraic notation.".into());
+        // MoveItem {
+        //     from_pos: (),
+        //     to_pos: (),
+        //     piece: (),
+        //     promotion_piece: (),
+        //     captured_piece: (),
+        //     promoting: (),
+        //     capturing: (),
+        //     double: (),
+        //     enpassant: (),
+        //     castling: (),
+        //     score: (),
+        // };
+    }
     pub fn make_move(&mut self, move_item: &MoveItem) -> UnmakeMoveMetadata {
         let prev_castle_permissions = self.castle_permissions.clone();
         let prev_enpassant_square = self.enpassant_square.clone();
@@ -61,9 +125,15 @@ impl GameState {
 
         // lets now make the move
         // all other moves get handled
+        let final_piece = if move_item.promoting {
+            move_item.promotion_piece.clone()
+        } else {
+            move_item.piece.clone()
+        };
+
         self.bitboards.unset_by_bit_pos(move_item.from_pos);
         self.bitboards
-            .set_or_replace_piece_by_bit_pos(move_item.piece.clone(), move_item.to_pos);
+            .set_or_replace_piece_by_bit_pos(final_piece, move_item.to_pos);
 
         // handle pawn left from enpassant capture
         if move_item.enpassant {
@@ -157,13 +227,19 @@ impl GameState {
             self.full_move_number += 1;
         }
 
-        // side to play needs to change to opposite
-        self.side_to_move = self.side_to_move.opponent();
-
         // revoke necessary castling permissions
+        // || move_item.piece == Piece::King(self.side_to_move)
         if move_item.castling || move_item.piece == Piece::King(self.side_to_move) {
-            self.castle_permissions = CastlePermissions::none();
-        } else if move_item.piece == Piece::Rook(self.side_to_move) {
+            match self.side_to_move {
+                Player::White => {
+                    self.castle_permissions.revoke_white();
+                }
+                Player::Black => {
+                    self.castle_permissions.revoke_black();
+                }
+            }
+        }
+        if move_item.piece == Piece::Rook(self.side_to_move) {
             match (self.side_to_move, move_item.from_pos) {
                 (Player::White, 0) => {
                     self.castle_permissions.white_queen_side = false;
@@ -180,6 +256,26 @@ impl GameState {
                 (_, _) => {}
             }
         }
+        if move_item.captured_piece == Piece::Rook(self.side_to_move.opponent()) {
+            match (self.side_to_move.opponent(), move_item.to_pos) {
+                (Player::White, 0) => {
+                    self.castle_permissions.white_queen_side = false;
+                }
+                (Player::White, 7) => {
+                    self.castle_permissions.white_king_side = false;
+                }
+                (Player::Black, 56) => {
+                    self.castle_permissions.black_queen_side = false;
+                }
+                (Player::Black, 63) => {
+                    self.castle_permissions.black_king_side = false;
+                }
+                (_, _) => {}
+            }
+        }
+
+        // side to play needs to change to opposite
+        self.side_to_move = self.side_to_move.opponent();
 
         UnmakeMoveMetadata {
             captured_piece: move_item.captured_piece.clone(),

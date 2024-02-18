@@ -10,11 +10,28 @@ impl Square {
         let file = (self.file as u8 + 'a' as u8) as char;
         format!("{file}{rank}")
     }
+    pub fn parse_string(input: String) -> Result<Square, String> {
+        if input.len() != 2 {
+            return Err("INVALID".into());
+        }
+
+        let rank = (input.chars().nth(1).unwrap() as u32 - '1' as u32) as i8;
+        let file = (input.chars().nth(0).unwrap() as u32 - 'a' as u32) as i8;
+
+        if 0 <= rank && rank <= 7 && 0 <= file && file <= 7 {
+            return Ok(Square { rank, file });
+        }
+
+        return Err("INVALID".into());
+    }
 }
 
 impl From<i8> for Square {
     fn from(pos: i8) -> Self {
-        Square{rank: pos / 8, file: pos % 8}
+        Square {
+            rank: pos / 8,
+            file: pos % 8,
+        }
     }
 }
 

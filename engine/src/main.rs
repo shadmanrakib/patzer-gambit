@@ -3,9 +3,12 @@ mod fen;
 mod moves;
 mod state;
 
+#[cfg(test)]
+mod tests;
+
 use std::time::SystemTime;
 
-use crate::moves::perft::perft;
+use crate::moves::{move_data::MoveItem, perft::perft};
 
 fn main() {
     // let game = state::game::GameState::from_fen(
@@ -28,7 +31,10 @@ fn main() {
     // let game_str = "rnbqkbnr/2pppppp/p7/Pp6/8/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 3";
     // let game_str = "rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1";
     // let game_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    let game_str = "rnbqkbnr/pppppppp/8/8/8/1P6/P1PPPPPP/RNBQKBNR b KQkq - 0 1";
+    // let game_str = "rnbqkbnr/pppppppp/8/8/8/1P6/P1PPPPPP/RNBQKBNR b KQkq - 0 1";
+    // let game_str = "r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 1";
+    // let game_str = "r3k2r/Pppp1ppp/1b3nbN/nPq5/B1P1P3/5N2/Pp1P2PP/R2Q1RK1 w kq - 0 2";
+    let game_str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q2/1PPBBPpP/2R1K2R b Kkq a3 0 2";
     let mut game = state::game::GameState::from_fen(game_str.into()).unwrap();
 
     let start_time = SystemTime::now();
@@ -44,12 +50,25 @@ fn main() {
     // let game = state::game::GameState::from_fen("r7/pPPppp2/p2P/p7/p7/4p/PppPpPPP/R2R4 w KQkq - 0 1".into()).unwrap();
     game.print_state();
 
+    let mut movelist: Vec<MoveItem> = vec![];
+    moves::pseudolegal::all::generate_pseudolegal_moves(
+        &mut movelist,
+        &game,
+        game.side_to_move,
+        &cache,
+    );
+    // rooks_test(&game, &cache, state::player::Player::Black);
+    // for i in 0..movelist.len() {
+    //     println!("{i} {}", &movelist[i].pure_algebraic_coordinate_notation());
+    // }
+
+
     // println!("Perft (depth = {}): {}", 1, perft(&mut game, &cache, 1));
-    let depth = 6;
+    let depth = 5;
     println!(
         "Perft (depth = {}): {:?}",
         depth,
-        perft(&mut game, &cache, depth, true)
+        perft(&mut game, &cache, depth)
     );
 
     // let moves = moves::pseudolegal::pawn::generate_pawn_moves(&game, game.side_to_move);
@@ -57,8 +76,6 @@ fn main() {
     // println!("{} {:?}", m.enpassant, m.pure_algebraic_coordinate_notation());
     // game.make_move(m);
     // game.print_board();
-
-
 
     // pawns_test(&game, &cache, state::player::Player::White);
     // knights_test(&game, &cache, state::player::Player::White);
@@ -132,7 +149,7 @@ fn rooks_test(
 
     println!("rook moves:");
     for m in moves {
-        println!("{:?}", m);
+        println!("{:?}", m.pure_algebraic_coordinate_notation());
     }
 }
 
