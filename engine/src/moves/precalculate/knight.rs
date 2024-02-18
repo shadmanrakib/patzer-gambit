@@ -1,4 +1,4 @@
-use crate::state::{bitboards::BitBoard, square::Square};
+use crate::state::{boards::BitBoard, square::Square};
 
 pub fn create_knight_moves_masks() -> [u64; 64] {
     let mut masks: [u64; 64] = [0; 64];

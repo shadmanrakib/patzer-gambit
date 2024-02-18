@@ -2,13 +2,13 @@ use super::{
     bishop::create_bishop_potential_moves_mask_on_the_fly,
     rook::create_rook_potential_moves_mask_on_the_fly,
 };
-use crate::state::bitboards::BitBoard;
+use crate::state::boards::BitBoard;
 
 extern crate xorshift;
 use xorshift::{Rng, Xoroshiro128};
 
 // each bit in the bit set represents whether the corresponding bit in the mask should be present
-#[inline]
+// #[inline]
 pub fn get_subset_of_mask_by_bit_set(mask: u64, mask_bit_count: i8, bit_set: u64) -> u64 {
     let mut mask_mut = mask.clone();
     let mut subset_mask = 0;
@@ -23,7 +23,7 @@ pub fn get_subset_of_mask_by_bit_set(mask: u64, mask_bit_count: i8, bit_set: u64
     return subset_mask;
 }
 
-#[inline]
+// #[inline]
 pub fn hash_with_magic(
     potential_blockers_mask: u64,
     blockers: u64,
@@ -84,14 +84,14 @@ pub fn find_bishop_magic_numbers(
     return (magic_numbers, magic_moves);
 }
 
-#[inline]
+// #[inline]
 pub fn generate_magic_number(rng: &mut Xoroshiro128) -> u64 {
     return rng.next_u64() & rng.next_u64() & rng.next_u64();
 }
 #[derive(Debug)]
 pub struct FailedToFindMagicNumberError;
 
-#[inline]
+// #[inline]
 fn find_magic_number(
     rng: &mut Xoroshiro128,
     pos: i8,

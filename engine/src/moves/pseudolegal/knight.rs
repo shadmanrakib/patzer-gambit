@@ -1,21 +1,19 @@
 use crate::moves::move_data::MoveItem;
 use crate::moves::precalculate::cache::PrecalculatedCache;
-use crate::state::bitboards::BitBoard;
+use crate::state::boards::BitBoard;
 use crate::state::game::GameState;
 use crate::state::pieces::Piece;
 use crate::state::player::Player;
 use crate::state::square::Square;
 
 // single forward non promotion, double, promotion, capture
-#[inline(always)]
+// #[inline(always)]
 pub fn generate_knight_moves(
+    movelist: &mut Vec<MoveItem>,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
-) -> Vec<MoveItem> {
-    let mut silents: Vec<MoveItem> = vec![];
-    let mut captures: Vec<MoveItem> = vec![];
-
+) {
     let mut knights = game
         .bitboards
         .get_board_by_piece(Piece::Knight(player))
@@ -36,7 +34,7 @@ pub fn generate_knight_moves(
 
             let to = Square::from(capture_pos);
 
-            captures.push(MoveItem {
+            movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::Knight(player),
@@ -57,7 +55,7 @@ pub fn generate_knight_moves(
 
             let to = Square::from(silent_pos);
 
-            silents.push(MoveItem {
+            movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::Knight(player),
@@ -72,11 +70,4 @@ pub fn generate_knight_moves(
             })
         }
     }
-
-    // temporarily as i figure out how i want to structure things
-    let mut moves = Vec::<MoveItem>::new();
-    moves.append(&mut silents);
-    moves.append(&mut captures);
-
-    return moves;
 }

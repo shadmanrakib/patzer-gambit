@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use super::{bitboards::BitBoards, pieces::Piece, player::Player, square::Square};
+use super::{boards::Boards, pieces::Piece, player::Player, square::Square};
 use crate::{
     fen,
     moves::move_data::{MoveItem, SimpleMoveItem, UnmakeMoveMetadata},
@@ -42,7 +42,7 @@ pub struct EnpassantSquare {
 // inspired by FEN notation
 #[derive(Debug, Clone)]
 pub struct GameState {
-    pub bitboards: BitBoards,
+    pub bitboards: Boards,
     pub side_to_move: Player,
     pub castle_permissions: CastlePermissions,
     // 0-7 maps to columns A-H, 8 is none

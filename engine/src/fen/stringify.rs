@@ -1,6 +1,6 @@
 use crate::state::{game::GameState, pieces::Piece, player::Player};
 
-#[inline(always)]
+// #[inline(always)]
 pub fn stringify_board(game: &GameState) -> String {
     let mut stringified = String::new();
 
@@ -37,7 +37,7 @@ pub fn stringify_board(game: &GameState) -> String {
     return stringified;
 }
 
-#[inline(always)]
+// #[inline(always)]
 pub fn stringify_side(game: &GameState) -> String {
     match game.side_to_move {
         Player::White => "w".into(),
@@ -45,7 +45,7 @@ pub fn stringify_side(game: &GameState) -> String {
     }
 }
 
-#[inline(always)]
+// #[inline(always)]
 pub fn stringify_enpassant(game: &GameState) -> String {
     if !game.enpassant_square.exists {
         return "-".into();

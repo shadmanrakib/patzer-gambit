@@ -1,6 +1,8 @@
+use enum_map::Enum;
+
 use super::player::Player;
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy, Enum)]
 pub enum Piece {
     Empty,
     Pawn(Player),

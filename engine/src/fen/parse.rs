@@ -1,9 +1,9 @@
 use regex::Regex;
 
-use crate::state::{bitboards::BitBoards, game::{CastlePermissions, EnpassantSquare}, pieces::Piece, player::Player, square::{self, Square}};
+use crate::state::{boards::Boards, game::{CastlePermissions, EnpassantSquare}, pieces::Piece, player::Player, square::{self, Square}};
 
-pub fn parse_fen_board(part: &str) -> Result<BitBoards, String> {
-    let mut bitboards: BitBoards = Default::default();
+pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
+    let mut bitboards: Boards = Default::default();
     // part 1 parsing
     let splitted: Vec<&str> = part.split("/").collect();
     if splitted.len() != 8 {

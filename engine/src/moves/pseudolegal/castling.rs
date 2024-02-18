@@ -4,19 +4,18 @@ use crate::{
         move_data::MoveItem,
         precalculate::cache::PrecalculatedCache,
     },
-    state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player},
+    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player},
 };
-#[inline(always)]
+// #[inline(always)]
 pub fn generate_castling_moves(
+    movelist: &mut Vec<MoveItem>,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
-) -> Vec<MoveItem> {
-    let mut moves: Vec<MoveItem> = vec![];
-
+) {
     // can't castle if in check
     if is_in_check(player, game, cache) {
-        return moves;
+        return;
     }
 
     let occupied = game.bitboards.get_occupied();
@@ -31,7 +30,7 @@ pub fn generate_castling_moves(
                 && !is_square_attacked(5, player.opponent(), game, cache)
             {
                 // we will mark the king movement
-                moves.push(MoveItem {
+                movelist.push(MoveItem {
                     from_pos: 4,
                     to_pos: 6,
                     piece: Piece::King(player),
@@ -54,7 +53,7 @@ pub fn generate_castling_moves(
                 && !is_square_attacked(3, player.opponent(), game, cache)
             {
                 // TODO: need to change this to use king
-                moves.push(MoveItem {
+                movelist.push(MoveItem {
                     from_pos: 4,
                     to_pos: 2,
                     piece: Piece::King(player),
@@ -78,7 +77,7 @@ pub fn generate_castling_moves(
                 // check if 61 is attacked, king side between transition
                 // make sure in between is also empty
 
-                moves.push(MoveItem {
+                movelist.push(MoveItem {
                     from_pos: 60,
                     to_pos: 62,
                     piece: Piece::King(player),
@@ -101,7 +100,7 @@ pub fn generate_castling_moves(
                 // check if 58 is attacked, queen side between transition
                 // make sure in between is also empty
 
-                moves.push(MoveItem {
+                movelist.push(MoveItem {
                     from_pos: 60,
                     to_pos: 58,
                     piece: Piece::King(player),
@@ -117,6 +116,4 @@ pub fn generate_castling_moves(
             }
         }
     };
-
-    return moves;
 }

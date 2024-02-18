@@ -1,22 +1,18 @@
 use crate::{
     moves::{
         move_data::MoveItem,
-        precalculate::{
-            cache::PrecalculatedCache, magic_bitboards::hash_with_magic,
-        },
+        precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
     },
-    state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
+    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-#[inline(always)]
+// #[inline(always)]
 pub fn generate_rook_moves(
+    movelist: &mut Vec<MoveItem>,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
-) -> Vec<MoveItem> {
-    let mut silents: Vec<MoveItem> = vec![];
-    let mut captures: Vec<MoveItem> = vec![];
-
+) {
     let mut rooks = game
         .bitboards
         .get_board_by_piece(Piece::Rook(player))
@@ -45,7 +41,7 @@ pub fn generate_rook_moves(
 
             let to = Square::from(capture_pos);
 
-            captures.push(MoveItem {
+            movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::Rook(player),
@@ -65,7 +61,7 @@ pub fn generate_rook_moves(
 
             let to = Square::from(silent_pos);
 
-            silents.push(MoveItem {
+            movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::Rook(player),
@@ -80,11 +76,4 @@ pub fn generate_rook_moves(
             })
         }
     }
-
-    // temporarily as i figure out how i want to structure things
-    let mut moves = Vec::<MoveItem>::new();
-    moves.append(&mut silents);
-    moves.append(&mut captures);
-
-    return moves;
 }

@@ -97,11 +97,11 @@ pub fn perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u6
         if !is_in_check(player, game, cache) {
             let move_nodes = _perft(game, cache, depth - 1);
             nodes += move_nodes;
-            // println!(
-            //     "{}: {}",
-            //     move_item.pure_algebraic_coordinate_notation(),
-            //     move_nodes
-            // );
+            println!(
+                "{}: {}",
+                move_item.pure_algebraic_coordinate_notation(),
+                move_nodes
+            );
         }
         // replace with unset
         game.set(cloned);

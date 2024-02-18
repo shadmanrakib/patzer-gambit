@@ -1,9 +1,9 @@
 use crate::{
     moves::precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
-    state::{bitboards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
+    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-#[inline(always)]
+// #[inline(always)]
 pub fn times_square_attacked(
     pos: i8,
     attacker: Player,
@@ -132,7 +132,7 @@ pub fn times_square_attacked(
 }
 
 
-#[inline]
+// #[inline]
 pub fn is_square_attacked(pos: i8, attacker: Player, game: &GameState, cache: &PrecalculatedCache) -> bool {
     return times_square_attacked(
         pos,

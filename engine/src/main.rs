@@ -30,11 +30,11 @@ fn main() {
     // .unwrap();
     // let game_str = "rnbqkbnr/2pppppp/p7/Pp6/8/8/1PPPPPPP/RNBQKBNR w KQkq b6 0 3";
     // let game_str = "rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1";
-    // let game_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    let game_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     // let game_str = "rnbqkbnr/pppppppp/8/8/8/1P6/P1PPPPPP/RNBQKBNR b KQkq - 0 1";
     // let game_str = "r3k2r/Pppp1ppp/1b3nbN/nPB5/B1P1P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 1 1";
     // let game_str = "r3k2r/Pppp1ppp/1b3nbN/nPq5/B1P1P3/5N2/Pp1P2PP/R2Q1RK1 w kq - 0 2";
-    let game_str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q2/1PPBBPpP/2R1K2R b Kkq a3 0 2";
+    // let game_str = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/Pp2P3/2N2Q2/1PPBBPpP/2R1K2R b Kkq a3 0 2";
     let mut game = state::game::GameState::from_fen(game_str.into()).unwrap();
 
     let start_time = SystemTime::now();
@@ -64,7 +64,7 @@ fn main() {
 
 
     // println!("Perft (depth = {}): {}", 1, perft(&mut game, &cache, 1));
-    let depth = 5;
+    let depth = 6;
     println!(
         "Perft (depth = {}): {:?}",
         depth,
@@ -87,94 +87,4 @@ fn main() {
 
     // less: a2a2, c2c2, e2e3, h2h3, e2e4, a2a4, h2h4
     // extra: f2f3, c2c4, f2f4
-}
-
-fn pawns_test(
-    game: &state::game::GameState,
-    _cache: &moves::precalculate::cache::PrecalculatedCache,
-    player: state::player::Player,
-) {
-    let moves = moves::pseudolegal::pawn::generate_pawn_moves(&game, player);
-    println!("pawn moves:");
-    for m in moves {
-        println!("{:?}", m);
-    }
-}
-
-fn knights_test(
-    game: &state::game::GameState,
-    cache: &moves::precalculate::cache::PrecalculatedCache,
-    player: state::player::Player,
-) {
-    let moves = moves::pseudolegal::knight::generate_knight_moves(&game, player, cache);
-
-    println!("knight moves:");
-    for m in moves {
-        println!("{:?}", m);
-    }
-}
-
-fn king_test(
-    game: &state::game::GameState,
-    cache: &moves::precalculate::cache::PrecalculatedCache,
-    player: state::player::Player,
-) {
-    let moves = moves::pseudolegal::king::generate_king_moves(&game, player, cache);
-
-    println!("king moves:");
-    for m in moves {
-        println!("{:?}", m);
-    }
-}
-
-fn bishops_test(
-    game: &state::game::GameState,
-    cache: &moves::precalculate::cache::PrecalculatedCache,
-    player: state::player::Player,
-) {
-    let moves = moves::pseudolegal::bishop::generate_bishop_moves(&game, player, cache);
-
-    println!("bishop moves:");
-    for m in moves {
-        println!("{:?}", m);
-    }
-}
-
-fn rooks_test(
-    game: &state::game::GameState,
-    cache: &moves::precalculate::cache::PrecalculatedCache,
-    player: state::player::Player,
-) {
-    let moves = moves::pseudolegal::rook::generate_rook_moves(&game, player, cache);
-
-    println!("rook moves:");
-    for m in moves {
-        println!("{:?}", m.pure_algebraic_coordinate_notation());
-    }
-}
-
-fn queens_test(
-    game: &state::game::GameState,
-    cache: &moves::precalculate::cache::PrecalculatedCache,
-    player: state::player::Player,
-) {
-    let moves = moves::pseudolegal::queen::generate_queen_moves(&game, player, cache);
-
-    println!("queens moves:");
-    for m in moves {
-        println!("{:?}", m);
-    }
-}
-
-fn castling_test(
-    game: &state::game::GameState,
-    cache: &moves::precalculate::cache::PrecalculatedCache,
-    player: state::player::Player,
-) {
-    let moves = moves::pseudolegal::castling::generate_castling_moves(&game, player, cache);
-
-    println!("castling moves:");
-    for m in moves {
-        println!("{:?}", m);
-    }
 }
