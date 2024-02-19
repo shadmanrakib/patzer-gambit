@@ -285,7 +285,72 @@ impl GameState {
         }
     }
 
-    pub fn unmake_move(&mut self, move_item: MoveItem, unmake_metadata: UnmakeMoveMetadata) {}
+    pub fn unmake_move(&mut self, move_item: &MoveItem, unmake_metadata: UnmakeMoveMetadata) {
+        // lets handle the easy undos
+        self.castle_permissions = unmake_metadata.prev_castle_permissions;
+
+        self.half_move_clock = unmake_metadata.prev_half_move_clock;
+        self.enpassant_square = unmake_metadata.prev_enpassant_square;
+        if self.side_to_move == Player::White {
+            self.full_move_number -= 1;
+        }
+        self.side_to_move = self.side_to_move.opponent();
+
+        // lets move the original piece to its position
+        self.bitboards
+            .set_or_replace_piece_by_bit_pos(move_item.piece, move_item.from_pos);
+
+        // lets place back the captured piece, if not enpassant
+        if !move_item.enpassant {
+            self.bitboards
+                .set_or_replace_piece_by_bit_pos(unmake_metadata.captured_piece, move_item.to_pos);
+        } else {
+            // we have an enpassant so we need to do a bit more calculation
+            // for where to place the captured piece
+            let from = Square::from(move_item.from_pos);
+            let to = Square::from(move_item.to_pos);
+
+            let rank = from.rank;
+            let file = to.file;
+
+            let captured_square = Square { rank, file };
+
+            self.bitboards.set_or_replace_piece_by_bit_pos(
+                unmake_metadata.captured_piece,
+                captured_square.into(),
+            );
+            self.bitboards
+                .set_or_replace_piece_by_bit_pos(Piece::Empty, move_item.to_pos);
+        }
+
+        if move_item.castling {
+            match (self.side_to_move, move_item.to_pos) {
+                (Player::White, 2) => {
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 0);
+                    self.bitboards.unset_by_bit_pos(3);
+                }
+                (Player::White, 6) => {
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 7);
+                    self.bitboards.unset_by_bit_pos(5);
+                }
+                (Player::Black, 58) => {
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 56);
+                    self.bitboards.unset_by_bit_pos(59);
+                }
+                (Player::Black, 62) => {
+                    self.bitboards
+                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 63);
+                    self.bitboards.unset_by_bit_pos(61);
+                }
+                (_, _) => {
+                    println!("{:?} {}", self.side_to_move, move_item.to_pos);
+                }
+            }
+        }
+    }
 
     pub fn new() -> GameState {
         let start_board_fen =
@@ -339,12 +404,5 @@ impl GameState {
 
     pub fn print_state(&self) {
         self.print_board();
-        println!("Player to move: {}", self.side_to_move.to_string());
-        println!("Castling: {:?}", self.castle_permissions);
-        println!("Enpassant: {:?}", self.enpassant_square);
-        println!(
-            "Half move: {} \t Full move: {}",
-            self.half_move_clock, self.full_move_number
-        );
     }
 }

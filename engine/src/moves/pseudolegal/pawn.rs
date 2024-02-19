@@ -14,7 +14,7 @@ pub fn generate_pawn_moves(movelist: &mut Vec<MoveItem>, game: &GameState, playe
     generate_pawn_attack_moves(movelist, game, player);
 }
 
-// #[inline(always)]
+#[inline(never)]
 pub fn generate_pawn_single_forward_moves(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
@@ -86,7 +86,7 @@ pub fn generate_pawn_single_forward_moves(
     }
 }
 
-// #[inline(always)]
+#[inline(never)]
 pub fn generate_pawn_double_forward_moves(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
@@ -142,7 +142,7 @@ pub fn generate_pawn_double_forward_moves(
     }
 }
 
-// #[inline(always)]
+#[inline(never)]
 pub fn generate_pawn_attack_moves(movelist: &mut Vec<MoveItem>, game: &GameState, player: Player) {
     let mut pawns = game
         .bitboards
@@ -181,6 +181,7 @@ pub fn generate_pawn_attack_moves(movelist: &mut Vec<MoveItem>, game: &GameState
     }
 }
 
+#[inline(never)]
 pub fn generate_pawn_attack_moves_helper(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
@@ -192,6 +193,18 @@ pub fn generate_pawn_attack_moves_helper(
     let can_enpassant = game.enpassant_square.exists
         && to.rank == game.enpassant_square.pos.rank
         && to.file == game.enpassant_square.pos.file;
+
+    let captured_piece = if can_enpassant {
+        let from = Square::from(from_pos);
+
+        let rank = from.rank;
+        let file = to.file;
+
+        let captured_square = Square { rank, file };
+        game.bitboards.get_piece_by_bit_pos(captured_square.into())
+    } else {
+        game.bitboards.get_piece_by_bit_pos(to.into())
+    };
 
     if opposite_occupied.get(to.into()) || can_enpassant {
         // promotion on capture
@@ -210,7 +223,7 @@ pub fn generate_pawn_attack_moves_helper(
                     to_pos: to.into(),
                     piece: Piece::Pawn(player),
                     promotion_piece,
-                    captured_piece: game.bitboards.get_piece_by_bit_pos(to.into()),
+                    captured_piece,
                     promoting: true,
                     capturing: true,
                     double: false,
@@ -225,7 +238,7 @@ pub fn generate_pawn_attack_moves_helper(
                 to_pos: to.into(),
                 piece: Piece::Pawn(player),
                 promotion_piece: Piece::Empty,
-                captured_piece: game.bitboards.get_piece_by_bit_pos(to.into()),
+                captured_piece,
                 promoting: false,
                 capturing: true,
                 double: false,

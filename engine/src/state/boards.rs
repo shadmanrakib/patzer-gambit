@@ -84,9 +84,11 @@ impl Boards {
     pub fn get_board_by_piece(&self, piece: Piece) -> &u64 {
         return &self.boards[piece];
     }
+
     pub fn get_occupied(&self) -> &u64 {
         return &self.occupied;
     }
+
     pub fn get_occupied_by_player(&self, player: Player) -> u64 {
         let pawns = self.get_board_by_piece(Piece::Pawn(player));
         let knights = self.get_board_by_piece(Piece::Knight(player));
@@ -97,6 +99,7 @@ impl Boards {
 
         return pawns | knights | bishops | rooks | queens | king;
     }
+
     pub fn clear_board(&mut self) {
         self.occupied.clear();
 
@@ -107,7 +110,6 @@ impl Boards {
             Piece::Rook(Player::White),
             Piece::Queen(Player::White),
             Piece::King(Player::White),
-
             Piece::Pawn(Player::Black),
             Piece::Knight(Player::Black),
             Piece::Bishop(Player::Black),
@@ -135,7 +137,7 @@ impl Boards {
         if self.occupied.get(pos) {
             return false;
         }
-        
+
         self.boards[piece].set(pos);
         self.pos_to_piece[pos as usize] = piece;
         self.occupied.set(pos);
@@ -148,8 +150,11 @@ impl Boards {
         self.boards[removed].unset(pos);
         self.boards[piece].set(pos);
         self.pos_to_piece[pos as usize] = piece;
-        self.occupied.set(pos);
-
+        if piece == Piece::Empty {
+            self.occupied.unset(pos);
+        } else {
+            self.occupied.set(pos);
+        }
         return removed;
     }
 

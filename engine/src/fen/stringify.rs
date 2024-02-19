@@ -57,7 +57,7 @@ pub fn stringify_castling(game: &GameState) -> String {
     if game.castle_permissions.white_king_side {
         stringified += "K";
     }
-    if game.castle_permissions.white_king_side {
+    if game.castle_permissions.white_queen_side {
         stringified += "Q";
     }
     if game.castle_permissions.black_king_side {
