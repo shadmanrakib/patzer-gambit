@@ -1,27 +1,34 @@
-use crate::state::{game::GameState, pieces::Piece, player::Player};
+use crate::state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player};
 
 // #[inline(always)]
 pub fn stringify_board(game: &GameState) -> String {
     let mut stringified = String::new();
-
     for rank in (0..8).rev() {
         let mut contingious_empty = 0;
         for file in 0..8 {
             let pos: i8 = rank * 8 + file;
-            let piece = game.bitboards.get_piece_by_bit_pos(pos);
+            let piece = game.bitboards.pos_to_piece[pos as usize];
 
             match piece {
                 Piece::Empty => {
                     contingious_empty += 1;
-                },
+                }
                 _ => {
+                    let p = piece.to_string();
+                    let colored =
+                        if game.bitboards.pos_to_player[Player::White as usize].get(pos as i8) {
+                            p.to_uppercase()
+                        } else {
+                            p
+                        };
+
                     if contingious_empty > 0 {
                         stringified += &contingious_empty.to_string();
                         contingious_empty = 0;
                     }
 
-                    stringified += &piece.to_string();
-                },
+                    stringified += &colored.to_string();
+                }
             }
         }
 

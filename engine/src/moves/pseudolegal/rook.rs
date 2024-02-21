@@ -15,10 +15,10 @@ pub fn generate_rook_moves(
 ) {
     let mut rooks = game
         .bitboards
-        .get_board_by_piece(Piece::Rook(player))
+        .get_board_by_piece(player, Piece::Rook)
         .clone();
-    let occupied = game.bitboards.get_occupied().clone();
-    let opponent_occupied = game.bitboards.get_occupied_by_player(player.opponent());
+    let occupied = game.bitboards.occupied.clone();
+    let opponent_occupied = game.bitboards.pos_to_player[player.opponent() as usize];
 
     while rooks != 0 {
         let pos = rooks.pop_mut();
@@ -44,9 +44,9 @@ pub fn generate_rook_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Rook(player),
+                piece: Piece::Rook,
                 promotion_piece: Piece::Empty,
-                captured_piece: game.bitboards.get_piece_by_bit_pos(capture_pos),
+                captured_piece: game.bitboards.pos_to_piece[capture_pos as usize],
                 promoting: false,
                 capturing: true,
                 double: false,
@@ -64,7 +64,7 @@ pub fn generate_rook_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Rook(player),
+                piece: Piece::Rook,
                 promotion_piece: Piece::Empty,
                 captured_piece: Piece::Empty,
                 promoting: false,

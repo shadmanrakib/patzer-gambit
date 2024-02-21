@@ -18,7 +18,7 @@ pub fn generate_castling_moves(
         return;
     }
 
-    let occupied = game.bitboards.get_occupied();
+    let occupied = game.bitboards.occupied;
 
     match player {
         Player::White => {
@@ -33,7 +33,7 @@ pub fn generate_castling_moves(
                 movelist.push(MoveItem {
                     from_pos: 4,
                     to_pos: 6,
-                    piece: Piece::King(player),
+                    piece: Piece::King,
                     promotion_piece: Piece::Empty,
                     captured_piece: Piece::Empty,
                     promoting: false,
@@ -56,7 +56,7 @@ pub fn generate_castling_moves(
                 movelist.push(MoveItem {
                     from_pos: 4,
                     to_pos: 2,
-                    piece: Piece::King(player),
+                    piece: Piece::King,
                     promotion_piece: Piece::Empty,
                     captured_piece: Piece::Empty,
                     promoting: false,
@@ -80,7 +80,7 @@ pub fn generate_castling_moves(
                 movelist.push(MoveItem {
                     from_pos: 60,
                     to_pos: 62,
-                    piece: Piece::King(player),
+                    piece: Piece::King,
                     promotion_piece: Piece::Empty,
                     captured_piece: Piece::Empty,
                     promoting: false,
@@ -103,7 +103,7 @@ pub fn generate_castling_moves(
                 movelist.push(MoveItem {
                     from_pos: 60,
                     to_pos: 58,
-                    piece: Piece::King(player),
+                    piece: Piece::King,
                     promotion_piece: Piece::Empty,
                     captured_piece: Piece::Empty,
                     promoting: false,

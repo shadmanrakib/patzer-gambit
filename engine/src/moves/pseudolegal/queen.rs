@@ -15,10 +15,10 @@ pub fn generate_queen_moves(
 ) {
     let mut queens = game
         .bitboards
-        .get_board_by_piece(Piece::Queen(player))
+        .get_board_by_piece(player, Piece::Queen)
         .clone();
-    let occupied = game.bitboards.get_occupied().clone();
-    let opponent_occupied = game.bitboards.get_occupied_by_player(player.opponent());
+    let occupied = game.bitboards.occupied.clone();
+    let opponent_occupied = game.bitboards.pos_to_player[player.opponent() as usize];
 
     while queens != 0 {
         let pos = queens.pop_mut();
@@ -43,7 +43,7 @@ pub fn generate_queen_moves(
 
         let moves_mask = rook_moves_mask | bishop_moves_mask;
 
-        let mut valid_silents = moves_mask & !game.bitboards.get_occupied();
+        let mut valid_silents = moves_mask & !game.bitboards.occupied;
         let mut valid_captures = moves_mask & opponent_occupied;
 
         while valid_captures != 0 {
@@ -54,9 +54,9 @@ pub fn generate_queen_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Queen(player),
+                piece: Piece::Queen,
                 promotion_piece: Piece::Empty,
-                captured_piece: game.bitboards.get_piece_by_bit_pos(capture_pos),
+                captured_piece: game.bitboards.pos_to_piece[capture_pos as usize],
                 promoting: false,
                 capturing: true,
                 double: false,
@@ -74,7 +74,7 @@ pub fn generate_queen_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Queen(player),
+                piece: Piece::Queen,
                 promotion_piece: Piece::Empty,
                 captured_piece: Piece::Empty,
                 promoting: false,

@@ -12,14 +12,14 @@ pub fn times_square_attacked(
 ) -> i8 {
     let mut attacked_count: i8 = 0;
 
-    let occupied = game.bitboards.get_occupied().clone();
+    let occupied = game.bitboards.occupied.clone();
 
     let Square { rank, file } = Square::from(pos);
 
     // knight
     let knight_move_mask = cache.knight_moves_masks[pos as usize];
     let attacking_knights =
-        knight_move_mask & game.bitboards.get_board_by_piece(Piece::Knight(attacker));
+        knight_move_mask & game.bitboards.get_board_by_piece(attacker, Piece::Knight);
     attacked_count += attacking_knights.count_ones() as i8;
 
     // println!("knights");
@@ -35,9 +35,9 @@ pub fn times_square_attacked(
     );
     let rook_moves_mask = cache.rook_magic_attack_tables[pos as usize][rook_magic_index];
     let attacking_rooks =
-        rook_moves_mask & game.bitboards.get_board_by_piece(Piece::Rook(attacker));
+        rook_moves_mask & game.bitboards.get_board_by_piece(attacker, Piece::Rook);
     let attacking_queens_straight =
-        rook_moves_mask & game.bitboards.get_board_by_piece(Piece::Queen(attacker));
+        rook_moves_mask & game.bitboards.get_board_by_piece(attacker, Piece::Queen);
 
     attacked_count += attacking_rooks.count_ones() as i8;
     attacked_count += attacking_queens_straight.count_ones() as i8;
@@ -57,9 +57,9 @@ pub fn times_square_attacked(
     let bishop_moves_mask = cache.bishop_magic_attack_tables[pos as usize][bishop_magic_index];
 
     let attacking_bishops =
-        bishop_moves_mask & game.bitboards.get_board_by_piece(Piece::Bishop(attacker));
+        bishop_moves_mask & game.bitboards.get_board_by_piece(attacker, Piece::Bishop);
     let attacking_queens_diagonal =
-        bishop_moves_mask & game.bitboards.get_board_by_piece(Piece::Queen(attacker));
+        bishop_moves_mask & game.bitboards.get_board_by_piece(attacker, Piece::Queen);
 
     attacked_count += attacking_bishops.count_ones() as i8;
     attacked_count += attacking_queens_diagonal.count_ones() as i8;
@@ -70,7 +70,7 @@ pub fn times_square_attacked(
     // attacking_queens_diagonal.print_board();
 
     // pawn attack
-    let opponent_pawns = game.bitboards.get_board_by_piece(Piece::Pawn(attacker));
+    let opponent_pawns = game.bitboards.get_board_by_piece(attacker, Piece::Pawn);
     // println!("pawns");
     // opponent_pawns.print_board();
     let mut attacking_pawns = 0;
@@ -109,7 +109,7 @@ pub fn times_square_attacked(
 
     // king attack
     let king_move_mask = cache.king_moves_masks[pos as usize];
-    let attacking_king = king_move_mask & game.bitboards.get_board_by_piece(Piece::King(attacker));
+    let attacking_king = king_move_mask & game.bitboards.get_board_by_piece(attacker, Piece::King);
     attacked_count += attacking_king.count_ones() as i8;
 
     return attacked_count;
@@ -122,87 +122,88 @@ pub fn is_square_attacked(
     game: &GameState,
     cache: &PrecalculatedCache,
 ) -> bool {
-    let occupied = game.bitboards.get_occupied().clone();
+    return times_square_attacked(pos, attacker, game, cache) > 0;
+    // let occupied = game.bitboards.get_occupied().clone();
 
-    let Square { rank, file } = Square::from(pos);
+    // let Square { rank, file } = Square::from(pos);
 
-    // knight
-    let knight_move_mask = cache.knight_moves_masks[pos as usize];
-    let attacking_knights =
-        knight_move_mask & game.bitboards.get_board_by_piece(Piece::Knight(attacker));
+    // // knight
+    // let knight_move_mask = cache.knight_moves_masks[pos as usize];
+    // let attacking_knights =
+    //     knight_move_mask & game.bitboards.get_board_by_piece(Piece::Knight(attacker));
     
-    if attacking_knights != 0 {
-        return true;
-    }
+    // if attacking_knights != 0 {
+    //     return true;
+    // }
 
-    // rook and queen vertical and horizontal
-    let rook_magic_index = hash_with_magic(
-        cache.rook_potential_blockers_masks[pos as usize],
-        occupied,
-        cache.rook_magics[pos as usize],
-        cache.rook_bit_counts[pos as usize],
-    );
-    let rook_moves_mask = cache.rook_magic_attack_tables[pos as usize][rook_magic_index];
-    let attacking_rooks =
-        rook_moves_mask & game.bitboards.get_board_by_piece(Piece::Rook(attacker));
-    let attacking_queens_straight =
-        rook_moves_mask & game.bitboards.get_board_by_piece(Piece::Queen(attacker));
+    // // rook and queen vertical and horizontal
+    // let rook_magic_index = hash_with_magic(
+    //     cache.rook_potential_blockers_masks[pos as usize],
+    //     occupied,
+    //     cache.rook_magics[pos as usize],
+    //     cache.rook_bit_counts[pos as usize],
+    // );
+    // let rook_moves_mask = cache.rook_magic_attack_tables[pos as usize][rook_magic_index];
+    // let attacking_rooks =
+    //     rook_moves_mask & game.bitboards.get_board_by_piece(Piece::Rook(attacker));
+    // let attacking_queens_straight =
+    //     rook_moves_mask & game.bitboards.get_board_by_piece(Piece::Queen(attacker));
 
-    if attacking_rooks != 0 || attacking_queens_straight != 0 {
-        return true;
-    }
+    // if attacking_rooks != 0 || attacking_queens_straight != 0 {
+    //     return true;
+    // }
 
-    // bishop and queen diagonal
-    let bishop_magic_index = hash_with_magic(
-        cache.bishop_potential_blockers_masks[pos as usize],
-        occupied,
-        cache.bishop_magics[pos as usize],
-        cache.bishop_bit_counts[pos as usize],
-    );
-    let bishop_moves_mask = cache.bishop_magic_attack_tables[pos as usize][bishop_magic_index];
+    // // bishop and queen diagonal
+    // let bishop_magic_index = hash_with_magic(
+    //     cache.bishop_potential_blockers_masks[pos as usize],
+    //     occupied,
+    //     cache.bishop_magics[pos as usize],
+    //     cache.bishop_bit_counts[pos as usize],
+    // );
+    // let bishop_moves_mask = cache.bishop_magic_attack_tables[pos as usize][bishop_magic_index];
 
-    let attacking_bishops =
-        bishop_moves_mask & game.bitboards.get_board_by_piece(Piece::Bishop(attacker));
-    let attacking_queens_diagonal =
-        bishop_moves_mask & game.bitboards.get_board_by_piece(Piece::Queen(attacker));
+    // let attacking_bishops =
+    //     bishop_moves_mask & game.bitboards.get_board_by_piece(Piece::Bishop(attacker));
+    // let attacking_queens_diagonal =
+    //     bishop_moves_mask & game.bitboards.get_board_by_piece(Piece::Queen(attacker));
 
-    if attacking_bishops != 0 || attacking_queens_diagonal != 0 {
-        return true;
-    }
+    // if attacking_bishops != 0 || attacking_queens_diagonal != 0 {
+    //     return true;
+    // }
 
-    // pawn attack
-    let opponent_pawns = game.bitboards.get_board_by_piece(Piece::Pawn(attacker));
+    // // pawn attack
+    // let opponent_pawns = game.bitboards.get_board_by_piece(Piece::Pawn(attacker));
  
-    let attacking_pawn_rank = match attacker {
-        Player::Black => rank + 1,
-        Player::White => rank - 1,
-    };
-    if file > 0 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
-        let to_check = Square {
-            rank: attacking_pawn_rank,
-            file: file - 1,
-        };
-        if opponent_pawns.get(to_check.into()) {
-            return true;
-        }
-    }
-    // right file capture
-    if file < 7 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
-        let to_check = Square {
-            rank: match attacker {
-                Player::Black => rank + 1,
-                Player::White => rank - 1,
-            },
-            file: file + 1,
-        };
-        if opponent_pawns.get(to_check.into()) {
-            return true;
-        }
-    }
+    // let attacking_pawn_rank = match attacker {
+    //     Player::Black => rank + 1,
+    //     Player::White => rank - 1,
+    // };
+    // if file > 0 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
+    //     let to_check = Square {
+    //         rank: attacking_pawn_rank,
+    //         file: file - 1,
+    //     };
+    //     if opponent_pawns.get(to_check.into()) {
+    //         return true;
+    //     }
+    // }
+    // // right file capture
+    // if file < 7 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
+    //     let to_check = Square {
+    //         rank: match attacker {
+    //             Player::Black => rank + 1,
+    //             Player::White => rank - 1,
+    //         },
+    //         file: file + 1,
+    //     };
+    //     if opponent_pawns.get(to_check.into()) {
+    //         return true;
+    //     }
+    // }
 
-    // king attack
-    let king_move_mask = cache.king_moves_masks[pos as usize];
-    let attacking_king = king_move_mask & game.bitboards.get_board_by_piece(Piece::King(attacker));
+    // // king attack
+    // let king_move_mask = cache.king_moves_masks[pos as usize];
+    // let attacking_king = king_move_mask & game.bitboards.get_board_by_piece(Piece::King(attacker));
 
-    return attacking_king.count_ones() != 0;
+    // return attacking_king.count_ones() != 0;
 }

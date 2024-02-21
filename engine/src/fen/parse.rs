@@ -1,6 +1,12 @@
 use regex::Regex;
 
-use crate::state::{boards::Boards, game::{CastlePermissions, EnpassantSquare}, pieces::Piece, player::Player, square::{self, Square}};
+use crate::state::{
+    boards::Boards,
+    game::{CastlePermissions, EnpassantSquare},
+    pieces::Piece,
+    player::Player,
+    square::Square,
+};
 
 pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
     let mut bitboards: Boards = Default::default();
@@ -15,51 +21,51 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
         for c in rank_str.chars() {
             match c {
                 'p' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Pawn(Player::Black), pos);
+                    bitboards.place_piece(Player::Black, Piece::Pawn, pos);
                     pos += 1;
                 }
                 'r' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Rook(Player::Black), pos);
+                    bitboards.place_piece(Player::Black, Piece::Rook, pos);
                     pos += 1;
                 }
                 'n' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Knight(Player::Black), pos);
+                    bitboards.place_piece(Player::Black, Piece::Knight, pos);
                     pos += 1;
                 }
                 'b' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Bishop(Player::Black), pos);
+                    bitboards.place_piece(Player::Black, Piece::Bishop, pos);
                     pos += 1;
                 }
                 'q' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Queen(Player::Black), pos);
+                    bitboards.place_piece(Player::Black, Piece::Queen, pos);
                     pos += 1;
                 }
                 'k' => {
-                    bitboards.set_piece_by_bit_pos(Piece::King(Player::Black), pos);
+                    bitboards.place_piece(Player::Black, Piece::King, pos);
                     pos += 1;
                 }
                 'P' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Pawn(Player::White), pos);
+                    bitboards.place_piece(Player::White, Piece::Pawn, pos);
                     pos += 1;
                 }
                 'R' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Rook(Player::White), pos);
+                    bitboards.place_piece(Player::White, Piece::Rook, pos);
                     pos += 1;
                 }
                 'N' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Knight(Player::White), pos);
+                    bitboards.place_piece(Player::White, Piece::Knight, pos);
                     pos += 1;
                 }
                 'B' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Bishop(Player::White), pos);
+                    bitboards.place_piece(Player::White, Piece::Bishop, pos);
                     pos += 1;
                 }
                 'Q' => {
-                    bitboards.set_piece_by_bit_pos(Piece::Queen(Player::White), pos);
+                    bitboards.place_piece(Player::White, Piece::Queen, pos);
                     pos += 1;
                 }
                 'K' => {
-                    bitboards.set_piece_by_bit_pos(Piece::King(Player::White), pos);
+                    bitboards.place_piece(Player::White, Piece::King, pos);
                     pos += 1;
                 }
                 '0'..='8' => {
@@ -82,25 +88,31 @@ pub fn parse_fen_side(part: &str) -> Result<Player, String> {
 pub fn parse_fen_enpassant(part: &str) -> Result<EnpassantSquare, String> {
     let re = Regex::new(r"^[a-h][1-8]$").unwrap();
     match part {
-        "-" => Ok(EnpassantSquare{exists: false, pos: Square{rank: 8,file: 8}}),
+        "-" => Ok(EnpassantSquare {
+            exists: false,
+            pos: Square { rank: 8, file: 8 },
+        }),
         part3 if re.is_match(part3) => {
             if let Ok(square) = Square::parse_string(part3.into()) {
-                return Ok(EnpassantSquare{exists: true, pos: square});
+                return Ok(EnpassantSquare {
+                    exists: true,
+                    pos: square,
+                });
             }
-            
+
             return Err("Invalid enpassant square".into());
         }
         _ => Err("Invalid enpassant square".into()),
     }
 }
 pub fn parse_fen_castle(part: &str) -> Result<CastlePermissions, String> {
-    let mut permission = CastlePermissions{
+    let mut permission = CastlePermissions {
         white_king_side: false,
         white_queen_side: false,
         black_king_side: false,
         black_queen_side: false,
     };
-    
+
     if part == "-" {
         return Ok(permission);
     }
@@ -108,19 +120,16 @@ pub fn parse_fen_castle(part: &str) -> Result<CastlePermissions, String> {
     for c in part.chars() {
         if c == 'K' {
             permission.white_king_side = true;
-        }
-        else if c == 'k' {
+        } else if c == 'k' {
             permission.black_king_side = true;
-        }
-        else if c == 'Q' {
+        } else if c == 'Q' {
             permission.white_queen_side = true;
-        }
-        else if c == 'q' {
+        } else if c == 'q' {
             permission.black_queen_side = true;
         } else {
-            return Err("Invalid character in castle permission".to_string())
+            return Err("Invalid character in castle permission".to_string());
         }
     }
 
-    return Ok(permission)
+    return Ok(permission);
 }

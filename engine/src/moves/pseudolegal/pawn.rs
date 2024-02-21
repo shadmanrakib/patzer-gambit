@@ -20,7 +20,7 @@ pub fn generate_pawn_single_forward_moves(
     game: &GameState,
     player: Player,
 ) {
-    let pawnboard = game.bitboards.get_board_by_piece(Piece::Pawn(player));
+    let pawnboard = game.bitboards.get_board_by_piece(player, Piece::Pawn);
     let can_move = pawnboard & !RANK_1_MASK & !RANK_8_MASK;
     let moved_forward = {
         match player {
@@ -29,7 +29,7 @@ pub fn generate_pawn_single_forward_moves(
         }
     };
     // let (player_occupied, opponent_occupied) = (game.bitboards.get_occupied_by_player(player).uint(), game.bitboards.get_occupied_by_player(player.opponent()).uint());
-    let mut valid = moved_forward & !game.bitboards.get_occupied();
+    let mut valid = moved_forward & !game.bitboards.occupied;
 
     while valid != 0 {
         let pos = valid.pop_mut();
@@ -47,17 +47,12 @@ pub fn generate_pawn_single_forward_moves(
         if to.rank == 0 || to.rank == 7 {
             // we can prob only do queen and knight, should help reduce tree without hurting performance
             // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
-            let promotion_pieces = vec![
-                Piece::Queen(player),
-                Piece::Rook(player),
-                Piece::Knight(player),
-                Piece::Bishop(player),
-            ];
+            let promotion_pieces = [Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
             for promotion_piece in promotion_pieces {
                 movelist.push(MoveItem {
                     from_pos: from.into(),
                     to_pos: to.into(),
-                    piece: Piece::Pawn(player),
+                    piece: Piece::Pawn,
                     promotion_piece,
                     captured_piece: Piece::Empty,
                     promoting: true,
@@ -72,7 +67,7 @@ pub fn generate_pawn_single_forward_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Pawn(player),
+                piece: Piece::Pawn,
                 promotion_piece: Piece::Empty,
                 captured_piece: Piece::Empty,
                 promoting: false,
@@ -92,7 +87,7 @@ pub fn generate_pawn_double_forward_moves(
     game: &GameState,
     player: Player,
 ) {
-    let pawnboard = game.bitboards.get_board_by_piece(Piece::Pawn(player));
+    let pawnboard = game.bitboards.get_board_by_piece(player, Piece::Pawn);
     let can_move = pawnboard & {
         match player {
             Player::White => RANK_2_MASK,
@@ -106,7 +101,7 @@ pub fn generate_pawn_double_forward_moves(
         }
     };
     // let (player_occupied, opponent_occupied) = (game.bitboards.get_occupied_by_player(player).uint(), game.bitboards.get_occupied_by_player(player.opponent()).uint());
-    let occupied = game.bitboards.get_occupied();
+    let occupied = game.bitboards.occupied;
     let mask = !(occupied | {
         match player {
             Player::White => occupied << 8,
@@ -129,7 +124,7 @@ pub fn generate_pawn_double_forward_moves(
         movelist.push(MoveItem {
             from_pos: from.into(),
             to_pos: to.into(),
-            piece: Piece::Pawn(player),
+            piece: Piece::Pawn,
             promotion_piece: Piece::Empty,
             captured_piece: Piece::Empty,
             promoting: false,
@@ -146,9 +141,9 @@ pub fn generate_pawn_double_forward_moves(
 pub fn generate_pawn_attack_moves(movelist: &mut Vec<MoveItem>, game: &GameState, player: Player) {
     let mut pawns = game
         .bitboards
-        .get_board_by_piece(Piece::Pawn(player))
+        .get_board_by_piece(player, Piece::Pawn)
         .clone();
-    let opposite_occupied = game.bitboards.get_occupied_by_player(player.opponent());
+    let opposite_occupied = game.bitboards.pos_to_player[player.opponent() as usize];
 
     // pawns.print_board();
 
@@ -201,9 +196,9 @@ pub fn generate_pawn_attack_moves_helper(
         let file = to.file;
 
         let captured_square = Square { rank, file };
-        game.bitboards.get_piece_by_bit_pos(captured_square.into())
+        game.bitboards.pos_to_piece[<Square as Into<i8>>::into(captured_square) as usize]
     } else {
-        game.bitboards.get_piece_by_bit_pos(to.into())
+        game.bitboards.pos_to_piece[<Square as Into<i8>>::into(to) as usize]
     };
 
     if opposite_occupied.get(to.into()) || can_enpassant {
@@ -211,17 +206,12 @@ pub fn generate_pawn_attack_moves_helper(
         if to.rank == 0 || to.rank == 7 {
             // we can prob only do queen and knight, should help reduce tree without hurting performance
             // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
-            let promotion_pieces = vec![
-                Piece::Queen(player),
-                Piece::Rook(player),
-                Piece::Knight(player),
-                Piece::Bishop(player),
-            ];
+            let promotion_pieces = vec![Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
             for promotion_piece in promotion_pieces {
                 movelist.push(MoveItem {
                     from_pos,
                     to_pos: to.into(),
-                    piece: Piece::Pawn(player),
+                    piece: Piece::Pawn,
                     promotion_piece,
                     captured_piece,
                     promoting: true,
@@ -236,7 +226,7 @@ pub fn generate_pawn_attack_moves_helper(
             movelist.push(MoveItem {
                 from_pos,
                 to_pos: to.into(),
-                piece: Piece::Pawn(player),
+                piece: Piece::Pawn,
                 promotion_piece: Piece::Empty,
                 captured_piece,
                 promoting: false,

@@ -2,7 +2,7 @@ use std::{clone, ops::BitAnd};
 
 use enum_map::EnumMap;
 
-use super::{game, pieces::Piece, player::Player};
+use super::{pieces::Piece, player::Player};
 
 // #[derive(Default,Debug,Clone)]
 pub trait BitBoard {
@@ -65,15 +65,17 @@ impl BitBoard for u64 {
 
 #[derive(Debug, Clone)]
 pub struct Boards {
-    pub pos_to_piece: [Piece; 64],
     pub occupied: u64,
-    pub boards: EnumMap<Piece, u64>,
+    pub boards: [[u64; 7]; 2],
+    pub pos_to_player: [u64; 2],
+    pub pos_to_piece: [Piece; 64],
 }
 
 impl Default for Boards {
     fn default() -> Self {
         Self {
             pos_to_piece: [Piece::Empty; 64],
+            pos_to_player: [0; 2],
             boards: Default::default(),
             occupied: Default::default(),
         }
@@ -81,93 +83,41 @@ impl Default for Boards {
 }
 
 impl Boards {
-    pub fn get_board_by_piece(&self, piece: Piece) -> &u64 {
-        return &self.boards[piece];
+    pub fn get_board_by_piece(&self, player: Player, piece: Piece) -> &u64 {
+        return &self.boards[player as usize][piece as usize];
     }
 
-    pub fn get_occupied(&self) -> &u64 {
-        return &self.occupied;
-    }
-
-    pub fn get_occupied_by_player(&self, player: Player) -> u64 {
-        let pawns = self.get_board_by_piece(Piece::Pawn(player));
-        let knights = self.get_board_by_piece(Piece::Knight(player));
-        let bishops = self.get_board_by_piece(Piece::Bishop(player));
-        let rooks = self.get_board_by_piece(Piece::Rook(player));
-        let queens = self.get_board_by_piece(Piece::Queen(player));
-        let king = self.get_board_by_piece(Piece::King(player));
-
-        return pawns | knights | bishops | rooks | queens | king;
-    }
-
-    pub fn clear_board(&mut self) {
-        self.occupied.clear();
-
-        let pieces = [
-            Piece::Pawn(Player::White),
-            Piece::Knight(Player::White),
-            Piece::Bishop(Player::White),
-            Piece::Rook(Player::White),
-            Piece::Queen(Player::White),
-            Piece::King(Player::White),
-            Piece::Pawn(Player::Black),
-            Piece::Knight(Player::Black),
-            Piece::Bishop(Player::Black),
-            Piece::Rook(Player::Black),
-            Piece::Queen(Player::Black),
-            Piece::King(Player::Black),
-        ];
-
-        for piece in pieces {
-            self.boards[piece].clear();
-        }
-    }
-
-    pub fn get_piece_by_bit_pos(&self, pos: i8) -> Piece {
-        return self.pos_to_piece[pos as usize];
-    }
-
-    pub fn get_piece(&self, rank: i8, file: i8) -> Piece {
-        let pos: i8 = rank * 8 + file;
-        return self.get_piece_by_bit_pos(pos);
-    }
-
-    pub fn set_piece_by_bit_pos(&mut self, piece: Piece, pos: i8) -> bool {
-        // if space occupied, return success false
-        if self.occupied.get(pos) {
-            return false;
-        }
-
-        self.boards[piece].set(pos);
-        self.pos_to_piece[pos as usize] = piece;
-        self.occupied.set(pos);
-
-        return true;
-    }
-
-    pub fn set_or_replace_piece_by_bit_pos(&mut self, piece: Piece, pos: i8) -> Piece {
+    pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
-        self.boards[removed].unset(pos);
-        self.boards[piece].set(pos);
+
+        if self.pos_to_player[player as usize].get(pos) {
+            self.boards[player as usize][removed as usize].unset(pos);
+        } else {
+            self.boards[player.opponent() as usize][removed as usize].unset(pos);
+        }
+
+        self.boards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
+
         if piece == Piece::Empty {
+            self.pos_to_player[player as usize].unset(pos);
             self.occupied.unset(pos);
         } else {
+            self.pos_to_player[player as usize].set(pos);
             self.occupied.set(pos);
         }
+
         return removed;
     }
 
-    pub fn unset_by_bit_pos(&mut self, pos: i8) -> Piece {
+    pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
-        self.boards[removed].unset(pos);
         self.pos_to_piece[pos as usize] = Piece::Empty;
+        self.boards[player as usize][removed as usize].unset(pos);
+        self.boards[player.opponent() as usize][removed as usize].unset(pos);
+        self.pos_to_player[player as usize].unset(pos);
+        self.pos_to_player[player.opponent() as usize].unset(pos);
         self.occupied.unset(pos);
         return removed;
-    }
-
-    pub fn set_piece(&mut self, piece: Piece, rank: i8, file: i8) -> bool {
-        let pos: i8 = rank * 8 + file;
-        return self.set_piece_by_bit_pos(piece, pos);
     }
 }

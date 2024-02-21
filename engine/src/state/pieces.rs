@@ -2,8 +2,8 @@ use enum_map::Enum;
 
 use super::player::Player;
 
-#[derive(PartialEq, Debug, Clone, Copy, Enum)]
-pub enum Piece {
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum Tile {
     Empty,
     Pawn(Player),
     Knight(Player),
@@ -13,36 +13,41 @@ pub enum Piece {
     King(Player),
 }
 
-impl Piece {
-    fn get_type(&self) -> Option<&Player> {
-        match self {
-            Piece::Empty => None,
-            Piece::Pawn(t) => Some(t),
-            Piece::Knight(t) => Some(t),
-            Piece::Bishop(t) => Some(t),
-            Piece::Rook(t) => Some(t),
-            Piece::Queen(t) => Some(t),
-            Piece::King(t) => Some(t),
-        }
-    }
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum Piece {
+    Empty = 0,
+    Pawn = 1,
+    Knight = 2,
+    Bishop = 3,
+    Rook= 4,
+    Queen= 5,
+    King = 6,
 }
+
+// impl Piece {
+//     fn get_type(&self) -> Option<&Player> {
+//         match self {
+//             Piece::Empty => None,
+//             Piece::Pawn(t) => Some(t),
+//             Piece::Knight(t) => Some(t),
+//             Piece::Bishop(t) => Some(t),
+//             Piece::Rook(t) => Some(t),
+//             Piece::Queen(t) => Some(t),
+//             Piece::King(t) => Some(t),
+//         }
+//     }
+// }
 
 impl ToString for Piece {
     fn to_string(&self) -> String {
         match self {
             Piece::Empty => ".".into(),
-            Piece::Pawn(Player::Black) => "p".into(),
-            Piece::Knight(Player::Black) => "n".into(),
-            Piece::Bishop(Player::Black) => "b".into(),
-            Piece::Rook(Player::Black) => "r".into(),
-            Piece::Queen(Player::Black) => "q".into(),
-            Piece::King(Player::Black) => "k".into(),
-            Piece::Pawn(Player::White) => "P".into(),
-            Piece::Knight(Player::White) => "N".into(),
-            Piece::Bishop(Player::White) => "B".into(),
-            Piece::Rook(Player::White) => "R".into(),
-            Piece::Queen(Player::White) => "Q".into(),
-            Piece::King(Player::White) => "K".into(),
+            Piece::Pawn => "p".into(),
+            Piece::Knight => "n".into(),
+            Piece::Bishop => "b".into(),
+            Piece::Rook => "r".into(),
+            Piece::Queen => "q".into(),
+            Piece::King => "k".into(),
         }
     }
 }

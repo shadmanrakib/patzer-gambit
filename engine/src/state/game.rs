@@ -1,9 +1,15 @@
 use regex::Regex;
 
-use super::{boards::Boards, pieces::Piece, player::Player, square::Square};
+use super::{
+    boards::Boards,
+    pieces::Piece,
+    player::{self, Player},
+    square::Square,
+};
 use crate::{
     fen,
     moves::move_data::{MoveItem, SimpleMoveItem, UnmakeMoveMetadata},
+    state::boards::BitBoard,
 };
 
 #[derive(Default, Debug, Clone)]
@@ -75,16 +81,17 @@ impl GameState {
                 let to = Square::parse_string(to_match.as_str().into()).unwrap();
                 let promotion_piece = promotion_match.map_or(Piece::Empty, |promotion| {
                     match promotion.as_str() {
-                        "n" => Piece::Knight(self.side_to_move),
-                        "b" => Piece::Bishop(self.side_to_move),
-                        "r" => Piece::Rook(self.side_to_move),
-                        "q" => Piece::Queen(self.side_to_move),
+                        "n" => Piece::Knight,
+                        "b" => Piece::Bishop,
+                        "r" => Piece::Rook,
+                        "q" => Piece::Queen,
                         _ => unreachable!(), // shouldnt happen,
                     }
                 });
 
-                let piece = self.bitboards.get_piece(from.rank, from.file);
-                let capturing_piece = self.bitboards.get_piece(to.rank, to.file);
+                let piece = self.bitboards.pos_to_piece[<Square as Into<i8>>::into(from) as usize];
+                let capturing_piece =
+                    self.bitboards.pos_to_piece[<Square as Into<i8>>::into(to) as usize];
 
                 // we need to consider if this is a valid pattern
                 // we need to consider if we are going to castle
@@ -131,9 +138,10 @@ impl GameState {
             move_item.piece.clone()
         };
 
-        self.bitboards.unset_by_bit_pos(move_item.from_pos);
         self.bitboards
-            .set_or_replace_piece_by_bit_pos(final_piece, move_item.to_pos);
+            .remove_piece(self.side_to_move, move_item.from_pos);
+        self.bitboards
+            .place_piece(self.side_to_move, final_piece, move_item.to_pos);
 
         // handle pawn left from enpassant capture
         if move_item.enpassant {
@@ -145,31 +153,32 @@ impl GameState {
 
             let leftover_square = Square { rank, file };
 
-            self.bitboards.unset_by_bit_pos(leftover_square.into());
+            self.bitboards
+                .remove_piece(self.side_to_move.opponent(), leftover_square.into());
         }
 
         if move_item.castling {
             // move rook to place
             match (self.side_to_move, move_item.to_pos) {
                 (Player::White, 2) => {
-                    self.bitboards.unset_by_bit_pos(0);
+                    self.bitboards.remove_piece(self.side_to_move, 0);
                     self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 3);
+                        .place_piece(self.side_to_move, Piece::Rook, 3);
                 }
                 (Player::White, 6) => {
-                    self.bitboards.unset_by_bit_pos(7);
+                    self.bitboards.remove_piece(self.side_to_move, 7);
                     self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 5);
+                        .place_piece(self.side_to_move, Piece::Rook, 5);
                 }
                 (Player::Black, 58) => {
-                    self.bitboards.unset_by_bit_pos(56);
+                    self.bitboards.remove_piece(self.side_to_move, 56);
                     self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 59);
+                        .place_piece(self.side_to_move, Piece::Rook, 59);
                 }
                 (Player::Black, 62) => {
-                    self.bitboards.unset_by_bit_pos(63);
+                    self.bitboards.remove_piece(self.side_to_move, 63);
                     self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 61);
+                        .place_piece(self.side_to_move, Piece::Rook, 61);
                 }
                 (_, _) => {
                     // TODO: handle error
@@ -181,10 +190,7 @@ impl GameState {
 
         // half move clock needs to be incremented if no capture, castle, or pawn move
         // to enforce draw by 50 moves rule, else set to 0 to reset
-        if !move_item.capturing
-            && !move_item.castling
-            && move_item.piece != Piece::Pawn(self.side_to_move)
-        {
+        if !move_item.capturing && !move_item.castling && move_item.piece != Piece::Pawn {
             self.half_move_clock += 1;
         } else {
             self.half_move_clock = 0;
@@ -229,7 +235,7 @@ impl GameState {
 
         // revoke necessary castling permissions
         // || move_item.piece == Piece::King(self.side_to_move)
-        if move_item.castling || move_item.piece == Piece::King(self.side_to_move) {
+        if move_item.castling || move_item.piece == Piece::King {
             match self.side_to_move {
                 Player::White => {
                     self.castle_permissions.revoke_white();
@@ -239,7 +245,7 @@ impl GameState {
                 }
             }
         }
-        if move_item.piece == Piece::Rook(self.side_to_move) {
+        if move_item.piece == Piece::Rook {
             match (self.side_to_move, move_item.from_pos) {
                 (Player::White, 0) => {
                     self.castle_permissions.white_queen_side = false;
@@ -256,7 +262,7 @@ impl GameState {
                 (_, _) => {}
             }
         }
-        if move_item.captured_piece == Piece::Rook(self.side_to_move.opponent()) {
+        if move_item.captured_piece == Piece::Rook {
             match (self.side_to_move.opponent(), move_item.to_pos) {
                 (Player::White, 0) => {
                     self.castle_permissions.white_queen_side = false;
@@ -278,7 +284,7 @@ impl GameState {
         self.side_to_move = self.side_to_move.opponent();
 
         UnmakeMoveMetadata {
-            captured_piece: move_item.captured_piece.clone(),
+            captured_piece: move_item.captured_piece,
             prev_castle_permissions,
             prev_enpassant_square,
             prev_half_move_clock,
@@ -298,12 +304,18 @@ impl GameState {
 
         // lets move the original piece to its position
         self.bitboards
-            .set_or_replace_piece_by_bit_pos(move_item.piece, move_item.from_pos);
+            .place_piece(self.side_to_move, move_item.piece, move_item.from_pos);
+
+        // lets remove the to_piece preliminarly
+        self.bitboards.remove_piece(self.side_to_move, move_item.to_pos);
 
         // lets place back the captured piece, if not enpassant
         if !move_item.enpassant {
-            self.bitboards
-                .set_or_replace_piece_by_bit_pos(unmake_metadata.captured_piece, move_item.to_pos);
+            self.bitboards.place_piece(
+                self.side_to_move.opponent(),
+                unmake_metadata.captured_piece,
+                move_item.to_pos,
+            );
         } else {
             // we have an enpassant so we need to do a bit more calculation
             // for where to place the captured piece
@@ -315,35 +327,30 @@ impl GameState {
 
             let captured_square = Square { rank, file };
 
-            self.bitboards.set_or_replace_piece_by_bit_pos(
+            self.bitboards.place_piece(
+                self.side_to_move.opponent(),
                 unmake_metadata.captured_piece,
                 captured_square.into(),
             );
-            self.bitboards
-                .set_or_replace_piece_by_bit_pos(Piece::Empty, move_item.to_pos);
         }
 
         if move_item.castling {
             match (self.side_to_move, move_item.to_pos) {
                 (Player::White, 2) => {
-                    self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 0);
-                    self.bitboards.unset_by_bit_pos(3);
+                    self.bitboards.place_piece(Player::White, Piece::Rook, 0);
+                    self.bitboards.remove_piece(Player::White, 3);
                 }
                 (Player::White, 6) => {
-                    self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 7);
-                    self.bitboards.unset_by_bit_pos(5);
+                    self.bitboards.place_piece(Player::White, Piece::Rook, 7);
+                    self.bitboards.remove_piece(Player::White, 5);
                 }
                 (Player::Black, 58) => {
-                    self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 56);
-                    self.bitboards.unset_by_bit_pos(59);
+                    self.bitboards.place_piece(Player::Black, Piece::Rook, 56);
+                    self.bitboards.remove_piece(Player::Black, 59);
                 }
                 (Player::Black, 62) => {
-                    self.bitboards
-                        .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 63);
-                    self.bitboards.unset_by_bit_pos(61);
+                    self.bitboards.place_piece(Player::Black, Piece::Rook, 63);
+                    self.bitboards.remove_piece(Player::Black, 61);
                 }
                 (_, _) => {
                     println!("{:?} {}", self.side_to_move, move_item.to_pos);
@@ -392,7 +399,16 @@ impl GameState {
             print!("{} | ", rank + 1);
             for file in 0..8 {
                 let pos = 8 * rank + file;
-                print!("{} ", self.bitboards.get_piece_by_bit_pos(pos).to_string());
+
+                let piece = self.bitboards.pos_to_piece[pos].to_string();
+                let colored = if self.bitboards.pos_to_player[Player::White as usize].get(pos as i8)
+                {
+                    piece.to_uppercase()
+                } else {
+                    piece
+                };
+
+                print!("{} ", colored);
             }
             println!();
         }

@@ -93,6 +93,7 @@ pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16
         game.side_to_move,
         cache,
     );
+    println!("{:?}",move_list.len());
     for move_item in move_list {
         let player = game.side_to_move;
         let unmake_metadata = game.make_move(&move_item);

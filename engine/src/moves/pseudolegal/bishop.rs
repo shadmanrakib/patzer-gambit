@@ -15,10 +15,10 @@ pub fn generate_bishop_moves(
 ) {
     let mut bishops = game
         .bitboards
-        .get_board_by_piece(Piece::Bishop(player))
+        .get_board_by_piece(player, Piece::Bishop)
         .clone();
-    let occupied = game.bitboards.get_occupied().clone();
-    let opponent_occupied = game.bitboards.get_occupied_by_player(player.opponent());
+    let occupied = game.bitboards.occupied.clone();
+    let opponent_occupied = game.bitboards.pos_to_player[player.opponent() as usize];
 
     while bishops != 0 {
         let pos = bishops.pop_mut();
@@ -33,7 +33,7 @@ pub fn generate_bishop_moves(
         );
         let moves_mask = cache.bishop_magic_attack_tables[pos as usize][magic_index];
 
-        let mut valid_silents = moves_mask & !game.bitboards.get_occupied();
+        let mut valid_silents = moves_mask & !game.bitboards.occupied;
         let mut valid_captures = moves_mask & opponent_occupied;
 
         while valid_captures != 0 {
@@ -44,9 +44,9 @@ pub fn generate_bishop_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Bishop(player),
+                piece: Piece::Bishop,
                 promotion_piece: Piece::Empty,
-                captured_piece: game.bitboards.get_piece_by_bit_pos(capture_pos),
+                captured_piece: game.bitboards.pos_to_piece[capture_pos as usize],
                 promoting: false,
                 capturing: true,
                 double: false,
@@ -64,7 +64,7 @@ pub fn generate_bishop_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Bishop(player),
+                piece: Piece::Bishop,
                 promotion_piece: Piece::Empty,
                 captured_piece: Piece::Empty,
                 promoting: false,

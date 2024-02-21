@@ -16,9 +16,9 @@ pub fn generate_knight_moves(
 ) {
     let mut knights = game
         .bitboards
-        .get_board_by_piece(Piece::Knight(player))
+        .get_board_by_piece(player, Piece::Knight)
         .clone();
-    let opponent_occupied =  game.bitboards.get_occupied_by_player(player.opponent());
+    let opponent_occupied = game.bitboards.pos_to_player[player.opponent() as usize];
 
     while knights != 0 {
         let pos = knights.pop_mut();
@@ -26,7 +26,7 @@ pub fn generate_knight_moves(
         let from = Square::from(pos);
 
         let moves_mask = cache.knight_moves_masks[pos as usize];
-        let mut valid_silents = moves_mask & !game.bitboards.get_occupied();
+        let mut valid_silents = moves_mask & !game.bitboards.occupied;
         let mut valid_captures = moves_mask & opponent_occupied;
 
         while valid_captures != 0 {
@@ -37,9 +37,9 @@ pub fn generate_knight_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Knight(player),
+                piece: Piece::Knight,
                 promotion_piece: Piece::Empty,
-                captured_piece: game.bitboards.get_piece_by_bit_pos(capture_pos),
+                captured_piece: game.bitboards.pos_to_piece[capture_pos as usize],
                 promoting: false,
                 capturing: true,
                 double: false,
@@ -49,7 +49,6 @@ pub fn generate_knight_moves(
             })
         }
 
-
         while valid_silents != 0 {
             let silent_pos = valid_silents.pop_mut();
 
@@ -58,7 +57,7 @@ pub fn generate_knight_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Knight(player),
+                piece: Piece::Knight,
                 promotion_piece: Piece::Empty,
                 captured_piece: Piece::Empty,
                 promoting: false,

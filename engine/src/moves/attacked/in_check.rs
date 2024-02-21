@@ -9,7 +9,7 @@ use super::square_attacked::is_square_attacked;
 pub fn is_in_check(player: Player, game: &GameState, cache: &PrecalculatedCache) -> bool {
     let mut king_bitboard = game
         .bitboards
-        .get_board_by_piece(Piece::King(player))
+        .get_board_by_piece(player, Piece::King)
         .clone();
 
     if king_bitboard == 0 {
@@ -19,7 +19,7 @@ pub fn is_in_check(player: Player, game: &GameState, cache: &PrecalculatedCache)
 
     return is_square_attacked(
         game.bitboards
-            .get_board_by_piece(Piece::King(player))
+            .get_board_by_piece(player, Piece::King)
             .clone()
             .pop_mut(),
         player.opponent(),
