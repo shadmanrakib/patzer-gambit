@@ -141,6 +141,8 @@ impl GameState {
         self.bitboards
             .remove_piece(self.side_to_move, move_item.from_pos);
         self.bitboards
+            .remove_piece(self.side_to_move.opponent(), move_item.to_pos);
+        self.bitboards
             .place_piece(self.side_to_move, final_piece, move_item.to_pos);
 
         // handle pawn left from enpassant capture
@@ -307,7 +309,8 @@ impl GameState {
             .place_piece(self.side_to_move, move_item.piece, move_item.from_pos);
 
         // lets remove the to_piece preliminarly
-        self.bitboards.remove_piece(self.side_to_move, move_item.to_pos);
+        self.bitboards
+            .remove_piece(self.side_to_move, move_item.to_pos);
 
         // lets place back the captured piece, if not enpassant
         if !move_item.enpassant {

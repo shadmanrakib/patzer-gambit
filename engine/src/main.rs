@@ -93,17 +93,17 @@ fn main() {
 
     // println!("Perft (depth = {}): {}", 1, perft(&mut game, &cache, 1));
     let depth = 6;
+    println!(
+        "Perft (depth = {}): {:?}",
+        depth,
+        perft_unmake(&mut game, &cache, depth)
+    );
+
     // println!(
     //     "Perft (depth = {}): {:?}",
     //     depth,
     //     perft(&mut game, &cache, depth)
     // );
-
-    println!(
-        "Perft (depth = {}): {:?}",
-        depth,
-        perft(&mut game, &cache, depth)
-    );
 
     // let moves = moves::pseudolegal::pawn::generate_pawn_moves(&game, game.side_to_move);
     // let m = &moves[0];
