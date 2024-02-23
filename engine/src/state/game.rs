@@ -123,57 +123,91 @@ impl GameState {
 
         // ==============================================
 
-        // lets now make the move
-        // all other moves get handled
-        let final_piece = if move_item.promoting {
-            move_item.promotion_piece.clone()
-        } else {
-            move_item.piece.clone()
+        self.enpassant_square = EnpassantSquare {
+            exists: false,
+            pos: Square { rank: 8, file: 8 },
         };
 
         self.bitboards.unset_by_bit_pos(move_item.from_pos);
-        self.bitboards
-            .set_or_replace_piece_by_bit_pos(final_piece, move_item.to_pos);
+        match move_item.piece {
+            Piece::Pawn(_) => {
+                let final_piece = if move_item.promoting {
+                    move_item.promotion_piece.clone()
+                } else {
+                    move_item.piece.clone()
+                };
 
-        // handle pawn left from enpassant capture
-        if move_item.enpassant {
-            let from = Square::from(move_item.from_pos);
-            let to = Square::from(move_item.to_pos);
+                self.bitboards
+                    .set_or_replace_piece_by_bit_pos(final_piece, move_item.to_pos);
 
-            let rank = from.rank;
-            let file = to.file;
+                // handle pawn left from enpassant capture
+                if move_item.enpassant {
+                    let from = Square::from(move_item.from_pos);
+                    let to = Square::from(move_item.to_pos);
 
-            let leftover_square = Square { rank, file };
+                    let rank = from.rank;
+                    let file = to.file;
 
-            self.bitboards.unset_by_bit_pos(leftover_square.into());
-        }
+                    let leftover_square = Square { rank, file };
+
+                    self.bitboards.unset_by_bit_pos(leftover_square.into());
+                }
+
+                if move_item.double {
+                    let Square {
+                        rank: to_rank,
+                        file,
+                    } = Square::from(move_item.to_pos);
+                    let Square {
+                        rank: from_rank,
+                        file: _,
+                    } = Square::from(move_item.from_pos);
+                    let enpassant_rank: i8 = {
+                        if to_rank > from_rank {
+                            to_rank - 1
+                        } else {
+                            to_rank + 1
+                        }
+                    };
+                    self.enpassant_square = EnpassantSquare {
+                        exists: true,
+                        pos: Square {
+                            rank: enpassant_rank,
+                            file,
+                        },
+                    }
+                }
+            }
+            _ => {
+                self.bitboards
+                    .set_or_replace_piece_by_bit_pos(move_item.piece, move_item.to_pos);
+            }
+        };
 
         if move_item.castling {
             // move rook to place
-            match (self.side_to_move, move_item.to_pos) {
-                (Player::White, 2) => {
+            match move_item.to_pos {
+                2 => {
                     self.bitboards.unset_by_bit_pos(0);
                     self.bitboards
                         .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 3);
                 }
-                (Player::White, 6) => {
+                6 => {
                     self.bitboards.unset_by_bit_pos(7);
                     self.bitboards
                         .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 5);
                 }
-                (Player::Black, 58) => {
+                58 => {
                     self.bitboards.unset_by_bit_pos(56);
                     self.bitboards
                         .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 59);
                 }
-                (Player::Black, 62) => {
+                62 => {
                     self.bitboards.unset_by_bit_pos(63);
                     self.bitboards
                         .set_or_replace_piece_by_bit_pos(Piece::Rook(self.side_to_move), 61);
                 }
-                (_, _) => {
-                    // TODO: handle error
-                }
+                _ => unreachable!(),
             }
         }
 
@@ -188,38 +222,6 @@ impl GameState {
             self.half_move_clock += 1;
         } else {
             self.half_move_clock = 0;
-        }
-
-        // we want to create new enpassant square if needed, or revoke old
-        if move_item.double {
-            let Square {
-                rank: to_rank,
-                file,
-            } = Square::from(move_item.to_pos);
-            let Square {
-                rank: from_rank,
-                file: _,
-            } = Square::from(move_item.from_pos);
-            let enpassant_rank: i8 = {
-                if to_rank > from_rank {
-                    to_rank - 1
-                } else {
-                    to_rank + 1
-                }
-            };
-            self.enpassant_square = EnpassantSquare {
-                exists: true,
-                pos: Square {
-                    rank: enpassant_rank,
-                    file,
-                },
-            }
-        } else {
-            // no enpassant square
-            self.enpassant_square = EnpassantSquare {
-                exists: false,
-                pos: Square { rank: 8, file: 8 },
-            }
         }
 
         // full move number needs to be incremented if side to play is black
@@ -238,8 +240,7 @@ impl GameState {
                     self.castle_permissions.revoke_black();
                 }
             }
-        }
-        if move_item.piece == Piece::Rook(self.side_to_move) {
+        } else if move_item.piece == Piece::Rook(self.side_to_move) {
             match (self.side_to_move, move_item.from_pos) {
                 (Player::White, 0) => {
                     self.castle_permissions.white_queen_side = false;
@@ -256,6 +257,7 @@ impl GameState {
                 (_, _) => {}
             }
         }
+        
         if move_item.captured_piece == Piece::Rook(self.side_to_move.opponent()) {
             match (self.side_to_move.opponent(), move_item.to_pos) {
                 (Player::White, 0) => {
