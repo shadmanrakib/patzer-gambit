@@ -7,11 +7,13 @@ use super::square_attacked::is_square_attacked;
 
 // #[inline(always)]
 pub fn is_in_check(player: Player, game: &GameState, cache: &PrecalculatedCache) -> bool {
+    let king = game
+        .bitboards
+        .get_board_by_piece(player, Piece::King)
+        .trailing_zeros() as i8;
+
     return is_square_attacked(
-        game.bitboards
-            .get_board_by_piece(player, Piece::King)
-            .clone()
-            .pop_mut(),
+        king,
         player.opponent(),
         game,
         cache,

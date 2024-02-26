@@ -135,16 +135,13 @@ impl GameState {
         // all other moves get handled
         self.bitboards
             .remove_piece(self.side_to_move, move_item.from_pos);
-        self.bitboards
-            .remove_piece(self.side_to_move.opponent(), move_item.to_pos);
+
         if move_item.piece == Piece::Pawn {
             let final_piece = if move_item.promoting {
                 move_item.promotion_piece
             } else {
                 move_item.piece
             };
-            self.bitboards
-                .place_piece(self.side_to_move, final_piece, move_item.to_pos);
 
             // handle pawn left from enpassant capture
             if move_item.enpassant {
@@ -158,8 +155,17 @@ impl GameState {
 
                 self.bitboards
                     .remove_piece(self.side_to_move.opponent(), leftover_square.into());
+            } else {
+                self.bitboards
+                    .remove_piece(self.side_to_move.opponent(), move_item.to_pos);
             }
+
+            self.bitboards
+                .place_piece(self.side_to_move, final_piece, move_item.to_pos);
         } else {
+            self.bitboards
+                .remove_piece(self.side_to_move.opponent(), move_item.to_pos);
+
             self.bitboards
                 .place_piece(self.side_to_move, move_item.piece, move_item.to_pos);
 
@@ -312,28 +318,30 @@ impl GameState {
             .remove_piece(self.side_to_move, move_item.to_pos);
 
         // lets place back the captured piece, if not enpassant
-        if !move_item.enpassant {
-            self.bitboards.place_piece(
-                self.side_to_move.opponent(),
-                unmake_metadata.captured_piece,
-                move_item.to_pos,
-            );
-        } else {
-            // we have an enpassant so we need to do a bit more calculation
-            // for where to place the captured piece
-            let from = Square::from(move_item.from_pos);
-            let to = Square::from(move_item.to_pos);
+        if move_item.capturing {
+            if !move_item.enpassant {
+                self.bitboards.place_piece(
+                    self.side_to_move.opponent(),
+                    unmake_metadata.captured_piece,
+                    move_item.to_pos,
+                );
+            } else {
+                // we have an enpassant so we need to do a bit more calculation
+                // for where to place the captured piece
+                let from = Square::from(move_item.from_pos);
+                let to = Square::from(move_item.to_pos);
 
-            let rank = from.rank;
-            let file = to.file;
+                let rank = from.rank;
+                let file = to.file;
 
-            let captured_square = Square { rank, file };
+                let captured_square = Square { rank, file };
 
-            self.bitboards.place_piece(
-                self.side_to_move.opponent(),
-                unmake_metadata.captured_piece,
-                captured_square.into(),
-            );
+                self.bitboards.place_piece(
+                    self.side_to_move.opponent(),
+                    unmake_metadata.captured_piece,
+                    captured_square.into(),
+                );
+            }
         }
 
         if move_item.castling {

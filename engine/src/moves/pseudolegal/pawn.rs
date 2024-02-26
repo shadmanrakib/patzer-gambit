@@ -8,7 +8,7 @@ use crate::state::{game::GameState, pieces::Piece, player::Player};
 // use crate::masks::RANK_1_MASK;
 
 // single forward non promotion, double, promotion, capture
-// #[inline(always)]
+#[inline(never)]
 pub fn generate_pawn_moves(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
@@ -20,7 +20,7 @@ pub fn generate_pawn_moves(
     generate_pawn_attack_moves(movelist, game, player, cache);
 }
 
-#[inline(never)]
+// #[inline(never)]
 pub fn generate_pawn_single_forward_moves(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
@@ -87,7 +87,7 @@ pub fn generate_pawn_single_forward_moves(
     }
 }
 
-#[inline(never)]
+// #[inline(never)]
 pub fn generate_pawn_double_forward_moves(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
@@ -143,7 +143,7 @@ pub fn generate_pawn_double_forward_moves(
     }
 }
 
-#[inline(never)]
+// #[inline(never)]
 pub fn generate_pawn_attack_moves(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
@@ -186,7 +186,7 @@ pub fn generate_pawn_attack_moves(
     }
 }
 
-#[inline(never)]
+// #[inline(never)]
 pub fn generate_pawn_attack_moves_helper(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,

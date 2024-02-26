@@ -20,17 +20,17 @@ pub trait BitBoard {
 }
 
 impl BitBoard for u64 {
-    #[inline(never)]
+    // #[inline(never)]
     fn set(&mut self, index: i8) {
         *self |= 1 << index; // SQUARE_MASKS[index as usize];
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn get(&self, index: i8) -> bool {
         self & 1 << index != 0
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn unset(&mut self, index: i8) {
         *self &= INVERTED_SQUARE_MASKS[index as usize];
     }
@@ -92,38 +92,32 @@ impl Boards {
         return &self.boards[player as usize][piece as usize];
     }
 
-    #[inline(never)]
+    // #[inline(always)]
     pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) -> Piece {
-        let removed = self.pos_to_piece[pos as usize];
-
-        if self.pos_to_player[player as usize].get(pos) {
-            self.boards[player as usize][removed as usize].unset(pos);
-        } else {
-            self.boards[player.opponent() as usize][removed as usize].unset(pos);
-        }
+        let removed = self.remove_piece(player.opponent(), pos);
 
         self.boards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
+        self.pos_to_player[player as usize].set(pos);
+        self.occupied.set(pos);
 
-        if piece == Piece::Empty {
-            self.pos_to_player[player as usize].unset(pos);
-            self.occupied.unset(pos);
-        } else {
-            self.pos_to_player[player as usize].set(pos);
-            self.occupied.set(pos);
-        }
+        // if piece == Piece::Empty {
+        //     self.pos_to_player[player as usize].unset(pos);
+        //     self.occupied.unset(pos);
+        // } else {
+        //     self.pos_to_player[player as usize].set(pos);
+        //     self.occupied.set(pos);
+        // }
 
         return removed;
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;
         self.boards[player as usize][removed as usize].unset(pos);
-        self.boards[player.opponent() as usize][removed as usize].unset(pos);
         self.pos_to_player[player as usize].unset(pos);
-        self.pos_to_player[player.opponent() as usize].unset(pos);
         self.occupied.unset(pos);
         return removed;
     }
