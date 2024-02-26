@@ -98,7 +98,7 @@ pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16
         let unmake_metadata = game.make_move(&move_item);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
-            let move_nodes = _perft(game, cache, depth - 1);
+            let move_nodes = _perft_unmake(game, cache, depth - 1);
             nodes += move_nodes;
             println!(
                 "{}: {}",
