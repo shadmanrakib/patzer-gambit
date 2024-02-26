@@ -1,4 +1,4 @@
-use crate::state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player};
+use crate::state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square};
 
 // #[inline(always)]
 pub fn stringify_board(game: &GameState) -> String {
@@ -54,10 +54,11 @@ pub fn stringify_side(game: &GameState) -> String {
 
 // #[inline(always)]
 pub fn stringify_enpassant(game: &GameState) -> String {
-    if !game.enpassant_square.exists {
+    if game.enpassant_square == 0 {
         return "-".into();
     }
-    return game.enpassant_square.pos.stringify();
+    let (_, pos) = game.enpassant_square.pop();
+    return Square::from(pos).stringify();
 }
 pub fn stringify_castling(game: &GameState) -> String {
     let mut stringified = String::from("");

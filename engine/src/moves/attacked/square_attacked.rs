@@ -73,39 +73,43 @@ pub fn times_square_attacked(
     let opponent_pawns = game.bitboards.get_board_by_piece(attacker, Piece::Pawn);
     // println!("pawns");
     // opponent_pawns.print_board();
-    let mut attacking_pawns = 0;
+    // let mut attacking_pawns = 0;
     // left file capture
-    let attacking_pawn_rank = match attacker {
-        Player::Black => rank + 1,
-        Player::White => rank - 1,
-    };
-    if file > 0 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
-        let to_check = Square {
-            rank: attacking_pawn_rank,
-            file: file - 1,
-        };
-        if opponent_pawns.get(to_check.into()) {
-            attacked_count += 1;
-            // println!("pawn left {}", <Square as Into<i8>>::into(to_check));
-            attacking_pawns.set(to_check.into());
-        }
-    }
-    // right file capture
-    if file < 7 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
-        let to_check = Square {
-            rank: match attacker {
-                Player::Black => rank + 1,
-                Player::White => rank - 1,
-            },
-            file: file + 1,
-        };
-        if opponent_pawns.get(to_check.into()) {
-            attacked_count += 1;
-            // println!("pawn right {}", <Square as Into<i8>>::into(to_check));
-            attacking_pawns.set(to_check.into());
-        }
-    }
-    // attacking_pawns.print_board();
+    let attacking_mask = cache.pawn_attack_moves_mask[attacker.opponent() as usize][pos as usize];
+    let attacking_pawns = opponent_pawns & attacking_mask;
+    attacked_count += attacking_pawns.count_ones() as i8;
+
+    // let attacking_pawn_rank = match attacker {
+    //     Player::Black => rank + 1,
+    //     Player::White => rank - 1,
+    // };
+    // if file > 0 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
+    //     let to_check = Square {
+    //         rank: attacking_pawn_rank,
+    //         file: file - 1,
+    //     };
+    //     if opponent_pawns.get(to_check.into()) {
+    //         attacked_count += 1;
+    //         // println!("pawn left {}", <Square as Into<i8>>::into(to_check));
+    //         attacking_pawns.set(to_check.into());
+    //     }
+    // }
+    // // right file capture
+    // if file < 7 && attacking_pawn_rank >= 0 && attacking_pawn_rank <= 7 {
+    //     let to_check = Square {
+    //         rank: match attacker {
+    //             Player::Black => rank + 1,
+    //             Player::White => rank - 1,
+    //         },
+    //         file: file + 1,
+    //     };
+    //     if opponent_pawns.get(to_check.into()) {
+    //         attacked_count += 1;
+    //         // println!("pawn right {}", <Square as Into<i8>>::into(to_check));
+    //         attacking_pawns.set(to_check.into());
+    //     }
+    // }
+    // // attacking_pawns.print_board();
 
     // king attack
     let king_move_mask = cache.king_moves_masks[pos as usize];

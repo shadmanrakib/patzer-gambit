@@ -1,5 +1,6 @@
 use crate::constants::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
 use crate::moves::move_data::MoveItem;
+use crate::moves::precalculate::cache::PrecalculatedCache;
 use crate::state::boards::BitBoard;
 use crate::state::square::Square;
 use crate::state::{game::GameState, pieces::Piece, player::Player};
@@ -8,10 +9,15 @@ use crate::state::{game::GameState, pieces::Piece, player::Player};
 
 // single forward non promotion, double, promotion, capture
 // #[inline(always)]
-pub fn generate_pawn_moves(movelist: &mut Vec<MoveItem>, game: &GameState, player: Player) {
+pub fn generate_pawn_moves(
+    movelist: &mut Vec<MoveItem>,
+    game: &GameState,
+    player: Player,
+    cache: &PrecalculatedCache,
+) {
     generate_pawn_single_forward_moves(movelist, game, player);
     generate_pawn_double_forward_moves(movelist, game, player);
-    generate_pawn_attack_moves(movelist, game, player);
+    generate_pawn_attack_moves(movelist, game, player, cache);
 }
 
 #[inline(never)]
@@ -138,40 +144,44 @@ pub fn generate_pawn_double_forward_moves(
 }
 
 #[inline(never)]
-pub fn generate_pawn_attack_moves(movelist: &mut Vec<MoveItem>, game: &GameState, player: Player) {
+pub fn generate_pawn_attack_moves(
+    movelist: &mut Vec<MoveItem>,
+    game: &GameState,
+    player: Player,
+    cache: &PrecalculatedCache,
+) {
     let mut pawns = game
         .bitboards
         .get_board_by_piece(player, Piece::Pawn)
         .clone();
     let opposite_occupied = game.bitboards.pos_to_player[player.opponent() as usize];
-
     // pawns.print_board();
 
     while pawns != 0 {
         let pos = pawns.pop_mut();
+        let attacking_mask = cache.pawn_attack_moves_mask[player as usize][pos as usize];
+        let mut attacking = opposite_occupied & attacking_mask;
+        let mut attacking_enpassant = game.enpassant_square & attacking_mask;
 
-        let Square { rank, file } = Square::from(pos);
-        // left file capture
-        if file > 0 && rank != 7 && rank != 0 {
-            let to = Square {
-                rank: match player {
-                    Player::White => rank + 1,
-                    Player::Black => rank - 1,
-                },
-                file: file - 1,
-            };
-            generate_pawn_attack_moves_helper(movelist, game, player, pos, to, &opposite_occupied);
+        while attacking != 0 {
+            let to = attacking.pop_mut();
+            generate_pawn_attack_moves_helper(
+                movelist,
+                game,
+                pos,
+                to,
+                false,
+            );
         }
-        // right file capture
-        if file < 7 && rank != 7 && rank != 0 {
-            let to = Square {
-                rank: match player {
-                    Player::White => rank + 1,
-                    Player::Black => rank - 1,
-                },
-                file: file + 1,
-            };
-            generate_pawn_attack_moves_helper(movelist, game, player, pos, to, &opposite_occupied);
+        while attacking_enpassant != 0 {
+            let to = attacking_enpassant.pop_mut();
+            generate_pawn_attack_moves_helper(
+                movelist,
+                game,
+                pos,
+                to,
+                true,
+            );
         }
     }
 }
@@ -180,62 +190,45 @@ pub fn generate_pawn_attack_moves(movelist: &mut Vec<MoveItem>, game: &GameState
 pub fn generate_pawn_attack_moves_helper(
     movelist: &mut Vec<MoveItem>,
     game: &GameState,
-    player: Player,
     from_pos: i8,
-    to: Square,
-    opposite_occupied: &u64,
+    to: i8,
+    enpassant: bool,
 ) {
-    let can_enpassant = game.enpassant_square.exists
-        && to.rank == game.enpassant_square.pos.rank
-        && to.file == game.enpassant_square.pos.file;
+    let captured_piece = game.bitboards.pos_to_piece[to as usize];
 
-    let captured_piece = if can_enpassant {
-        let from = Square::from(from_pos);
-
-        let rank = from.rank;
-        let file = to.file;
-
-        let captured_square = Square { rank, file };
-        game.bitboards.pos_to_piece[<Square as Into<i8>>::into(captured_square) as usize]
-    } else {
-        game.bitboards.pos_to_piece[<Square as Into<i8>>::into(to) as usize]
-    };
-
-    if opposite_occupied.get(to.into()) || can_enpassant {
-        // promotion on capture
-        if to.rank == 0 || to.rank == 7 {
-            // we can prob only do queen and knight, should help reduce tree without hurting performance
-            // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
-            let promotion_pieces = vec![Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
-            for promotion_piece in promotion_pieces {
-                movelist.push(MoveItem {
-                    from_pos,
-                    to_pos: to.into(),
-                    piece: Piece::Pawn,
-                    promotion_piece,
-                    captured_piece,
-                    promoting: true,
-                    capturing: true,
-                    double: false,
-                    enpassant: can_enpassant,
-                    castling: false,
-                    score: 0.,
-                })
-            }
-        } else {
+    // promotion on capture
+    if to <= 6 || to >= 56 {
+        // we can prob only do queen and knight, should help reduce tree without hurting performance
+        // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
+        let promotion_pieces = [Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
+        for promotion_piece in promotion_pieces {
             movelist.push(MoveItem {
                 from_pos,
                 to_pos: to.into(),
                 piece: Piece::Pawn,
-                promotion_piece: Piece::Empty,
+                promotion_piece,
                 captured_piece,
-                promoting: false,
+                promoting: true,
                 capturing: true,
                 double: false,
-                enpassant: can_enpassant,
+                enpassant,
                 castling: false,
                 score: 0.,
             })
         }
+    } else {
+        movelist.push(MoveItem {
+            from_pos,
+            to_pos: to.into(),
+            piece: Piece::Pawn,
+            promotion_piece: Piece::Empty,
+            captured_piece,
+            promoting: false,
+            capturing: true,
+            double: false,
+            enpassant,
+            castling: false,
+            score: 0.,
+        })
     }
 }

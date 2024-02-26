@@ -2,6 +2,8 @@ use std::{clone, ops::BitAnd};
 
 use enum_map::EnumMap;
 
+use crate::constants::masks::{INVERTED_SQUARE_MASKS, SQUARE_MASKS};
+
 use super::{pieces::Piece, player::Player};
 
 // #[derive(Default,Debug,Clone)]
@@ -18,16 +20,19 @@ pub trait BitBoard {
 }
 
 impl BitBoard for u64 {
+    #[inline(never)]
     fn set(&mut self, index: i8) {
-        *self |= 1 << index;
+        *self |= 1 << index; // SQUARE_MASKS[index as usize];
     }
 
+    #[inline(never)]
     fn get(&self, index: i8) -> bool {
-        (self >> index) & 1 != 0
+        self & 1 << index != 0
     }
 
+    #[inline(never)]
     fn unset(&mut self, index: i8) {
-        *self &= !(1 << index);
+        *self &= INVERTED_SQUARE_MASKS[index as usize];
     }
 
     fn clear(&mut self) {
@@ -36,7 +41,7 @@ impl BitBoard for u64 {
 
     fn pop(&self) -> (u64, i8) {
         let trailing = self.trailing_zeros();
-        return (self & !(1 << trailing), trailing.try_into().unwrap());
+        return (self & INVERTED_SQUARE_MASKS[trailing as usize], trailing.try_into().unwrap());
     }
 
     fn pop_mut(&mut self) -> i8 {
@@ -44,7 +49,7 @@ impl BitBoard for u64 {
         if trailing >= 64 {
             println!("{self} {:?}", trailing);
         }
-        *self &= !(1 << trailing);
+        *self &= INVERTED_SQUARE_MASKS[trailing as usize];
         return trailing;
     }
 
@@ -87,6 +92,7 @@ impl Boards {
         return &self.boards[player as usize][piece as usize];
     }
 
+    #[inline(never)]
     pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
 
@@ -110,6 +116,7 @@ impl Boards {
         return removed;
     }
 
+    #[inline(never)]
     pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;

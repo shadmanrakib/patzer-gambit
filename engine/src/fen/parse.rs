@@ -2,7 +2,7 @@ use regex::Regex;
 
 use crate::state::{
     boards::Boards,
-    game::{CastlePermissions, EnpassantSquare},
+    game::CastlePermissions,
     pieces::Piece,
     player::Player,
     square::Square,
@@ -85,19 +85,13 @@ pub fn parse_fen_side(part: &str) -> Result<Player, String> {
         _ => Err("Invalid player character".into()),
     }
 }
-pub fn parse_fen_enpassant(part: &str) -> Result<EnpassantSquare, String> {
+pub fn parse_fen_enpassant(part: &str) -> Result<u64, String> {
     let re = Regex::new(r"^[a-h][1-8]$").unwrap();
     match part {
-        "-" => Ok(EnpassantSquare {
-            exists: false,
-            pos: Square { rank: 8, file: 8 },
-        }),
+        "-" => Ok(0),
         part3 if re.is_match(part3) => {
             if let Ok(square) = Square::parse_string(part3.into()) {
-                return Ok(EnpassantSquare {
-                    exists: true,
-                    pos: square,
-                });
+                return Ok(1 << <Square as Into<i8>>::into(square));
             }
 
             return Err("Invalid enpassant square".into());

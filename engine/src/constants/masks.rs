@@ -15,3 +15,28 @@ pub const FILE_A_MASK: u64 = 0x101010101010101u64;
 // pub const FILE_F_MASK: u64 = FILE_A_MASK << 5;
 // pub const FILE_G_MASK: u64 = FILE_A_MASK << 6;
 pub const FILE_H_MASK: u64 = FILE_A_MASK << 7;
+
+const fn create_square_masks() -> [u64; 64] {
+    let mut bb_squares: [u64; 64] = [0; 64];
+    let mut i = 0;
+    while i < 64 {
+        bb_squares[i] = 1 << i;
+        i += 1;
+    }
+
+    bb_squares
+}
+
+const fn create_inverted_square_masks() -> [u64; 64] {
+    let mut bb_squares: [u64; 64] = [0; 64];
+    let mut i = 0;
+    while i < 64 {
+        bb_squares[i] = !(1 << i);
+        i += 1;
+    }
+
+    bb_squares
+}
+
+pub const SQUARE_MASKS: [u64; 64] = create_square_masks();
+pub const INVERTED_SQUARE_MASKS: [u64; 64] = create_inverted_square_masks();

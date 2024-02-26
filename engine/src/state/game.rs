@@ -7,6 +7,7 @@ use super::{
     square::Square,
 };
 use crate::{
+    constants::masks::SQUARE_MASKS,
     fen,
     moves::move_data::{MoveItem, SimpleMoveItem, UnmakeMoveMetadata},
     state::boards::BitBoard,
@@ -52,7 +53,7 @@ pub struct GameState {
     pub side_to_move: Player,
     pub castle_permissions: CastlePermissions,
     // 0-7 maps to columns A-H, 8 is none
-    pub enpassant_square: EnpassantSquare,
+    pub enpassant_square: u64,
     // It marks the number of moves since the last pawn push or piece capture.
     pub half_move_clock: u32,
     // It marks the number of full moves. It starts at 1 and is incremented after black's move.
@@ -132,58 +133,62 @@ impl GameState {
 
         // lets now make the move
         // all other moves get handled
-        let final_piece = if move_item.promoting {
-            move_item.promotion_piece.clone()
-        } else {
-            move_item.piece.clone()
-        };
-
         self.bitboards
             .remove_piece(self.side_to_move, move_item.from_pos);
         self.bitboards
             .remove_piece(self.side_to_move.opponent(), move_item.to_pos);
-        self.bitboards
-            .place_piece(self.side_to_move, final_piece, move_item.to_pos);
-
-        // handle pawn left from enpassant capture
-        if move_item.enpassant {
-            let from = Square::from(move_item.from_pos);
-            let to = Square::from(move_item.to_pos);
-
-            let rank = from.rank;
-            let file = to.file;
-
-            let leftover_square = Square { rank, file };
-
+        if move_item.piece == Piece::Pawn {
+            let final_piece = if move_item.promoting {
+                move_item.promotion_piece
+            } else {
+                move_item.piece
+            };
             self.bitboards
-                .remove_piece(self.side_to_move.opponent(), leftover_square.into());
-        }
+                .place_piece(self.side_to_move, final_piece, move_item.to_pos);
 
-        if move_item.castling {
-            // move rook to place
-            match (self.side_to_move, move_item.to_pos) {
-                (Player::White, 2) => {
-                    self.bitboards.remove_piece(self.side_to_move, 0);
-                    self.bitboards
-                        .place_piece(self.side_to_move, Piece::Rook, 3);
-                }
-                (Player::White, 6) => {
-                    self.bitboards.remove_piece(self.side_to_move, 7);
-                    self.bitboards
-                        .place_piece(self.side_to_move, Piece::Rook, 5);
-                }
-                (Player::Black, 58) => {
-                    self.bitboards.remove_piece(self.side_to_move, 56);
-                    self.bitboards
-                        .place_piece(self.side_to_move, Piece::Rook, 59);
-                }
-                (Player::Black, 62) => {
-                    self.bitboards.remove_piece(self.side_to_move, 63);
-                    self.bitboards
-                        .place_piece(self.side_to_move, Piece::Rook, 61);
-                }
-                (_, _) => {
-                    // TODO: handle error
+            // handle pawn left from enpassant capture
+            if move_item.enpassant {
+                let from = Square::from(move_item.from_pos);
+                let to = Square::from(move_item.to_pos);
+
+                let rank = from.rank;
+                let file = to.file;
+
+                let leftover_square = Square { rank, file };
+
+                self.bitboards
+                    .remove_piece(self.side_to_move.opponent(), leftover_square.into());
+            }
+        } else {
+            self.bitboards
+                .place_piece(self.side_to_move, move_item.piece, move_item.to_pos);
+
+            if move_item.castling {
+                // move rook to place
+                match (self.side_to_move, move_item.to_pos) {
+                    (Player::White, 2) => {
+                        self.bitboards.remove_piece(self.side_to_move, 0);
+                        self.bitboards
+                            .place_piece(self.side_to_move, Piece::Rook, 3);
+                    }
+                    (Player::White, 6) => {
+                        self.bitboards.remove_piece(self.side_to_move, 7);
+                        self.bitboards
+                            .place_piece(self.side_to_move, Piece::Rook, 5);
+                    }
+                    (Player::Black, 58) => {
+                        self.bitboards.remove_piece(self.side_to_move, 56);
+                        self.bitboards
+                            .place_piece(self.side_to_move, Piece::Rook, 59);
+                    }
+                    (Player::Black, 62) => {
+                        self.bitboards.remove_piece(self.side_to_move, 63);
+                        self.bitboards
+                            .place_piece(self.side_to_move, Piece::Rook, 61);
+                    }
+                    (_, _) => {
+                        // TODO: handle error
+                    }
                 }
             }
         }
@@ -215,19 +220,13 @@ impl GameState {
                     to_rank + 1
                 }
             };
-            self.enpassant_square = EnpassantSquare {
-                exists: true,
-                pos: Square {
-                    rank: enpassant_rank,
-                    file,
-                },
-            }
+            self.enpassant_square = SQUARE_MASKS[<Square as Into<i8>>::into(Square {
+                rank: enpassant_rank,
+                file,
+            }) as usize];
         } else {
             // no enpassant square
-            self.enpassant_square = EnpassantSquare {
-                exists: false,
-                pos: Square { rank: 8, file: 8 },
-            }
+            self.enpassant_square = 0;
         }
 
         // full move number needs to be incremented if side to play is black

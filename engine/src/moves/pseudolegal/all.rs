@@ -10,7 +10,7 @@ pub fn generate_pseudolegal_moves(
     player: Player,
     cache: &PrecalculatedCache,
 ) {
-    moves::pseudolegal::pawn::generate_pawn_moves(movelist, game, player);
+    moves::pseudolegal::pawn::generate_pawn_moves(movelist, game, player, cache);
     moves::pseudolegal::knight::generate_knight_moves(movelist, game, player, cache);
     moves::pseudolegal::bishop::generate_bishop_moves(movelist, game, player, cache);
     moves::pseudolegal::rook::generate_rook_moves(movelist, game, player, cache);
