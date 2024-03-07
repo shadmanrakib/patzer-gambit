@@ -9,6 +9,7 @@ use crate::state::{game::GameState, pieces::Piece, player::Player};
 // use crate::masks::RANK_1_MASK;
 
 // single forward non promotion, double, promotion, capture
+// #[inline(always)]
 pub fn generate_pawn_moves(
     movelist: &mut MoveList,
     game: &GameState,
@@ -28,13 +29,10 @@ pub fn generate_pawn_single_forward_moves(
 ) {
     let pawnboard = game.bitboards.get_board_by_piece(player, Piece::Pawn);
     let can_move = pawnboard & !RANK_1_MASK & !RANK_8_MASK;
-    let moved_forward = {
-        match player {
-            Player::White => can_move << 8,
-            Player::Black => can_move >> 8,
-        }
+    let moved_forward = match player {
+        Player::White => can_move << 8,
+        Player::Black => can_move >> 8,
     };
-    // let (player_occupied, opponent_occupied) = (game.bitboards.get_occupied_by_player(player).uint(), game.bitboards.get_occupied_by_player(player.opponent()).uint());
     let mut valid = moved_forward & !game.bitboards.occupied;
 
     while valid != 0 {
@@ -94,42 +92,34 @@ pub fn generate_pawn_double_forward_moves(
     player: Player,
 ) {
     let pawnboard = game.bitboards.get_board_by_piece(player, Piece::Pawn);
-    let can_move = pawnboard & {
-        match player {
-            Player::White => RANK_2_MASK,
-            Player::Black => RANK_7_MASK,
-        }
-    };
-    let moved_forward = {
-        match player {
-            Player::White => can_move << 16,
-            Player::Black => can_move >> 16,
-        }
-    };
-    // let (player_occupied, opponent_occupied) = (game.bitboards.get_occupied_by_player(player).uint(), game.bitboards.get_occupied_by_player(player.opponent()).uint());
     let occupied = game.bitboards.occupied;
-    let mask = !(occupied | {
-        match player {
+
+    let can_move = match player {
+        Player::White => pawnboard & RANK_2_MASK,
+        Player::Black => pawnboard & RANK_7_MASK,
+    };
+    let moved_forward = match player {
+        Player::White => can_move << 16,
+        Player::Black => can_move >> 16,
+    };
+    let mask = !(occupied
+        | match player {
             Player::White => occupied << 8,
             Player::Black => occupied >> 8,
-        }
-    });
+        });
     let mut valid = moved_forward & mask;
 
     while valid != 0 {
         let pos = valid.pop_mut();
 
-        let to = Square::from(pos);
-        let from = Square::from({
-            match player {
-                Player::White => pos - 16,
-                Player::Black => pos + 16,
-            }
-        });
+        let from = match player {
+            Player::White => pos - 16,
+            Player::Black => pos + 16,
+        };
 
         movelist.push(MoveItem {
-            from_pos: from.into(),
-            to_pos: to.into(),
+            from_pos: from,
+            to_pos: pos,
             piece: Piece::Pawn,
             promotion_piece: Piece::Empty,
             captured_piece: Piece::Empty,
@@ -165,23 +155,11 @@ pub fn generate_pawn_attack_moves(
 
         while attacking != 0 {
             let to = attacking.pop_mut();
-            generate_pawn_attack_moves_helper(
-                movelist,
-                game,
-                pos,
-                to,
-                false,
-            );
+            generate_pawn_attack_moves_helper(movelist, game, pos, to, false);
         }
         while attacking_enpassant != 0 {
             let to = attacking_enpassant.pop_mut();
-            generate_pawn_attack_moves_helper(
-                movelist,
-                game,
-                pos,
-                to,
-                true,
-            );
+            generate_pawn_attack_moves_helper(movelist, game, pos, to, true);
         }
     }
 }
@@ -196,15 +174,17 @@ pub fn generate_pawn_attack_moves_helper(
 ) {
     let captured_piece = game.bitboards.pos_to_piece[to as usize];
 
+    println!("to: {}", to);
+
     // promotion on capture
-    if to <= 6 || to >= 56 {
+    if to <= 7 || to >= 56 {
         // we can prob only do queen and knight, should help reduce tree without hurting performance
         // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
         let promotion_pieces = [Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
         for promotion_piece in promotion_pieces {
             movelist.push(MoveItem {
                 from_pos,
-                to_pos: to.into(),
+                to_pos: to,
                 piece: Piece::Pawn,
                 promotion_piece,
                 captured_piece,
@@ -219,7 +199,7 @@ pub fn generate_pawn_attack_moves_helper(
     } else {
         movelist.push(MoveItem {
             from_pos,
-            to_pos: to.into(),
+            to_pos: to,
             piece: Piece::Pawn,
             promotion_piece: Piece::Empty,
             captured_piece,

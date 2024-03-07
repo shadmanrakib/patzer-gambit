@@ -1,17 +1,6 @@
 use super::player::Player;
 
 #[derive(PartialEq, Debug, Clone, Copy)]
-pub enum Tile {
-    Empty,
-    Pawn(Player),
-    Knight(Player),
-    Bishop(Player),
-    Rook(Player),
-    Queen(Player),
-    King(Player),
-}
-
-#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Piece {
     Empty = 0,
     Pawn = 1,

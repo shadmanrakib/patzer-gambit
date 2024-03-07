@@ -16,6 +16,11 @@ mod tests {
         // from https://www.chessprogramming.org/Perft_Results and using stockfish perft for expected
         let tests = [
             PerftTest {
+                fen: "8/2p5/3p4/KP5r/4P2k/8/6p1/7R b - - 1 3".into(),
+                depth: 2,
+                expected_nodes: 62,
+            },
+            PerftTest {
                 fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into(),
                 depth: 6,
                 expected_nodes: 119_060_324,

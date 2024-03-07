@@ -7,6 +7,12 @@ use crate::{
     state::{boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player},
 };
 // #[inline(always)]
+
+const WHITE_KING_SIDE_CASTLE_PATH: u64 = (1 << 5) | (1 << 6);
+const WHITE_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 1) | (1 << 2) | (1 << 3);
+const BLACK_KING_SIDE_CASTLE_PATH: u64 = (1 << 61) | (1 << 62);
+const BLACK_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 57) | (1 << 58) | (1 << 59);
+
 pub fn generate_castling_moves(
     movelist: &mut MoveList,
     game: &GameState,
@@ -19,6 +25,7 @@ pub fn generate_castling_moves(
     }
 
     let occupied = game.bitboards.occupied;
+    let opponent: Player = player.opponent();
 
     match player {
         Player::White => {
@@ -27,7 +34,7 @@ pub fn generate_castling_moves(
             if game.castle_permissions.white_king_side
                 && !occupied.get(5)
                 && !occupied.get(6)
-                && !is_square_attacked(5, player.opponent(), game, cache)
+                && !is_square_attacked(5, opponent, game, cache)
             {
                 // we will mark the king movement
                 movelist.push(MoveItem {
@@ -50,7 +57,7 @@ pub fn generate_castling_moves(
                 && !occupied.get(1)
                 && !occupied.get(2)
                 && !occupied.get(3)
-                && !is_square_attacked(3, player.opponent(), game, cache)
+                && !is_square_attacked(3, opponent, game, cache)
             {
                 // TODO: need to change this to use king
                 movelist.push(MoveItem {
@@ -72,7 +79,7 @@ pub fn generate_castling_moves(
             if game.castle_permissions.black_king_side
                 && !occupied.get(61)
                 && !occupied.get(62)
-                && !is_square_attacked(61, player.opponent(), game, cache)
+                && !is_square_attacked(61, opponent, game, cache)
             {
                 // check if 61 is attacked, king side between transition
                 // make sure in between is also empty
@@ -95,7 +102,7 @@ pub fn generate_castling_moves(
                 && !occupied.get(57)
                 && !occupied.get(58)
                 && !occupied.get(59)
-                && !is_square_attacked(59, player.opponent(), game, cache)
+                && !is_square_attacked(59, opponent, game, cache)
             {
                 // check if 58 is attacked, queen side between transition
                 // make sure in between is also empty

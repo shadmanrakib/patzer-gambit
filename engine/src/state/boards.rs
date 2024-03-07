@@ -88,7 +88,7 @@ impl Boards {
         return &self.boards[player as usize][piece as usize];
     }
 
-    // #[inline(always)]
+    #[inline(always)]
     pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) -> Piece {
         let removed = self.remove_piece(player.opponent(), pos);
 
@@ -97,18 +97,10 @@ impl Boards {
         self.pos_to_player[player as usize].set(pos);
         self.occupied.set(pos);
 
-        // if piece == Piece::Empty {
-        //     self.pos_to_player[player as usize].unset(pos);
-        //     self.occupied.unset(pos);
-        // } else {
-        //     self.pos_to_player[player as usize].set(pos);
-        //     self.occupied.set(pos);
-        // }
-
         return removed;
     }
 
-    // #[inline(always)]
+    #[inline(always)]
     pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;
