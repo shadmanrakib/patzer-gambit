@@ -173,9 +173,7 @@ pub fn generate_pawn_attack_moves_helper(
     enpassant: bool,
 ) {
     let captured_piece = game.bitboards.pos_to_piece[to as usize];
-
-    println!("to: {}", to);
-
+    
     // promotion on capture
     if to <= 7 || to >= 56 {
         // we can prob only do queen and knight, should help reduce tree without hurting performance
