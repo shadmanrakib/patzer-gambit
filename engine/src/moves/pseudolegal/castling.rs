@@ -4,11 +4,11 @@ use crate::{
         move_data::MoveItem,
         precalculate::cache::PrecalculatedCache,
     },
-    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player},
+    state::{boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player},
 };
 // #[inline(always)]
 pub fn generate_castling_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,

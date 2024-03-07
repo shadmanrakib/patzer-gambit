@@ -1,5 +1,3 @@
-use enum_map::Enum;
-
 use super::player::Player;
 
 #[derive(PartialEq, Debug, Clone, Copy)]

@@ -38,5 +38,5 @@ const fn create_inverted_square_masks() -> [u64; 64] {
     bb_squares
 }
 
-pub const SQUARE_MASKS: [u64; 64] = create_square_masks();
-pub const INVERTED_SQUARE_MASKS: [u64; 64] = create_inverted_square_masks();
+pub static SQUARE_MASKS: [u64; 64] = create_square_masks();
+pub static INVERTED_SQUARE_MASKS: [u64; 64] = create_inverted_square_masks();

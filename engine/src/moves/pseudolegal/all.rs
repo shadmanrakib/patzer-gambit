@@ -1,11 +1,11 @@
 use crate::{
     moves::{self, move_data::MoveItem, precalculate::cache::PrecalculatedCache},
-    state::{game::GameState, player::Player},
+    state::{game::GameState, movelist::MoveList, player::Player},
 };
 
 // #[inline(always)]
 pub fn generate_pseudolegal_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,

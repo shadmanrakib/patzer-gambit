@@ -3,12 +3,12 @@ use crate::{
         move_data::MoveItem,
         precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
     },
-    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
+    state::{boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player, square::Square},
 };
 
 // #[inline(always)]
 pub fn generate_rook_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
@@ -26,12 +26,10 @@ pub fn generate_rook_moves(
         let from = Square::from(pos);
 
         let magic_index = hash_with_magic(
-            cache.rook_potential_blockers_masks[pos as usize],
-            occupied,
             cache.rook_magics[pos as usize],
-            cache.rook_bit_counts[pos as usize],
+            occupied,
         );
-        let moves_mask = cache.rook_magic_attack_tables[pos as usize][magic_index];
+        let moves_mask = cache.rook_magic_attack_tables[magic_index];
 
         let mut valid_silents = moves_mask & !occupied;
         let mut valid_captures = moves_mask & opponent_occupied;

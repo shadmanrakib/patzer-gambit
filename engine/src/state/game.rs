@@ -131,6 +131,8 @@ impl GameState {
 
         // ==============================================
 
+        let opponent = self.side_to_move.opponent();
+
         // lets now make the move
         // all other moves get handled
         self.bitboards
@@ -145,26 +147,23 @@ impl GameState {
 
             // handle pawn left from enpassant capture
             if move_item.enpassant {
-                let from = Square::from(move_item.from_pos);
-                let to = Square::from(move_item.to_pos);
+                let rank = Square::rank(move_item.from_pos);
+                let file = Square::file(move_item.to_pos);
 
-                let rank = from.rank;
-                let file = to.file;
-
-                let leftover_square = Square { rank, file };
+                let leftover = Square::index(rank, file);
 
                 self.bitboards
-                    .remove_piece(self.side_to_move.opponent(), leftover_square.into());
+                    .remove_piece(opponent, leftover);
             } else {
                 self.bitboards
-                    .remove_piece(self.side_to_move.opponent(), move_item.to_pos);
+                    .remove_piece(opponent, move_item.to_pos);
             }
 
             self.bitboards
                 .place_piece(self.side_to_move, final_piece, move_item.to_pos);
         } else {
             self.bitboards
-                .remove_piece(self.side_to_move.opponent(), move_item.to_pos);
+                .remove_piece(opponent, move_item.to_pos);
 
             self.bitboards
                 .place_piece(self.side_to_move, move_item.piece, move_item.to_pos);
@@ -197,28 +196,22 @@ impl GameState {
                     }
                 }
             }
+
+            // half move clock needs to be incremented if no capture, castle, or pawn move
+            // to enforce draw by 50 moves rule, else set to 0 to reset
+            if !move_item.capturing && !move_item.castling {
+                self.half_move_clock += 1;
+            } else {
+                self.half_move_clock = 0;
+            }
         }
 
         // ==============================================
 
-        // half move clock needs to be incremented if no capture, castle, or pawn move
-        // to enforce draw by 50 moves rule, else set to 0 to reset
-        if !move_item.capturing && !move_item.castling && move_item.piece != Piece::Pawn {
-            self.half_move_clock += 1;
-        } else {
-            self.half_move_clock = 0;
-        }
-
         // we want to create new enpassant square if needed, or revoke old
         if move_item.double {
-            let Square {
-                rank: to_rank,
-                file,
-            } = Square::from(move_item.to_pos);
-            let Square {
-                rank: from_rank,
-                file: _,
-            } = Square::from(move_item.from_pos);
+            let (to_rank, file) = Square::rank_and_file(move_item.to_pos);
+            let from_rank = Square::rank(move_item.from_pos);
             let enpassant_rank: i8 = {
                 if to_rank > from_rank {
                     to_rank - 1
@@ -226,12 +219,8 @@ impl GameState {
                     to_rank + 1
                 }
             };
-            self.enpassant_square = SQUARE_MASKS[<Square as Into<i8>>::into(Square {
-                rank: enpassant_rank,
-                file,
-            }) as usize];
+            self.enpassant_square = SQUARE_MASKS[Square::index(enpassant_rank, file) as usize];
         } else {
-            // no enpassant square
             self.enpassant_square = 0;
         }
 
@@ -270,7 +259,7 @@ impl GameState {
             }
         }
         if move_item.captured_piece == Piece::Rook {
-            match (self.side_to_move.opponent(), move_item.to_pos) {
+            match (opponent, move_item.to_pos) {
                 (Player::White, 0) => {
                     self.castle_permissions.white_queen_side = false;
                 }
@@ -288,7 +277,7 @@ impl GameState {
         }
 
         // side to play needs to change to opposite
-        self.side_to_move = self.side_to_move.opponent();
+        self.side_to_move = opponent;
 
         UnmakeMoveMetadata {
             captured_piece: move_item.captured_piece,

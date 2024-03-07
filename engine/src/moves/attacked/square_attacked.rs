@@ -28,12 +28,10 @@ pub fn times_square_attacked(
 
     // rook and queen vertical and horizontal
     let rook_magic_index = hash_with_magic(
-        cache.rook_potential_blockers_masks[pos as usize],
-        occupied,
         cache.rook_magics[pos as usize],
-        cache.rook_bit_counts[pos as usize],
+        occupied,
     );
-    let rook_moves_mask = cache.rook_magic_attack_tables[pos as usize][rook_magic_index];
+    let rook_moves_mask = cache.rook_magic_attack_tables[rook_magic_index];
     let attacking_rooks =
         rook_moves_mask & game.bitboards.get_board_by_piece(attacker, Piece::Rook);
     let attacking_queens_straight =
@@ -49,12 +47,10 @@ pub fn times_square_attacked(
 
     // bishop and queen diagonal
     let bishop_magic_index = hash_with_magic(
-        cache.bishop_potential_blockers_masks[pos as usize],
-        occupied,
         cache.bishop_magics[pos as usize],
-        cache.bishop_bit_counts[pos as usize],
+        occupied,
     );
-    let bishop_moves_mask = cache.bishop_magic_attack_tables[pos as usize][bishop_magic_index];
+    let bishop_moves_mask = cache.bishop_magic_attack_tables[bishop_magic_index];
 
     let attacking_bishops =
         bishop_moves_mask & game.bitboards.get_board_by_piece(attacker, Piece::Bishop);

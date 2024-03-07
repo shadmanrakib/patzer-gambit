@@ -1,3 +1,5 @@
+use std::default;
+
 use super::{
     bishop::create_bishop_potential_moves_mask_on_the_fly,
     rook::create_rook_potential_moves_mask_on_the_fly,
@@ -23,41 +25,54 @@ pub fn get_subset_of_mask_by_bit_set(mask: u64, mask_bit_count: i8, bit_set: u64
     return subset_mask;
 }
 
-// #[inline]
-pub fn hash_with_magic(
-    potential_blockers_mask: u64,
-    blockers: u64,
+#[derive(Default, Debug, Clone, Copy)]
+pub struct Magic {
     magic_num: u64,
-    bit_count: i8,
-) -> usize {
-    let blockers_on_path = blockers & potential_blockers_mask;
-    let hash = blockers_on_path.wrapping_mul(magic_num);
-    let index = (hash >> (64 - bit_count)) as usize;
-    return index;
+    potential_blockers_mask: u64,
+    shift: u64,
+    offset: u64,
 }
 
-const ARRAY_REPEAT_VALUE: Vec<u64> = Vec::new();
+// #[inline]
+pub fn hash_with_magic(magic: Magic, blockers: u64) -> usize {
+    let blockers_on_path = blockers & magic.potential_blockers_mask;
+    let hash = blockers_on_path.wrapping_mul(magic.magic_num);
+    let index = ((hash >> magic.shift) + magic.offset) as usize;
+
+    return index;
+}
 
 pub fn find_rook_magic_numbers(
     rng: &mut Xoroshiro128,
     relevant_bits: &[i8; 64],
     potential_blockers_mask: &[u64; 64],
-) -> ([u64; 64], [Vec<u64>; 64]) {
-    let mut rook_magic_numbers: [u64; 64] = [0; 64];
-    let mut rook_magic_moves = [ARRAY_REPEAT_VALUE; 64];
+) -> ([Magic; 64], Vec<u64>) {
+    let mut rook_magic_numbers: [Magic; 64] = [Magic::default(); 64];
+    let mut rook_magic_moves: Vec<u64> = Vec::new();
 
+    let mut offset = 0;
     for pos in 0..64 {
-        let (magic_num, moves) = find_magic_number(
+        let (magic_num, mut moves) = find_magic_number(
             rng,
             pos.try_into().unwrap(),
             relevant_bits[pos as usize],
-            potential_blockers_mask,
+            potential_blockers_mask[pos as usize],
             &create_rook_potential_moves_mask_on_the_fly,
         )
         .unwrap();
-        rook_magic_numbers[pos as usize] = magic_num;
-        rook_magic_moves[pos as usize] = moves;
+        rook_magic_numbers[pos as usize] = Magic {
+            magic_num,
+            potential_blockers_mask: potential_blockers_mask[pos as usize],
+            shift: 64 - relevant_bits[pos as usize] as u64,
+            offset,
+        };
+        rook_magic_moves.append(&mut moves);
+
+        offset += 1 << relevant_bits[pos as usize];
     }
+
+    rook_magic_moves.shrink_to_fit();
+
     return (rook_magic_numbers, rook_magic_moves);
 }
 
@@ -65,23 +80,32 @@ pub fn find_bishop_magic_numbers(
     rng: &mut Xoroshiro128,
     relevant_bits: &[i8; 64],
     potential_blockers_mask: &[u64; 64],
-) -> ([u64; 64], [Vec<u64>; 64]) {
-    let mut magic_numbers: [u64; 64] = [0; 64];
-    let mut magic_moves = [ARRAY_REPEAT_VALUE; 64];
-
+) -> ([Magic; 64], Vec<u64>) {
+    let mut bishop_magic_numbers: [Magic; 64] = [Magic::default(); 64];
+    let mut bishop_magic_moves: Vec<u64> = Vec::new();
+    let mut offset = 0;
     for pos in 0..64 {
-        let (magic_num, moves) = find_magic_number(
+        let (magic_num, mut moves) = find_magic_number(
             rng,
             pos.try_into().unwrap(),
             relevant_bits[pos as usize],
-            potential_blockers_mask,
+            potential_blockers_mask[pos as usize],
             &create_bishop_potential_moves_mask_on_the_fly,
         )
         .unwrap();
-        magic_numbers[pos as usize] = magic_num;
-        magic_moves[pos as usize] = moves;
+        bishop_magic_numbers[pos as usize] = Magic {
+            magic_num,
+            potential_blockers_mask: potential_blockers_mask[pos as usize],
+            shift: 64 - relevant_bits[pos as usize] as u64,
+            offset,
+        };
+        bishop_magic_moves.append(&mut moves);
+
+        offset += 1 << relevant_bits[pos as usize];
     }
-    return (magic_numbers, magic_moves);
+    bishop_magic_moves.shrink_to_fit();
+
+    return (bishop_magic_numbers, bishop_magic_moves);
 }
 
 // #[inline]
@@ -96,7 +120,7 @@ fn find_magic_number(
     rng: &mut Xoroshiro128,
     pos: i8,
     relevant_bits: i8,
-    potential_blockers_mask: &[u64; 64],
+    potential_blockers_mask: u64,
     generate_potential_moves_on_the_fly: &dyn Fn(i8, u64) -> u64,
 ) -> Result<(u64, Vec<u64>), FailedToFindMagicNumberError> {
     // essentially 2 raised to the number of relevant_bits, so the number of possible subsets
@@ -104,8 +128,6 @@ fn find_magic_number(
 
     let mut occupancies = vec![0_u64; num_subsets];
     let mut moves = vec![0_u64; num_subsets];
-
-    let potential_blockers_mask = potential_blockers_mask[pos as usize];
 
     // we can use the number as a bitmap for which parts of the mask to include
     // using the properties of 2 complements, we can go through all subsets since
@@ -133,10 +155,14 @@ fn find_magic_number(
 
         for bit_set in 0..num_subsets {
             let magic_index = hash_with_magic(
-                potential_blockers_mask,
+                // temp magic
+                Magic {
+                    magic_num,
+                    potential_blockers_mask,
+                    offset: 0,
+                    shift: 64 - relevant_bits as u64,
+                },
                 occupancies[bit_set as usize],
-                magic_num,
-                relevant_bits,
             );
             if used_moves[magic_index as usize] == 0 {
                 used_moves[magic_index as usize] = moves[bit_set as usize];

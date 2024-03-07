@@ -2,15 +2,15 @@ use crate::constants::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK
 use crate::moves::move_data::MoveItem;
 use crate::moves::precalculate::cache::PrecalculatedCache;
 use crate::state::boards::BitBoard;
+use crate::state::movelist::MoveList;
 use crate::state::square::Square;
 use crate::state::{game::GameState, pieces::Piece, player::Player};
 
 // use crate::masks::RANK_1_MASK;
 
 // single forward non promotion, double, promotion, capture
-#[inline(never)]
 pub fn generate_pawn_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
@@ -20,9 +20,9 @@ pub fn generate_pawn_moves(
     generate_pawn_attack_moves(movelist, game, player, cache);
 }
 
-// #[inline(never)]
+#[inline(always)]
 pub fn generate_pawn_single_forward_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
 ) {
@@ -87,9 +87,9 @@ pub fn generate_pawn_single_forward_moves(
     }
 }
 
-// #[inline(never)]
+#[inline(always)]
 pub fn generate_pawn_double_forward_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
 ) {
@@ -143,9 +143,9 @@ pub fn generate_pawn_double_forward_moves(
     }
 }
 
-// #[inline(never)]
+#[inline(always)]
 pub fn generate_pawn_attack_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
@@ -186,9 +186,9 @@ pub fn generate_pawn_attack_moves(
     }
 }
 
-// #[inline(never)]
+#[inline(always)]
 pub fn generate_pawn_attack_moves_helper(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     from_pos: i8,
     to: i8,

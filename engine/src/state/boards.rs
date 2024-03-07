@@ -1,7 +1,3 @@
-use std::{clone, ops::BitAnd};
-
-use enum_map::EnumMap;
-
 use crate::constants::masks::{INVERTED_SQUARE_MASKS, SQUARE_MASKS};
 
 use super::{pieces::Piece, player::Player};
@@ -112,7 +108,7 @@ impl Boards {
         return removed;
     }
 
-    #[inline(always)]
+    // #[inline(always)]
     pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;

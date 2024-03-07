@@ -58,7 +58,7 @@ fn main() {
     game.print_state();
     // game.bitboards.boards[Player::White as usize][Piece::Pawn as usize].print_board();
 
-    // let mut movelist: Vec<MoveItem> = vec![];
+    // let mut movelist: MoveList = vec![];
     // moves::pseudolegal::all::generate_pseudolegal_moves(
     //     &mut movelist,
     //     &game,

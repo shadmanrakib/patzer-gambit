@@ -3,12 +3,12 @@ use crate::{
         move_data::MoveItem,
         precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
     },
-    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
+    state::{boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player, square::Square},
 };
 
 // #[inline(always)]
 pub fn generate_queen_moves(
-    movelist: &mut Vec<MoveItem>,
+    movelist: &mut MoveList,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
@@ -26,20 +26,16 @@ pub fn generate_queen_moves(
         let from = Square::from(pos);
 
         let rook_magic_index = hash_with_magic(
-            cache.rook_potential_blockers_masks[pos as usize],
-            occupied,
             cache.rook_magics[pos as usize],
-            cache.rook_bit_counts[pos as usize],
+            occupied,
         );
-        let rook_moves_mask = cache.rook_magic_attack_tables[pos as usize][rook_magic_index];
+        let rook_moves_mask = cache.rook_magic_attack_tables[rook_magic_index];
 
         let bishop_magic_index = hash_with_magic(
-            cache.bishop_potential_blockers_masks[pos as usize],
-            occupied,
             cache.bishop_magics[pos as usize],
-            cache.bishop_bit_counts[pos as usize],
+            occupied,
         );
-        let bishop_moves_mask = cache.bishop_magic_attack_tables[pos as usize][bishop_magic_index];
+        let bishop_moves_mask = cache.bishop_magic_attack_tables[bishop_magic_index];
 
         let moves_mask = rook_moves_mask | bishop_moves_mask;
 
