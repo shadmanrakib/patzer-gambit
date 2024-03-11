@@ -172,7 +172,7 @@ pub fn generate_pawn_attack_moves_helper(
     to: i8,
     enpassant: bool,
 ) {
-    let captured_piece = game.bitboards.pos_to_piece[to as usize];
+    let captured_piece = if enpassant {Piece::Pawn} else {game.bitboards.pos_to_piece[to as usize]};
     
     // promotion on capture
     if to <= 7 || to >= 56 {

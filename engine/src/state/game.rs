@@ -3,17 +3,21 @@ use regex::Regex;
 use super::{
     boards::Boards,
     pieces::Piece,
-    player::{self, Player},
+    player::Player,
     square::Square,
 };
 use crate::{
     constants::masks::SQUARE_MASKS,
     fen,
-    moves::move_data::{MoveItem, SimpleMoveItem, UnmakeMoveMetadata},
-    state::boards::BitBoard,
+    moves::{
+        move_data::{MoveItem, UnmakeMoveMetadata},
+        precalculate::cache::PrecalculatedCache,
+        pseudolegal::all::generate_pseudolegal_moves,
+    },
+    state::{boards::BitBoard, movelist::MoveList},
 };
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct CastlePermissions {
     pub white_queen_side: bool,
     pub white_king_side: bool,
@@ -47,7 +51,7 @@ pub struct EnpassantSquare {
 }
 
 // inspired by FEN notation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GameState {
     pub bitboards: Boards,
     pub side_to_move: Player,
@@ -70,63 +74,33 @@ impl GameState {
         self.full_move_number = other.full_move_number;
     }
     // TODO: will implement later
-    pub fn notation_to_simple_move(&self, notation: String) -> Result<SimpleMoveItem, String> {
+    pub fn notation_to_move(
+        &self,
+        notation: String,
+        cache: &PrecalculatedCache,
+    ) -> Result<MoveItem, String> {
         let re = Regex::new(r"([a-h][1-8])([a-h][1-8])([nbrq])?").unwrap();
 
-        if let Some(captures) = re.captures(&notation) {
-            println!("{:?}", captures);
-            if let (Some(from_match), Some(to_match), promotion_match) =
-                (captures.get(1), captures.get(2), captures.get(3))
-            {
-                let from = Square::parse_string(from_match.as_str().into()).unwrap();
-                let to = Square::parse_string(to_match.as_str().into()).unwrap();
-                let promotion_piece = promotion_match.map_or(Piece::Empty, |promotion| {
-                    match promotion.as_str() {
-                        "n" => Piece::Knight,
-                        "b" => Piece::Bishop,
-                        "r" => Piece::Rook,
-                        "q" => Piece::Queen,
-                        _ => unreachable!(), // shouldnt happen,
-                    }
-                });
+        if re.is_match(&notation) {
+            let mut moveslist = MoveList::new();
+            generate_pseudolegal_moves(&mut moveslist, self, self.side_to_move, cache);
 
-                let piece = self.bitboards.pos_to_piece[<Square as Into<i8>>::into(from) as usize];
-                let capturing_piece =
-                    self.bitboards.pos_to_piece[<Square as Into<i8>>::into(to) as usize];
+            for index in 0..moveslist.len() {
+                let move_item = &moveslist.moves[index];
 
-                // we need to consider if this is a valid pattern
-                // we need to consider if we are going to castle
-                // we need to consider enpassant
-                // we need to consider whether this is double move
-                // we need to consider whether we are capturing our own piece
-                // or the opponents
-
-                return Ok(SimpleMoveItem {
-                    from,
-                    to,
-                    promotion_piece,
-                });
+                if move_item.pure_algebraic_coordinate_notation() == notation {
+                    return Ok(move_item.clone());
+                }
             }
+
+            return Err("Move not found".into());
         }
 
         return Err("Invalid long algrebraic notation.".into());
-        // MoveItem {
-        //     from_pos: (),
-        //     to_pos: (),
-        //     piece: (),
-        //     promotion_piece: (),
-        //     captured_piece: (),
-        //     promoting: (),
-        //     capturing: (),
-        //     double: (),
-        //     enpassant: (),
-        //     castling: (),
-        //     score: (),
-        // };
     }
     pub fn make_move(&mut self, move_item: &MoveItem) -> UnmakeMoveMetadata {
         let prev_castle_permissions = self.castle_permissions.clone();
-        let prev_enpassant_square = self.enpassant_square.clone();
+        let prev_enpassant_square = self.enpassant_square;
         let prev_half_move_clock = self.half_move_clock;
 
         // ==============================================
@@ -152,18 +126,15 @@ impl GameState {
 
                 let leftover = Square::index(rank, file);
 
-                self.bitboards
-                    .remove_piece(opponent, leftover);
+                self.bitboards.remove_piece(opponent, leftover);
             } else {
-                self.bitboards
-                    .remove_piece(opponent, move_item.to_pos);
+                self.bitboards.remove_piece(opponent, move_item.to_pos);
             }
 
             self.bitboards
                 .place_piece(self.side_to_move, final_piece, move_item.to_pos);
         } else {
-            self.bitboards
-                .remove_piece(opponent, move_item.to_pos);
+            self.bitboards.remove_piece(opponent, move_item.to_pos);
 
             self.bitboards
                 .place_piece(self.side_to_move, move_item.piece, move_item.to_pos);
@@ -302,7 +273,7 @@ impl GameState {
         self.bitboards
             .place_piece(self.side_to_move, move_item.piece, move_item.from_pos);
 
-        // lets remove the to_piece preliminarly
+        // lets remove the to piece preliminarly
         self.bitboards
             .remove_piece(self.side_to_move, move_item.to_pos);
 
@@ -336,20 +307,24 @@ impl GameState {
         if move_item.castling {
             match (self.side_to_move, move_item.to_pos) {
                 (Player::White, 2) => {
-                    self.bitboards.place_piece(Player::White, Piece::Rook, 0);
-                    self.bitboards.remove_piece(Player::White, 3);
+                    self.bitboards
+                        .place_piece(self.side_to_move, Piece::Rook, 0);
+                    self.bitboards.remove_piece(self.side_to_move, 3);
                 }
                 (Player::White, 6) => {
-                    self.bitboards.place_piece(Player::White, Piece::Rook, 7);
-                    self.bitboards.remove_piece(Player::White, 5);
+                    self.bitboards
+                        .place_piece(self.side_to_move, Piece::Rook, 7);
+                    self.bitboards.remove_piece(self.side_to_move, 5);
                 }
                 (Player::Black, 58) => {
-                    self.bitboards.place_piece(Player::Black, Piece::Rook, 56);
-                    self.bitboards.remove_piece(Player::Black, 59);
+                    self.bitboards
+                        .place_piece(self.side_to_move, Piece::Rook, 56);
+                    self.bitboards.remove_piece(self.side_to_move, 59);
                 }
                 (Player::Black, 62) => {
-                    self.bitboards.place_piece(Player::Black, Piece::Rook, 63);
-                    self.bitboards.remove_piece(Player::Black, 61);
+                    self.bitboards
+                        .place_piece(self.side_to_move, Piece::Rook, 63);
+                    self.bitboards.remove_piece(self.side_to_move, 61);
                 }
                 (_, _) => {
                     println!("{:?} {}", self.side_to_move, move_item.to_pos);

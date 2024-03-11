@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        moves::{self, perft::perft},
+        moves::{self, perft::{perft, perft_unmake}},
         state,
     };
 
@@ -54,8 +54,9 @@ mod tests {
             let mut game = state::game::GameState::from_fen(test.fen.clone()).unwrap();
 
             println!("Test {}", &test.fen);
-            let nodes = perft(&mut game, &cache, test.depth);
+            let nodes = perft_unmake(&mut game, &cache, test.depth);
             println!("Found: {}\tExpected: {}", nodes, test.expected_nodes);
+            perft(&mut game, &cache, test.depth);
             assert_eq!(nodes, test.expected_nodes);
         }
     }

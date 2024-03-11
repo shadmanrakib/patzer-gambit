@@ -119,7 +119,7 @@ pub fn is_square_attacked(
     let occupied = game.bitboards.occupied;
 
     let (rank, file) = Square::rank_and_file(pos);
-
+    
     // knight
     let knight_move_mask = cache.knight_moves_masks[pos as usize];
     let attacking_knights =

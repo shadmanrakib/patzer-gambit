@@ -64,7 +64,7 @@ impl BitBoard for u64 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Boards {
     pub occupied: u64,
     pub boards: [[u64; 7]; 2],
