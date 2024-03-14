@@ -20,7 +20,7 @@ pub struct MoveItem {
     pub enpassant: bool,
     pub castling: bool,
     // for move ordering
-    pub score: f32,
+    pub score: i16,
 }
 
 impl MoveItem {

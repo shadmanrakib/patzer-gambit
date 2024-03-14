@@ -58,7 +58,7 @@ pub fn generate_queen_moves(
                 double: false,
                 enpassant: false,
                 castling: false,
-                score: 0.,
+                score: 0,
             })
         }
 
@@ -78,7 +78,7 @@ pub fn generate_queen_moves(
                 double: false,
                 enpassant: false,
                 castling: false,
-                score: 0.,
+                score: 0,
             })
         }
     }

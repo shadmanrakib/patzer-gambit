@@ -48,7 +48,7 @@ pub fn generate_castling_moves(
                     double: false,
                     enpassant: false,
                     castling: true,
-                    score: 0.,
+                    score: 0,
                 });
             }
             // check if 2 is attacked, queen side between transition
@@ -71,7 +71,7 @@ pub fn generate_castling_moves(
                     double: false,
                     enpassant: false,
                     castling: true,
-                    score: 0.,
+                    score: 0,
                 });
             }
         }
@@ -95,7 +95,7 @@ pub fn generate_castling_moves(
                     double: false,
                     enpassant: false,
                     castling: true,
-                    score: 0.,
+                    score: 0,
                 });
             }
             if game.castle_permissions.black_queen_side
@@ -118,7 +118,7 @@ pub fn generate_castling_moves(
                     double: false,
                     enpassant: false,
                     castling: true,
-                    score: 0.,
+                    score: 0,
                 });
             }
         }

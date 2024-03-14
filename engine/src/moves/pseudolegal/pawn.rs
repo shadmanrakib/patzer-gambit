@@ -64,7 +64,7 @@ pub fn generate_pawn_single_forward_moves(
                     double: false,
                     enpassant: false,
                     castling: false,
-                    score: 0.,
+                    score: 0,
                 })
             }
         } else {
@@ -79,7 +79,7 @@ pub fn generate_pawn_single_forward_moves(
                 double: false,
                 enpassant: false,
                 castling: false,
-                score: 0.,
+                score: 0,
             })
         }
     }
@@ -128,7 +128,7 @@ pub fn generate_pawn_double_forward_moves(
             double: true,
             enpassant: false,
             castling: false,
-            score: 0.,
+            score: 0,
         })
     }
 }
@@ -191,7 +191,7 @@ pub fn generate_pawn_attack_moves_helper(
                 double: false,
                 enpassant,
                 castling: false,
-                score: 0.,
+                score: 0,
             })
         }
     } else {
@@ -206,7 +206,7 @@ pub fn generate_pawn_attack_moves_helper(
             double: false,
             enpassant,
             castling: false,
-            score: 0.,
+            score: 0,
         })
     }
 }

@@ -103,14 +103,24 @@ impl GameState {
         let prev_enpassant_square = self.enpassant_square;
         let prev_half_move_clock = self.half_move_clock;
 
+
         // ==============================================
 
-        let opponent = self.side_to_move.opponent();
+        let side_moving = self.side_to_move;
+        if self.side_to_move != side_moving {
+            panic!("OOOOOOOF9");
+        }
+        let opponent = side_moving.opponent();
+
+
+        if self.side_to_move != side_moving {
+            panic!("OOOOOOOF10");
+        }
 
         // lets now make the move
         // all other moves get handled
         self.bitboards
-            .remove_piece(self.side_to_move, move_item.from_pos);
+            .remove_piece(side_moving, move_item.from_pos);
 
         if move_item.piece == Piece::Pawn {
             let final_piece = if move_item.promoting {
@@ -132,35 +142,35 @@ impl GameState {
             }
 
             self.bitboards
-                .place_piece(self.side_to_move, final_piece, move_item.to_pos);
+                .place_piece(side_moving, final_piece, move_item.to_pos);
         } else {
             self.bitboards.remove_piece(opponent, move_item.to_pos);
 
             self.bitboards
-                .place_piece(self.side_to_move, move_item.piece, move_item.to_pos);
+                .place_piece(side_moving, move_item.piece, move_item.to_pos);
 
             if move_item.castling {
                 // move rook to place
                 match (self.side_to_move, move_item.to_pos) {
                     (Player::White, 2) => {
-                        self.bitboards.remove_piece(self.side_to_move, 0);
+                        self.bitboards.remove_piece(side_moving, 0);
                         self.bitboards
-                            .place_piece(self.side_to_move, Piece::Rook, 3);
+                            .place_piece(side_moving, Piece::Rook, 3);
                     }
                     (Player::White, 6) => {
-                        self.bitboards.remove_piece(self.side_to_move, 7);
+                        self.bitboards.remove_piece(side_moving, 7);
                         self.bitboards
-                            .place_piece(self.side_to_move, Piece::Rook, 5);
+                            .place_piece(side_moving, Piece::Rook, 5);
                     }
                     (Player::Black, 58) => {
-                        self.bitboards.remove_piece(self.side_to_move, 56);
+                        self.bitboards.remove_piece(side_moving, 56);
                         self.bitboards
-                            .place_piece(self.side_to_move, Piece::Rook, 59);
+                            .place_piece(side_moving, Piece::Rook, 59);
                     }
                     (Player::Black, 62) => {
-                        self.bitboards.remove_piece(self.side_to_move, 63);
+                        self.bitboards.remove_piece(side_moving, 63);
                         self.bitboards
-                            .place_piece(self.side_to_move, Piece::Rook, 61);
+                            .place_piece(side_moving, Piece::Rook, 61);
                     }
                     (_, _) => {
                         // TODO: handle error
@@ -196,14 +206,14 @@ impl GameState {
         }
 
         // full move number needs to be incremented if side to play is black
-        if self.side_to_move == Player::Black {
+        if side_moving == Player::Black {
             self.full_move_number += 1;
         }
 
         // revoke necessary castling permissions
         // || move_item.piece == Piece::King(self.side_to_move)
         if move_item.castling || move_item.piece == Piece::King {
-            match self.side_to_move {
+            match side_moving {
                 Player::White => {
                     self.castle_permissions.revoke_white();
                 }
@@ -213,7 +223,7 @@ impl GameState {
             }
         }
         if move_item.piece == Piece::Rook {
-            match (self.side_to_move, move_item.from_pos) {
+            match (side_moving, move_item.from_pos) {
                 (Player::White, 0) => {
                     self.castle_permissions.white_queen_side = false;
                 }
