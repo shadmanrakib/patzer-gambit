@@ -1,26 +1,4 @@
 /*
-   function alphabeta(node, depth, α, β, maximizingPlayer) is
-       if depth == 0 or node is terminal then
-           return the heuristic value of node
-       if maximizingPlayer then
-           value := −∞
-           for each child of node do
-               value := max(value, alphabeta(child, depth − 1, α, β, FALSE))
-               α := max(α, value)
-               if value ≥ β then
-                   break (* β cutoff *)
-           return value
-       else
-           value := +∞
-           for each child of node do
-               value := min(value, alphabeta(child, depth − 1, α, β, TRUE))
-               β := min(β, value)
-               if value ≤ α then
-                   break (* α cutoff *)
-           return value
-*/
-
-/*
 function negamax(node, depth, α, β, color) is
     if depth = 0 or node is a terminal node then
         return color × the heuristic value of node
@@ -36,6 +14,28 @@ function negamax(node, depth, α, β, color) is
     return value
 */
 
+/*
+int Quiesce( int alpha, int beta ) {
+    int stand_pat = Evaluate();
+    if( stand_pat >= beta )
+        return beta;
+    if( alpha < stand_pat )
+        alpha = stand_pat;
+
+    until( every_capture_has_been_examined )  {
+        MakeCapture();
+        score = -Quiesce( -beta, -alpha );
+        TakeBackMove();
+
+        if( score >= beta )
+            return beta;
+        if( score > alpha )
+           alpha = score;
+    }
+    return alpha;
+}
+*/
+
 use std::time::Instant;
 
 use crate::{
@@ -44,7 +44,7 @@ use crate::{
         attacked::in_check::is_in_check, move_data::MoveItem,
         precalculate::cache::PrecalculatedCache, pseudolegal::all::generate_pseudolegal_moves,
     },
-    state::{game::GameState, movelist::MoveList, pieces::Piece, player::Player},
+    state::{game::GameState, movelist::MoveList, player::Player},
 };
 
 pub const INF: i32 = std::i32::MAX;
@@ -55,7 +55,7 @@ pub fn iterative_deepening(
     has_time: &bool,
     cache: &PrecalculatedCache,
 ) -> Option<MoveItem> {
-    let now = Instant::now();
+    let start = Instant::now();
 
     const MAX_PLY: u8 = 30;
     const MAX_MAIN_SEARCH_DEPTH: u8 = 8;
@@ -63,6 +63,7 @@ pub fn iterative_deepening(
     let mut depth = 0;
     while depth <= MAX_MAIN_SEARCH_DEPTH && *has_time {
         println!("max depth {}", depth);
+        let iter_start = Instant::now();
         let player = game.side_to_move;
         let color = if player == Player::White { 1 } else { -1 };
 
@@ -78,26 +79,28 @@ pub fn iterative_deepening(
             cache,
             false,
         );
+
         println!("Score: {score}");
         if let Some(m) = &best_move {
             println!("Best: {:?}", m.pure_algebraic_coordinate_notation());
         }
-        if score == INF {
+        let iter_elapsed = iter_start.elapsed();
+        println!("Iter Elapsed: {} ms", iter_elapsed.as_millis());
+
+        if score == INF || score == NEG_INF {
             break;
         }
         depth += 1;
     }
 
-    let elapsed = now.elapsed();
-    println!("Elapsed: {} ms", elapsed.as_millis());
+    let total_elapsed = start.elapsed();
+    println!("Total Elapsed: {} ms", total_elapsed.as_millis());
 
     return best_move;
 }
 
 pub fn quiescence(
     game: &mut GameState,
-    depth: u8,
-    quiescence_depth: u8,
     ply: u8,
     max_ply: u8,
     mut alpha: i32,
@@ -106,44 +109,43 @@ pub fn quiescence(
     best_move: &mut Option<MoveItem>,
     cache: &PrecalculatedCache,
 ) -> i32 {
-    let player = game.side_to_move;
-    let in_check = is_in_check(player, &game, cache);
-
-    let mut moveslist = MoveList::new();
-
-    generate_pseudolegal_moves(&mut moveslist, &game, player, cache);
-    score_moves(&mut moveslist);
-    let mut legal_moves_count: u8 = 0;
-
-    if quiescence_depth == 0 {
-        for index in 0..moveslist.len() {
-            let move_item: &MoveItem = &moveslist.moves[index];
-            let unmake_metadata = game.make_move(move_item);
-            if !is_in_check(player, &game, cache) {
-                legal_moves_count += 1;
-            }
-            game.unmake_move(&move_item, unmake_metadata);
-        }
-        if in_check && legal_moves_count == 0 {
-            return NEG_INF;
-        }
+    if ply == max_ply {
         return color * evaluation::position::simple(game);
     }
 
-    let mut max = -std::i32::MAX;
+    let player = game.side_to_move;
+    let in_check = is_in_check(player, &game, cache);
+
+    let stand_pat = {
+        if in_check {
+            // we want to check for checkmate, this will extend it to do that
+            negamax(
+                game, 1, ply, max_ply, alpha, beta, color, best_move, cache, true,
+            )
+        } else {
+            color * evaluation::position::simple(game)
+        }
+    };
+
+    if stand_pat >= beta {
+        return beta;
+    }
+    if alpha < stand_pat {
+        alpha = stand_pat;
+    }
+
+    let mut moveslist = MoveList::new();
+    generate_pseudolegal_moves(&mut moveslist, &game, player, cache);
+    score_moves(&mut moveslist);
 
     for index in 0..moveslist.len() {
         moveslist.sort_move(index);
         let move_item: &MoveItem = &moveslist.moves[index];
-        if in_check || move_item.capturing {
+        if move_item.capturing {
             let unmake_metadata = game.make_move(move_item);
             if !is_in_check(player, &game, cache) {
-                legal_moves_count += 1;
-
                 let score = -quiescence(
                     game,
-                    depth - 1,
-                    quiescence_depth - 1,
                     ply + 1,
                     max_ply,
                     -beta,
@@ -152,14 +154,13 @@ pub fn quiescence(
                     best_move,
                     cache,
                 );
-
                 game.unmake_move(&move_item, unmake_metadata);
 
-                max = std::cmp::max(max, score);
-
-                alpha = std::cmp::max(alpha, max);
-                if alpha >= beta {
-                    break;
+                if score >= beta {
+                    return beta;
+                }
+                if score > alpha {
+                    alpha = score;
                 }
             } else {
                 game.unmake_move(&move_item, unmake_metadata);
@@ -167,23 +168,7 @@ pub fn quiescence(
         }
     }
 
-    if in_check && legal_moves_count == 0 {
-        let q = quiescence(
-            game,
-            0,
-            0,
-            ply + 1,
-            max_ply,
-            alpha,
-            beta,
-            color,
-            best_move,
-            cache,
-        );
-        return q;
-    }
-
-    return max;
+    return alpha;
 }
 
 pub fn negamax(
@@ -229,7 +214,9 @@ pub fn negamax(
         }
 
         // quiescence search
-        if last_move_capturing {}
+        if last_move_capturing {
+            return quiescence(game, ply, max_ply, alpha, beta, color, best_move, cache);
+        }
 
         return color * evaluation::position::simple(game);
     }
