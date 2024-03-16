@@ -39,13 +39,20 @@ int Quiesce( int alpha, int beta ) {
 use std::time::Instant;
 
 use crate::{
-    evaluation::{self, moves::score_moves},
+    constants::search::{MAX_MAIN_SEARCH_DEPTH, MAX_PLY},
+    evaluation::{
+        self,
+        moves::{score_mmv_lva, score_moves},
+    },
     moves::{
         attacked::in_check::is_in_check, move_data::MoveItem,
         precalculate::cache::PrecalculatedCache, pseudolegal::all::generate_pseudolegal_moves,
     },
+    search::cache::SearchCache,
     state::{game::GameState, movelist::MoveList, player::Player},
 };
+
+use super::killer::store_killer_move;
 
 pub const INF: i32 = std::i32::MAX;
 pub const NEG_INF: i32 = -INF;
@@ -57,10 +64,10 @@ pub fn iterative_deepening(
 ) -> Option<MoveItem> {
     let start = Instant::now();
 
-    const MAX_PLY: u8 = 30;
-    const MAX_MAIN_SEARCH_DEPTH: u8 = 8;
     let mut best_move: Option<MoveItem> = None;
     let mut depth = 0;
+    let mut search_cache = SearchCache::init();
+
     while depth <= MAX_MAIN_SEARCH_DEPTH && *has_time {
         println!("max depth {}", depth);
         let iter_start = Instant::now();
@@ -78,6 +85,7 @@ pub fn iterative_deepening(
             &mut best_move,
             cache,
             false,
+            &mut search_cache,
         );
 
         println!("Score: {score}");
@@ -108,6 +116,7 @@ pub fn quiescence(
     color: i32,
     best_move: &mut Option<MoveItem>,
     cache: &PrecalculatedCache,
+    search_cache: &mut SearchCache,
 ) -> i32 {
     if ply == max_ply {
         return color * evaluation::position::simple(game);
@@ -120,7 +129,17 @@ pub fn quiescence(
         if in_check {
             // we want to check for checkmate, this will extend it to do that
             negamax(
-                game, 1, ply, max_ply, alpha, beta, color, best_move, cache, true,
+                game,
+                1,
+                ply,
+                max_ply,
+                alpha,
+                beta,
+                color,
+                best_move,
+                cache,
+                true,
+                search_cache,
             )
         } else {
             color * evaluation::position::simple(game)
@@ -136,7 +155,8 @@ pub fn quiescence(
 
     let mut moveslist = MoveList::new();
     generate_pseudolegal_moves(&mut moveslist, &game, player, cache);
-    score_moves(&mut moveslist);
+    score_mmv_lva(&mut moveslist, search_cache, ply as usize);
+    // score_moves_see(&mut moveslist, game, cache);
 
     for index in 0..moveslist.len() {
         moveslist.sort_move(index);
@@ -153,6 +173,7 @@ pub fn quiescence(
                     -color,
                     best_move,
                     cache,
+                    search_cache,
                 );
                 game.unmake_move(&move_item, unmake_metadata);
 
@@ -165,6 +186,8 @@ pub fn quiescence(
             } else {
                 game.unmake_move(&move_item, unmake_metadata);
             }
+        } else {
+            break;
         }
     }
 
@@ -182,20 +205,22 @@ pub fn negamax(
     best_move: &mut Option<MoveItem>,
     cache: &PrecalculatedCache,
     last_move_capturing: bool,
+    search_cache: &mut SearchCache,
 ) -> i32 {
+    // no extensions should happen
+    if ply == max_ply {
+        return color * evaluation::position::simple(game);
+    }
+
     let player = game.side_to_move;
     let in_check = is_in_check(player, &game, cache);
 
     let mut moveslist = MoveList::new();
 
     generate_pseudolegal_moves(&mut moveslist, &game, player, cache);
-    score_moves(&mut moveslist);
+    score_moves(&mut moveslist, search_cache, ply as usize);
     let mut legal_moves_count: u8 = 0;
 
-    // no extensions should happen
-    if ply == max_ply {
-        return color * evaluation::position::simple(game);
-    }
     if depth == 0 {
         // check extension
         if in_check {
@@ -210,12 +235,23 @@ pub fn negamax(
                 best_move,
                 cache,
                 last_move_capturing,
+                search_cache,
             );
         }
 
         // quiescence search
         if last_move_capturing {
-            return quiescence(game, ply, max_ply, alpha, beta, color, best_move, cache);
+            return quiescence(
+                game,
+                ply,
+                max_ply,
+                alpha,
+                beta,
+                color,
+                best_move,
+                cache,
+                search_cache,
+            );
         }
 
         return color * evaluation::position::simple(game);
@@ -242,6 +278,7 @@ pub fn negamax(
                 best_move,
                 cache,
                 move_item.capturing,
+                search_cache,
             );
 
             game.unmake_move(&move_item, unmake_metadata);
@@ -256,6 +293,9 @@ pub fn negamax(
 
             alpha = std::cmp::max(alpha, max);
             if alpha >= beta {
+                if !move_item.capturing {
+                    store_killer_move(&mut search_cache.killer_moves, move_item, ply as usize);
+                }
                 break;
             }
         } else {

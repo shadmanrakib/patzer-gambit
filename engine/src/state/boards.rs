@@ -36,16 +36,13 @@ impl BitBoard for u64 {
     }
 
     fn pop(&self) -> (u64, i8) {
-        let trailing = self.trailing_zeros();
-        return (self & INVERTED_SQUARE_MASKS[trailing as usize], trailing.try_into().unwrap());
+        let trailing: i8 = self.trailing_zeros().try_into().unwrap();
+        return (*self & (*self - 1), trailing);
     }
 
     fn pop_mut(&mut self) -> i8 {
         let trailing: i8 = self.trailing_zeros().try_into().unwrap();
-        if trailing >= 64 {
-            println!("{self} {:?}", trailing);
-        }
-        *self &= INVERTED_SQUARE_MASKS[trailing as usize];
+        *self = *self & (*self - 1);
         return trailing;
     }
 

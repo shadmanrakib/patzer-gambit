@@ -26,6 +26,9 @@ impl MoveList {
     pub fn len(&self) -> usize {
         self.end
     }
+    pub fn shallow_clear(&mut self) {
+        self.end = 0;
+    }
     pub fn sort_move(&mut self, index: usize) {
         let mut max = self.moves[index].score;
         for i in (index + 1)..self.len() {
