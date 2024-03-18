@@ -28,31 +28,20 @@ pub const MVV_LVA_SCORE: [[i16; 7]; 7] = [
 ];
 
 pub const PROMOTION_POINTS: [i16; 7] = [
-    0,  // Empty
-    0,  // Pawn
-    40, // Knight
-    0,  // Bishop
-    0,  // Rook
-    60, // Queen
-    0,  // King
+    0, // Empty
+    0, // Pawn
+    15, // Knight
+    0, // Bishop
+    0, // Rook
+    20, // Queen
+    0, // King
 ];
 
 pub fn score_mmv_lva(moveslist: &mut MoveList, search_cache: &mut SearchCache, ply: usize) {
     for i in 0..moveslist.len() {
         let move_item = &mut moveslist.moves[i];
-        // move_item.score += PROMOTION_POINTS[move_item.promotion_piece as usize];
-        // if move_item.capturing {
         move_item.score =
             MVV_LVA_SCORE[move_item.piece as usize][move_item.captured_piece as usize];
-        // }
-        // else {
-        //     for i in 0..MAX_KILLER_MOVES {
-        //         if is_similar(&search_cache.killer_moves[ply][i], move_item) {
-        //             move_item.score += 40 - ((i * 10) as i16);
-        //             break;
-        //         }
-        //     }
-        // }
     }
 }
 

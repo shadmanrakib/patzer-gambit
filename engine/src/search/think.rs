@@ -68,6 +68,8 @@ pub fn iterative_deepening(
     let mut depth = 0;
     let mut search_cache = SearchCache::init();
 
+    println!("s: {} {} {}", game.phase, game.endgame_pqst_score, game.opening_pqst_score);
+
     while depth <= MAX_MAIN_SEARCH_DEPTH && *has_time {
         println!("max depth {}", depth);
         let iter_start = Instant::now();
@@ -101,6 +103,8 @@ pub fn iterative_deepening(
         depth += 1;
     }
 
+    println!("e: {} {} {}", game.phase, game.endgame_pqst_score, game.opening_pqst_score);
+
     let total_elapsed = start.elapsed();
     println!("Total Elapsed: {} ms", total_elapsed.as_millis());
 
@@ -119,7 +123,7 @@ pub fn quiescence(
     search_cache: &mut SearchCache,
 ) -> i32 {
     if ply == max_ply {
-        return color * evaluation::position::simple(game);
+        return color * evaluation::psqt_tapered::eval(game);
     }
 
     let player = game.side_to_move;
@@ -130,7 +134,7 @@ pub fn quiescence(
             // we want to check for checkmate, this will extend it to do that
             negamax(
                 game,
-                1,
+                0,
                 ply,
                 max_ply,
                 alpha,
@@ -142,7 +146,7 @@ pub fn quiescence(
                 search_cache,
             )
         } else {
-            color * evaluation::position::simple(game)
+            color * evaluation::psqt_tapered::eval(game)
         }
     };
 
@@ -209,7 +213,7 @@ pub fn negamax(
 ) -> i32 {
     // no extensions should happen
     if ply == max_ply {
-        return color * evaluation::position::simple(game);
+        return color * evaluation::psqt_tapered::eval(game);
     }
 
     let player = game.side_to_move;
@@ -254,7 +258,7 @@ pub fn negamax(
             );
         }
 
-        return color * evaluation::position::simple(game);
+        return color * evaluation::psqt_tapered::eval(game);
     }
 
     let mut max = -std::i32::MAX;

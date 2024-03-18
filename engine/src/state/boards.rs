@@ -1,4 +1,9 @@
-use crate::constants::masks::{INVERTED_SQUARE_MASKS, SQUARE_MASKS};
+use crate::{
+    constants::masks::{INVERTED_SQUARE_MASKS, SQUARE_MASKS},
+    evaluation::psqt_tapered::{
+        ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
+    },
+};
 
 use super::{pieces::Piece, player::Player};
 
@@ -86,24 +91,62 @@ impl Boards {
     }
 
     #[inline(always)]
-    pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) -> Piece {
-        let removed = self.remove_piece(player.opponent(), pos);
+    pub fn place_piece(
+        &mut self,
+        player: Player,
+        piece: Piece,
+        pos: i8,
+        color: i32,
+        phase: &mut i32,
+        opening: &mut [i32; 2],
+        endgame: &mut [i32; 2],
+    ) -> Piece {
+        let removed = self.remove_piece(player.opponent(), pos, color, phase, opening, endgame);
 
         self.boards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
         self.pos_to_player[player as usize].set(pos);
         self.occupied.set(pos);
 
+        // let pqst_pos = if player == Player::White {
+        //     pos
+        // } else {
+        //     pos ^ 56
+        // } as usize;
+        let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
+        opening[player as usize] += OPENING_PSQT_TABLES[piece as usize][pqst_pos];
+        endgame[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];
+        *phase += PHASE_INCREMENT_BY_PIECE[piece as usize];
+
         return removed;
     }
 
     #[inline(always)]
-    pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
+    pub fn remove_piece(
+        &mut self,
+        player: Player,
+        pos: i8,
+        color: i32,
+        phase: &mut i32,
+        opening: &mut [i32; 2],
+        endgame: &mut [i32; 2],
+    ) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;
         self.boards[player as usize][removed as usize].unset(pos);
         self.pos_to_player[player as usize].unset(pos);
         self.occupied.unset(pos);
+
+        // let pqst_pos = if player == Player::White {
+        //     pos
+        // } else {
+        //     pos ^ 56
+        // } as usize;
+        let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
+        opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
+        endgame[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
+        *phase -= PHASE_INCREMENT_BY_PIECE[removed as usize];
+
         return removed;
     }
 }

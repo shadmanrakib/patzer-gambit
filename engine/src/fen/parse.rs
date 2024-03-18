@@ -1,11 +1,7 @@
 use regex::Regex;
 
 use crate::state::{
-    boards::Boards,
-    game::CastlePermissions,
-    pieces::Piece,
-    player::Player,
-    square::Square,
+    boards::Boards, game::CastlePermissions, pieces::Piece, player::Player, square::Square,
 };
 
 pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
@@ -21,51 +17,147 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
         for c in rank_str.chars() {
             match c {
                 'p' => {
-                    bitboards.place_piece(Player::Black, Piece::Pawn, pos);
+                    bitboards.place_piece(
+                        Player::Black,
+                        Piece::Pawn,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'r' => {
-                    bitboards.place_piece(Player::Black, Piece::Rook, pos);
+                    bitboards.place_piece(
+                        Player::Black,
+                        Piece::Rook,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'n' => {
-                    bitboards.place_piece(Player::Black, Piece::Knight, pos);
+                    bitboards.place_piece(
+                        Player::Black,
+                        Piece::Knight,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'b' => {
-                    bitboards.place_piece(Player::Black, Piece::Bishop, pos);
+                    bitboards.place_piece(
+                        Player::Black,
+                        Piece::Bishop,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'q' => {
-                    bitboards.place_piece(Player::Black, Piece::Queen, pos);
+                    bitboards.place_piece(
+                        Player::Black,
+                        Piece::Queen,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'k' => {
-                    bitboards.place_piece(Player::Black, Piece::King, pos);
+                    bitboards.place_piece(
+                        Player::Black,
+                        Piece::King,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'P' => {
-                    bitboards.place_piece(Player::White, Piece::Pawn, pos);
+                    bitboards.place_piece(
+                        Player::White,
+                        Piece::Pawn,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'R' => {
-                    bitboards.place_piece(Player::White, Piece::Rook, pos);
+                    bitboards.place_piece(
+                        Player::White,
+                        Piece::Rook,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'N' => {
-                    bitboards.place_piece(Player::White, Piece::Knight, pos);
+                    bitboards.place_piece(
+                        Player::White,
+                        Piece::Knight,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'B' => {
-                    bitboards.place_piece(Player::White, Piece::Bishop, pos);
+                    bitboards.place_piece(
+                        Player::White,
+                        Piece::Bishop,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'Q' => {
-                    bitboards.place_piece(Player::White, Piece::Queen, pos);
+                    bitboards.place_piece(
+                        Player::White,
+                        Piece::Queen,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 'K' => {
-                    bitboards.place_piece(Player::White, Piece::King, pos);
+                    bitboards.place_piece(
+                        Player::White,
+                        Piece::King,
+                        pos,
+                        0,
+                        &mut 0,
+                        &mut [0, 0],
+                        &mut [0, 0],
+                    );
                     pos += 1;
                 }
                 '0'..='8' => {
