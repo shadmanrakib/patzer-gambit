@@ -43,6 +43,7 @@ use crate::{
     evaluation::{
         self,
         moves::{score_mmv_lva, score_moves},
+        position, psqt_tapered,
     },
     moves::{
         attacked::in_check::is_in_check, move_data::MoveItem,
@@ -57,6 +58,11 @@ use super::killer::store_killer_move;
 pub const INF: i32 = std::i32::MAX;
 pub const NEG_INF: i32 = -INF;
 
+fn eval(game: &GameState) -> i32 {
+    // return position::simple(game);
+    return psqt_tapered::eval(game);
+}
+
 pub fn iterative_deepening(
     mut game: GameState,
     has_time: &bool,
@@ -68,11 +74,11 @@ pub fn iterative_deepening(
     let mut depth = 0;
     let mut search_cache = SearchCache::init();
 
-    println!("s: {} {} {}", game.phase, game.endgame_pqst_score, game.opening_pqst_score);
+    // println!("s: {} {:?} {:?}", game.phase, game.opening, game.endgame);
 
     while depth <= MAX_MAIN_SEARCH_DEPTH && *has_time {
-        println!("max depth {}", depth);
-        let iter_start = Instant::now();
+        // println!("max depth {}", depth);
+        // let iter_start = Instant::now();
         let player = game.side_to_move;
         let color = if player == Player::White { 1 } else { -1 };
 
@@ -90,12 +96,12 @@ pub fn iterative_deepening(
             &mut search_cache,
         );
 
-        println!("Score: {score}");
-        if let Some(m) = &best_move {
-            println!("Best: {:?}", m.pure_algebraic_coordinate_notation());
-        }
-        let iter_elapsed = iter_start.elapsed();
-        println!("Iter Elapsed: {} ms", iter_elapsed.as_millis());
+        // println!("Score: {score}");
+        // if let Some(m) = &best_move {
+        //     println!("Best: {:?}", m.pure_algebraic_coordinate_notation());
+        // }
+        // let iter_elapsed = iter_start.elapsed();
+        // println!("Iter Elapsed: {} ms", iter_elapsed.as_millis());
 
         if score == INF || score == NEG_INF {
             break;
@@ -103,10 +109,10 @@ pub fn iterative_deepening(
         depth += 1;
     }
 
-    println!("e: {} {} {}", game.phase, game.endgame_pqst_score, game.opening_pqst_score);
+    // println!("e: {} {:?} {:?}", game.phase, game.opening, game.endgame);
 
     let total_elapsed = start.elapsed();
-    println!("Total Elapsed: {} ms", total_elapsed.as_millis());
+    println!("Total Elapsed: {} ms, Depth: {depth}", total_elapsed.as_millis());
 
     return best_move;
 }
@@ -123,31 +129,31 @@ pub fn quiescence(
     search_cache: &mut SearchCache,
 ) -> i32 {
     if ply == max_ply {
-        return color * evaluation::psqt_tapered::eval(game);
+        return color * eval(game);
     }
 
     let player = game.side_to_move;
     let in_check = is_in_check(player, &game, cache);
 
     let stand_pat = {
-        if in_check {
-            // we want to check for checkmate, this will extend it to do that
-            negamax(
-                game,
-                0,
-                ply,
-                max_ply,
-                alpha,
-                beta,
-                color,
-                best_move,
-                cache,
-                true,
-                search_cache,
-            )
-        } else {
-            color * evaluation::psqt_tapered::eval(game)
-        }
+        // if in_check {
+        //     // we want to check for checkmate, this will extend it to do that
+        //     negamax(
+        //         game,
+        //         0,
+        //         ply,
+        //         max_ply,
+        //         alpha,
+        //         beta,
+        //         color,
+        //         best_move,
+        //         cache,
+        //         true,
+        //         search_cache,
+        //     )
+        // } else {
+        color * eval(game)
+        // }
     };
 
     if stand_pat >= beta {
@@ -213,7 +219,7 @@ pub fn negamax(
 ) -> i32 {
     // no extensions should happen
     if ply == max_ply {
-        return color * evaluation::psqt_tapered::eval(game);
+        return color * eval(game);
     }
 
     let player = game.side_to_move;
@@ -258,7 +264,7 @@ pub fn negamax(
             );
         }
 
-        return color * evaluation::psqt_tapered::eval(game);
+        return color * eval(game);
     }
 
     let mut max = -std::i32::MAX;
@@ -293,6 +299,11 @@ pub fn negamax(
                 if score == max {
                     *best_move = Some(move_item.clone());
                 }
+                // println!(
+                //     "{}: {}",
+                //     move_item.pure_algebraic_coordinate_notation(),
+                //     score
+                // );
             }
 
             alpha = std::cmp::max(alpha, max);
@@ -309,6 +320,8 @@ pub fn negamax(
 
     if in_check && legal_moves_count == 0 {
         return NEG_INF;
+    } else if legal_moves_count == 0 {
+        return 0;
     }
 
     return max;
