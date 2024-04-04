@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use regex::Regex;
 
 use super::{boards::Boards, pieces::Piece, player::Player, square::Square};

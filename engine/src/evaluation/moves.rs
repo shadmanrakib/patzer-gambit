@@ -1,6 +1,6 @@
 use std::mem::MaybeUninit;
 
-use super::piece::STATIC_PIECE_POINTS;
+use super::{piece::STATIC_PIECE_POINTS, psqt_tapered::OPENING_PSQT_TABLES};
 use crate::{
     constants::search::MAX_KILLER_MOVES,
     moves::{
@@ -28,13 +28,13 @@ pub const MVV_LVA_SCORE: [[i16; 7]; 7] = [
 ];
 
 pub const PROMOTION_POINTS: [i16; 7] = [
-    0, // Empty
-    0, // Pawn
+    0,  // Empty
+    0,  // Pawn
     15, // Knight
-    0, // Bishop
-    0, // Rook
+    0,  // Bishop
+    0,  // Rook
     20, // Queen
-    0, // King
+    0,  // King
 ];
 
 pub fn score_mmv_lva(moveslist: &mut MoveList, search_cache: &mut SearchCache, ply: usize) {
@@ -45,7 +45,12 @@ pub fn score_mmv_lva(moveslist: &mut MoveList, search_cache: &mut SearchCache, p
     }
 }
 
-pub fn score_moves(moveslist: &mut MoveList, search_cache: &mut SearchCache, ply: usize) {
+pub fn score_moves(
+    moveslist: &mut MoveList,
+    search_cache: &mut SearchCache,
+    ply: usize,
+    player: Player,
+) {
     for i in 0..moveslist.len() {
         let move_item = &mut moveslist.moves[i];
         // move_item.score += PROMOTION_POINTS[move_item.promotion_piece as usize];
@@ -53,6 +58,14 @@ pub fn score_moves(moveslist: &mut MoveList, search_cache: &mut SearchCache, ply
             move_item.score =
                 MVV_LVA_SCORE[move_item.piece as usize][move_item.captured_piece as usize];
         } else {
+            move_item.score += <i32>::try_into(
+                (OPENING_PSQT_TABLES[move_item.piece as usize][move_item.to_pos as usize]
+                    - OPENING_PSQT_TABLES[move_item.piece as usize][move_item.from_pos as usize])
+                    / 8,
+            )
+            .unwrap_or(0);
+            move_item.score += search_cache.history_moves[player as usize]
+                [move_item.piece as usize][move_item.to_pos as usize];
             for i in 0..MAX_KILLER_MOVES {
                 if is_similar(&search_cache.killer_moves[ply][i], move_item) {
                     move_item.score += 40 - ((i * 10) as i16);

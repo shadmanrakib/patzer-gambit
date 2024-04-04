@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{moves, search, state};
+    use crate::{constants::search::MAX_MAIN_SEARCH_DEPTH, moves, search, state};
 
     #[test]
     fn mate4s_suite() {
@@ -77,17 +77,22 @@ mod tests {
             ),
             ("k1K5/7r/8/4B3/1RP5/8/8/8 w - - 1 0", "b4b8"),
         ];
-        for (mate4Fen, mate4Ans) in mate4s {
-            let mut game = state::game::GameState::from_fen(mate4Fen.to_string()).unwrap();
-            let result = search::think::iterative_deepening(game.clone(), &true, &cache);
-            println!("{}", mate4Fen);
+        for (mate4_fen, mate4_ans) in mate4s {
+            let game = state::game::GameState::from_fen(mate4_fen.to_string()).unwrap();
+            let result = search::think::iterative_deepening(
+                game.clone(),
+                &true,
+                &cache,
+                MAX_MAIN_SEARCH_DEPTH,
+            );
+            println!("{}", mate4_fen);
             if let Some(m) = result {
                 let ans = m.pure_algebraic_coordinate_notation();
-                if mate4Ans == ans {
+                if mate4_ans == ans {
                     println!("Correct {}", ans);
                 } else {
                     game.print_board();
-                    println!("fail... expected: {}, got: {}", mate4Ans, ans);
+                    println!("fail... expected: {}, got: {}", mate4_ans, ans);
                 }
             } else {
                 println!("no moves");
