@@ -1,16 +1,8 @@
 // https://www.chessprogramming.org/Tapered_Eval
 
-use crate::state::{
-    boards::BitBoard,
-    game::GameState,
-    pieces::Piece,
-    player::{self, Player},
-};
+use crate::state::{boards::BitBoard, game::GameState, pieces::Piece};
 
-use super::{
-    piece::{ENDGAME_PIECE_POINTS, OPENING_PIECE_POINTS, STATIC_PIECE_POINTS},
-    position,
-};
+use super::piece::{ENDGAME_PIECE_POINTS, OPENING_PIECE_POINTS};
 
 type PSQT = [i32; 64];
 
@@ -159,26 +151,26 @@ const OPENING_QUEEN_TABLE: PSQT = add_value(flip_psqt([
 
 #[rustfmt::skip]
 const ENDGAME_KING_TABLE: PSQT = add_value(flip_psqt([
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
+  -5, -5, -5, -5, -5, -5, -5, -5,
+  -5, 0, 0, 0, 0, 0, 0, -5,
+  -5, 0, 0, 3, 3, 0, 0, -5,
+  -5, 0, 3, 5, 5, 3, 0, -5,
+  -5, 0, 3, 5, 5, 3, 0, -5,
+  -5, 0, 0, 3, 3, 0, 0, -5,
+  -5, 0, 0, 0, 0, 0, 0, -5,
+  -5, -5, -5, -5, -5, -5, -5, -5,
 ]), ENDGAME_PIECE_POINTS[Piece::King as usize]);
 
 #[rustfmt::skip]
 const OPENING_KING_TABLE: PSQT = add_value(flip_psqt([
-  -50,-30,-30,-30,-30,-30,-30,-50,
-  -30,-30,  0,  0,  0,  0,-30,-30,
-  -30,-10, 20, 30, 30, 20,-10,-30,
-  -30,-10, 30, 40, 40, 30,-10,-30,
-  -30,-10, 30, 40, 40, 30,-10,-30,
-  -30,-10, 20, 30, 30, 20,-10,-30,
-  -30,-20,-10,  0,  0,-10,-20,-30,
-  -50,-40,-30,-20,-20,-30,-40,-50
+  -20,-20,-20,25,-20,-20,20,-20,
+  -20,-20, -20, -20, -20,  20,-20,-20,
+  -30,-30, -30, -30, -30, -30,-30,-30,
+  -40,-40, -40, -40, -40, -40,-40,-40,
+  -40,-40, -40, -40, -40, -40,-40,-40,
+  -30,-30, -30, -30, -30, -30,-30,-30,
+  -20,-20,-20, -20, -20,-20,-20,-20,
+  -20,-20, 35,-20,0,-20,40,-20
 ]), OPENING_PIECE_POINTS[Piece::King as usize]);
 
 #[rustfmt::skip]
@@ -238,11 +230,11 @@ const TOTAL_PHASE: i32 = {
 
 // inspired by Crafty engine
 pub fn eval(game: &GameState) -> i32 {
-    // let phase = game.phase;
+    let phase = game.phase;
     let opening = game.opening[0] - game.opening[1];
-    // let endgame = game.endgame[0] - game.endgame[1];
-    return opening;
-    // return ((opening * (TOTAL_PHASE - phase)) + (endgame * phase)) / TOTAL_PHASE;
+    let endgame = game.endgame[0] - game.endgame[1];
+    // return opening;
+    return ((opening * (TOTAL_PHASE - phase)) + (endgame * phase)) / TOTAL_PHASE;
     // return position::simple(game);
 }
 

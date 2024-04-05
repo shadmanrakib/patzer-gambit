@@ -10,7 +10,7 @@ mod tests;
 
 use std::time::SystemTime;
 
-use crate::constants::search::MAX_MAIN_SEARCH_DEPTH;
+use crate::moves::move_data::{MoveItem, UnmakeMoveMetadata};
 
 fn main() {
     let game_str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -29,38 +29,17 @@ fn main() {
     // let game_str = "r3k3/8/8/3N4/8/5q2/3B1Q1P/4K3 w - - 1 0";
     // let game_str = "r3k2q/8/8/3N4/8/8/3B1Q1P/4K3 w - - 1 0";
     // let game_str = "r3k3/8/8/3N4/8/8/3B4/4K3 w - - 1 0";
-    // let game_str = "r3k3/8/8/3N4/8/8/3B4/5K2 b - - 1 0"; 
+    // let game_str = "r3k3/8/8/3N4/8/8/3B4/5K2 b - - 1 0";
+    // let game_str = "2qrb1k1/1p2bppp/1n2p3/p3P3/3NN3/1P4Q1/PB3PPP/3R2K1 b - - 0 1";
 
     let mut game = state::game::GameState::from_fen(game_str.to_string()).unwrap();
     game.print_state();
     println!("{:?}", game.opening);
     // let result = search::think::iterative_deepening(game.clone(), &true, &cache, MAX_MAIN_SEARCH_DEPTH);
 
-
-    // for notation in ["e1f1"] {
-    //     println!("===============================");
-    //     println!("==========    {notation}    =========");
-    //     println!("===============================");
-    //     let m = game.notation_to_move(notation.into(), &cache);
-    //     if let Ok(move_item) = m {
-    //         let u = game.make_move(&move_item);
-    //         game.print_state();
-    //         let result = search::think::iterative_deepening(game.clone(), &true, &cache);
-    //         if let Some(m) = result {
-    //             println!("{}", m.pure_algebraic_coordinate_notation());
-    //             println!("{:?}", game.opening);
-    //             game.print_state();
-    //         } else {
-    //             println!("no moves gg");
-    //         }
-    //         game.unmake_move(&move_item, u);
-    //     } else {
-    //         println!("not found");
-    //     }
-    // }
-
-    // let mut movelist = MoveList::new();
     let mut halfs = 0;
+    let mut undos: Vec<(MoveItem, UnmakeMoveMetadata)> = vec![];
+
     loop {
         println!("Move: ");
         let mut notation = String::new();
@@ -80,11 +59,30 @@ fn main() {
                 println!("halfs: {halfs}");
                 println!("no moves gg");
             }
+        } else if notation == "play" {
+            println!("thinking...");
+            let result = search::think::iterative_deepening(game.clone(), &true, &cache, 9);
+            if let Some(m) = result {
+                let unmake_metadata = game.make_move(&m);
+                undos.push((m.clone(), unmake_metadata));
+                println!("Played {}", m.pure_algebraic_coordinate_notation());
+            } else {
+                println!("halfs: {halfs}");
+                println!("no moves gg");
+            }
+        } else if notation == "undo" {
+            if undos.len() > 0 {
+                let (move_item, unmake_metadata) = undos.pop().unwrap();
+                game.unmake_move(&move_item, unmake_metadata);
+            } else {
+                println!("nothing to undo")
+            }
         } else {
             halfs += 1;
             let m = game.notation_to_move(notation, &cache);
             if let Ok(move_item) = m {
-                game.make_move(&move_item);
+                let unmake_metadata = game.make_move(&move_item);
+                undos.push((move_item, unmake_metadata));
             } else {
                 println!("not found");
             }

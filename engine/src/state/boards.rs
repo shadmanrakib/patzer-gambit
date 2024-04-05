@@ -1,5 +1,5 @@
 use crate::{
-    constants::masks::{INVERTED_SQUARE_MASKS, SQUARE_MASKS},
+    constants::masks::INVERTED_SQUARE_MASKS,
     evaluation::psqt_tapered::{
         ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
     },
@@ -96,12 +96,11 @@ impl Boards {
         player: Player,
         piece: Piece,
         pos: i8,
-        color: i32,
         phase: &mut i32,
         opening: &mut [i32; 2],
         endgame: &mut [i32; 2],
     ) -> Piece {
-        let removed = self.remove_piece(player.opponent(), pos, color, phase, opening, endgame);
+        let removed = self.remove_piece(player.opponent(), pos, phase, opening, endgame);
 
         self.boards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
@@ -126,7 +125,6 @@ impl Boards {
         &mut self,
         player: Player,
         pos: i8,
-        color: i32,
         phase: &mut i32,
         opening: &mut [i32; 2],
         endgame: &mut [i32; 2],

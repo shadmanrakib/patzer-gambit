@@ -1,14 +1,16 @@
+use std::fmt::{Debug, Write};
+
 use crate::{
     constants::search::{MAX_KILLER_MOVES, MAX_PLY},
     moves::move_data::MoveItem,
-    state::pieces::Piece,
+    state::{pieces::Piece, square::Square},
 };
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct SimpleMove {
-    to: i8,
-    from: i8,
-    promotion: Piece,
+    pub to: i8,
+    pub from: i8,
+    pub promotion: Piece,
 }
 
 pub type KillerMoves = [[SimpleMove; MAX_KILLER_MOVES]; MAX_PLY as usize];
@@ -37,6 +39,21 @@ impl Into<SimpleMove> for &MoveItem {
             to: self.to_pos,
             promotion: self.promotion_piece,
         }
+    }
+}
+
+impl Debug for SimpleMove {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let from_square = Square::from(self.from).stringify();
+        let to_square = Square::from(self.to).stringify();
+        let promotion = {
+            if self.promotion != Piece::Empty {
+                self.promotion.to_string().to_lowercase()
+            } else {
+                "".to_string()
+            }
+        };
+        f.write_fmt(format_args!("{}{}{}", from_square, to_square, promotion))
     }
 }
 

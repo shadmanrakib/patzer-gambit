@@ -1,11 +1,8 @@
-use std::borrow::Borrow;
-
 use regex::Regex;
 
 use super::{boards::Boards, pieces::Piece, player::Player, square::Square};
 use crate::{
     constants::masks::SQUARE_MASKS,
-    evaluation::psqt_tapered::{ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES},
     fen,
     moves::{
         move_data::{MoveItem, UnmakeMoveMetadata},
@@ -32,6 +29,7 @@ impl CastlePermissions {
         self.black_queen_side = false;
         self.black_king_side = false;
     }
+    #[allow(dead_code)]
     pub fn none() -> CastlePermissions {
         CastlePermissions {
             white_queen_side: false,
@@ -71,6 +69,7 @@ pub struct GameState {
 }
 
 impl GameState {
+    #[allow(dead_code)]
     pub fn set(&mut self, other: GameState) {
         self.bitboards = other.bitboards;
         self.side_to_move = other.side_to_move;
@@ -125,7 +124,6 @@ impl GameState {
         self.bitboards.remove_piece(
             side_moving,
             move_item.from_pos,
-            self.color,
             &mut self.phase,
             &mut self.opening,
             &mut self.endgame,
@@ -148,7 +146,6 @@ impl GameState {
                 self.bitboards.remove_piece(
                     opponent,
                     leftover,
-                    self.color,
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
@@ -157,7 +154,6 @@ impl GameState {
                 self.bitboards.remove_piece(
                     opponent,
                     move_item.to_pos,
-                    self.color,
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
@@ -168,7 +164,6 @@ impl GameState {
                 side_moving,
                 final_piece,
                 move_item.to_pos,
-                self.color,
                 &mut self.phase,
                 &mut self.opening,
                 &mut self.endgame,
@@ -177,7 +172,6 @@ impl GameState {
             self.bitboards.remove_piece(
                 opponent,
                 move_item.to_pos,
-                self.color,
                 &mut self.phase,
                 &mut self.opening,
                 &mut self.endgame,
@@ -187,7 +181,6 @@ impl GameState {
                 side_moving,
                 move_item.piece,
                 move_item.to_pos,
-                self.color,
                 &mut self.phase,
                 &mut self.opening,
                 &mut self.endgame,
@@ -200,7 +193,6 @@ impl GameState {
                         self.bitboards.remove_piece(
                             side_moving,
                             0,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -209,7 +201,6 @@ impl GameState {
                             side_moving,
                             Piece::Rook,
                             3,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -219,7 +210,6 @@ impl GameState {
                         self.bitboards.remove_piece(
                             side_moving,
                             7,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -228,7 +218,6 @@ impl GameState {
                             side_moving,
                             Piece::Rook,
                             5,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -238,7 +227,6 @@ impl GameState {
                         self.bitboards.remove_piece(
                             side_moving,
                             56,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -247,7 +235,6 @@ impl GameState {
                             side_moving,
                             Piece::Rook,
                             59,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -257,7 +244,6 @@ impl GameState {
                         self.bitboards.remove_piece(
                             side_moving,
                             63,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -266,7 +252,6 @@ impl GameState {
                             side_moving,
                             Piece::Rook,
                             61,
-                            self.color,
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
@@ -386,7 +371,6 @@ impl GameState {
             self.side_to_move,
             move_item.piece,
             move_item.from_pos,
-            self.color,
             &mut self.phase,
             &mut self.opening,
             &mut self.endgame,
@@ -396,7 +380,6 @@ impl GameState {
         self.bitboards.remove_piece(
             self.side_to_move,
             move_item.to_pos,
-            self.color,
             &mut self.phase,
             &mut self.opening,
             &mut self.endgame,
@@ -409,7 +392,6 @@ impl GameState {
                     self.side_to_move.opponent(),
                     unmake_metadata.captured_piece,
                     move_item.to_pos,
-                    self.color,
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
@@ -429,7 +411,6 @@ impl GameState {
                     self.side_to_move.opponent(),
                     unmake_metadata.captured_piece,
                     captured_square.into(),
-                    self.color,
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
@@ -444,7 +425,6 @@ impl GameState {
                         self.side_to_move,
                         Piece::Rook,
                         0,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -452,7 +432,6 @@ impl GameState {
                     self.bitboards.remove_piece(
                         self.side_to_move,
                         3,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -463,7 +442,6 @@ impl GameState {
                         self.side_to_move,
                         Piece::Rook,
                         7,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -471,7 +449,6 @@ impl GameState {
                     self.bitboards.remove_piece(
                         self.side_to_move,
                         5,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -482,7 +459,6 @@ impl GameState {
                         self.side_to_move,
                         Piece::Rook,
                         56,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -490,7 +466,6 @@ impl GameState {
                     self.bitboards.remove_piece(
                         self.side_to_move,
                         59,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -501,7 +476,6 @@ impl GameState {
                         self.side_to_move,
                         Piece::Rook,
                         63,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -509,7 +483,6 @@ impl GameState {
                     self.bitboards.remove_piece(
                         self.side_to_move,
                         61,
-                        self.color,
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
@@ -522,6 +495,7 @@ impl GameState {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new() -> GameState {
         let start_board_fen =
             String::from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -579,17 +553,20 @@ impl GameState {
     }
 
     pub fn print_board(&self) {
+        const BLACK_PIECES: [&str; 7] = [".", "♟︎", "♞", "♝", "♜", "♛", "♚"];
+        const WHITE_PIECES: [&str; 7] = [".", "♙", "♘", "♗", "♖", "♕", "♔"];
+        
         for rank in (0..8).rev() {
             print!("{} | ", rank + 1);
             for file in 0..8 {
                 let pos = 8 * rank + file;
 
-                let piece = self.bitboards.pos_to_piece[pos].to_string();
+                let piece = self.bitboards.pos_to_piece[pos];
                 let colored = if self.bitboards.pos_to_player[Player::White as usize].get(pos as i8)
                 {
-                    piece.to_uppercase()
+                    BLACK_PIECES[piece as usize]
                 } else {
-                    piece
+                    WHITE_PIECES[piece as usize]
                 };
 
                 print!("{} ", colored);

@@ -5,6 +5,7 @@ pub enum Player {
 }
 
 impl Player {
+    #[allow(dead_code)]
     pub fn to_string(&self) -> String {
         match self {
             Player::White => "w".into(),

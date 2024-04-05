@@ -1,5 +1,3 @@
-use std::default;
-
 use super::{
     bishop::create_bishop_potential_moves_mask_on_the_fly,
     rook::create_rook_potential_moves_mask_on_the_fly,

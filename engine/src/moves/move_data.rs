@@ -1,5 +1,5 @@
 use crate::state::{
-    game::{CastlePermissions, EnpassantSquare},
+    game::CastlePermissions,
     pieces::Piece, square::Square,
 };
 

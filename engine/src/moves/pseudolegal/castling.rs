@@ -8,10 +8,10 @@ use crate::{
 };
 // #[inline(always)]
 
-const WHITE_KING_SIDE_CASTLE_PATH: u64 = (1 << 5) | (1 << 6);
-const WHITE_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 1) | (1 << 2) | (1 << 3);
-const BLACK_KING_SIDE_CASTLE_PATH: u64 = (1 << 61) | (1 << 62);
-const BLACK_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 57) | (1 << 58) | (1 << 59);
+// const WHITE_KING_SIDE_CASTLE_PATH: u64 = (1 << 5) | (1 << 6);
+// const WHITE_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 1) | (1 << 2) | (1 << 3);
+// const BLACK_KING_SIDE_CASTLE_PATH: u64 = (1 << 61) | (1 << 62);
+// const BLACK_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 57) | (1 << 58) | (1 << 59);
 
 pub fn generate_castling_moves(
     movelist: &mut MoveList,

@@ -3,7 +3,8 @@ use crate::{
     state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
 };
 
-#[inline(always)]
+// #[inline(always)]
+#[allow(dead_code)]
 pub fn times_square_attacked(
     pos: i8,
     attacker: Player,
@@ -14,7 +15,7 @@ pub fn times_square_attacked(
 
     let occupied = game.bitboards.occupied;
 
-    let (rank, file) = Square::rank_and_file(pos);
+    // let (rank, _file) = Square::rank_and_file(pos);
 
     // knight
     let knight_move_mask = cache.knight_moves_masks[pos as usize];
@@ -118,7 +119,7 @@ pub fn is_square_attacked(
     // return times_square_attacked(pos, attacker, game, cache) > 0;
     let occupied = game.bitboards.occupied;
 
-    let (rank, file) = Square::rank_and_file(pos);
+    // let (_rank, _file) = Square::rank_and_file(pos);
     
     // knight
     let knight_move_mask = cache.knight_moves_masks[pos as usize];

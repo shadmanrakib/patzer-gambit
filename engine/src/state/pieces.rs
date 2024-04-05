@@ -1,5 +1,3 @@
-use super::player::Player;
-
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Piece {
     Empty = 0,

@@ -2,6 +2,7 @@ use crate::state::game::GameState;
 
 use super::piece::STATIC_PIECE_POINTS;
 
+#[allow(dead_code)]
 pub fn simple(game: &GameState) -> i32 {
     // if !has_moves || game.half_move_clock >= 50 {
     //     return 0;

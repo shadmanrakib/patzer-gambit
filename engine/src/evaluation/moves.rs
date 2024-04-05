@@ -1,20 +1,13 @@
-use std::mem::MaybeUninit;
-
-use super::{piece::STATIC_PIECE_POINTS, psqt_tapered::OPENING_PSQT_TABLES};
 use crate::{
     constants::search::MAX_KILLER_MOVES,
-    moves::{
-        attacked::smallest_attacker_see::smallest_attacker_for_see,
-        move_data::{MoveItem, UnmakeMoveMetadata},
-        precalculate::cache::PrecalculatedCache,
+    search::{
+        cache::SearchCache,
+        killer::{is_similar, SimpleMove},
     },
-    search::{cache::SearchCache, killer::is_similar},
-    state::{
-        game::GameState,
-        movelist::MoveList,
-        player::{self, Player},
-    },
+    state::{movelist::MoveList, player::Player},
 };
+
+use super::psqt_tapered::OPENING_PSQT_TABLES;
 
 // MVV_VLA[attacker][victem]
 pub const MVV_LVA_SCORE: [[i16; 7]; 7] = [
@@ -27,6 +20,10 @@ pub const MVV_LVA_SCORE: [[i16; 7]; 7] = [
     [0, 70, 70, 70, 70, 70, 0], // attacker K, victim None, P, N, B, R, Q, K
 ];
 
+const MAX_SCORE: i16 = std::i16::MAX;
+const MMV_LVA_OFFSET: i16 = std::i16::MAX - 1 - 10000;
+
+#[allow(dead_code)]
 pub const PROMOTION_POINTS: [i16; 7] = [
     0,  // Empty
     0,  // Pawn
@@ -37,7 +34,7 @@ pub const PROMOTION_POINTS: [i16; 7] = [
     0,  // King
 ];
 
-pub fn score_mmv_lva(moveslist: &mut MoveList, search_cache: &mut SearchCache, ply: usize) {
+pub fn score_mmv_lva(moveslist: &mut MoveList) {
     for i in 0..moveslist.len() {
         let move_item = &mut moveslist.moves[i];
         move_item.score =
@@ -45,27 +42,37 @@ pub fn score_mmv_lva(moveslist: &mut MoveList, search_cache: &mut SearchCache, p
     }
 }
 
+#[allow(dead_code)]
 pub fn score_moves(
     moveslist: &mut MoveList,
     search_cache: &mut SearchCache,
     ply: usize,
     player: Player,
+    pv: &Vec<SimpleMove>,
 ) {
     for i in 0..moveslist.len() {
         let move_item = &mut moveslist.moves[i];
         // move_item.score += PROMOTION_POINTS[move_item.promotion_piece as usize];
-        if move_item.capturing {
-            move_item.score =
-                MVV_LVA_SCORE[move_item.piece as usize][move_item.captured_piece as usize];
+
+        if pv.len() > 0
+            && pv[0].from == move_item.from_pos
+            && pv[0].to == move_item.to_pos
+            && pv[0].promotion == move_item.promotion_piece
+        {
+            move_item.score = MAX_SCORE;
+        } else if move_item.capturing {
+            move_item.score = MVV_LVA_SCORE[move_item.piece as usize]
+                [move_item.captured_piece as usize]
+                + MMV_LVA_OFFSET;
         } else {
-            move_item.score += <i32>::try_into(
-                (OPENING_PSQT_TABLES[move_item.piece as usize][move_item.to_pos as usize]
-                    - OPENING_PSQT_TABLES[move_item.piece as usize][move_item.from_pos as usize])
-                    / 8,
-            )
-            .unwrap_or(0);
-            move_item.score += search_cache.history_moves[player as usize]
-                [move_item.piece as usize][move_item.to_pos as usize];
+            // move_item.score += <i32>::try_into(
+            //     (OPENING_PSQT_TABLES[move_item.piece as usize][move_item.to_pos as usize]
+            //         - OPENING_PSQT_TABLES[move_item.piece as usize][move_item.from_pos as usize])
+            //         / 4,
+            // )
+            // .unwrap_or(0);
+            // move_item.score += search_cache.history_moves[player as usize]
+            //     [move_item.piece as usize][move_item.to_pos as usize] >> 4;
             for i in 0..MAX_KILLER_MOVES {
                 if is_similar(&search_cache.killer_moves[ply][i], move_item) {
                     move_item.score += 40 - ((i * 10) as i16);
@@ -76,11 +83,11 @@ pub fn score_moves(
     }
 }
 
-pub fn score_moves_see(moveslist: &mut MoveList, game: &mut GameState, cache: &PrecalculatedCache) {
-    for i in 0..moveslist.len() {
-        moveslist.moves[i].score = see_move_ordering(&moveslist.moves[i], game, cache);
-    }
-}
+// pub fn score_moves_see(moveslist: &mut MoveList, game: &mut GameState, cache: &PrecalculatedCache) {
+//     for i in 0..moveslist.len() {
+//         moveslist.moves[i].score = see_move_ordering(&moveslist.moves[i], game, cache);
+//     }
+// }
 
 /*
 int see(int square, int side)
@@ -101,26 +108,26 @@ int see(int square, int side)
 
 // for move ordering only
 // super unperformant
-pub fn see_move_ordering(
-    move_item: &MoveItem,
-    game: &mut GameState,
-    cache: &PrecalculatedCache,
-) -> i16 {
-    let square = move_item.to_pos;
+// pub fn see_move_ordering(
+//     move_item: &MoveItem,
+//     game: &mut GameState,
+//     cache: &PrecalculatedCache,
+// ) -> i16 {
+//     let square = move_item.to_pos;
 
-    let original = game.clone();
-    let mut value = STATIC_PIECE_POINTS[move_item.captured_piece as usize] as i16;
-    game.make_move(move_item);
+//     let original = game.clone();
+//     let mut value = STATIC_PIECE_POINTS[move_item.captured_piece as usize] as i16;
+//     game.make_move(move_item);
 
-    let mut color = -1;
-    while let Some(response_move) =
-        smallest_attacker_for_see(square, game.side_to_move, game, cache)
-    {
-        value += color * STATIC_PIECE_POINTS[response_move.captured_piece as usize] as i16;
-        game.make_move(&response_move);
-        color *= -1;
-    }
-    game.set(original);
+//     let mut color = -1;
+//     while let Some(response_move) =
+//         smallest_attacker_for_see(square, game.side_to_move, game, cache)
+//     {
+//         value += color * STATIC_PIECE_POINTS[response_move.captured_piece as usize] as i16;
+//         game.make_move(&response_move);
+//         color *= -1;
+//     }
+//     game.set(original);
 
-    return value;
-}
+//     return value;
+// }

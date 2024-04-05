@@ -1,10 +1,11 @@
 use super::{
-    attacked::in_check::is_in_check, move_data::MoveItem, precalculate::cache::PrecalculatedCache,
+    attacked::in_check::is_in_check, precalculate::cache::PrecalculatedCache,
 };
 use crate::state::{game::GameState, movelist::MoveList};
 
 use std::time::Instant;
 
+#[allow(dead_code)]
 pub fn perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
     let now = Instant::now();
 
@@ -26,7 +27,7 @@ pub fn perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u6
     
         let cloned = game.clone();
         let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item);
+        let _unmake_metadata = game.make_move(move_item);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
             let move_nodes = _perft(game, cache, depth - 1);
@@ -48,6 +49,7 @@ pub fn perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u6
     return nodes;
 }
 
+#[allow(dead_code)]
 fn _perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
     let mut nodes = 0;
 
@@ -66,7 +68,7 @@ fn _perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
         let move_item = &move_list.moves[index];
         let cloned = game.clone();
         let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item);
+        let _unmake_metadata = game.make_move(move_item);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
             let move_nodes = _perft(game, cache, depth - 1);
@@ -79,6 +81,7 @@ fn _perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
     return nodes;
 }
 
+#[allow(dead_code)]
 pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
     let now = Instant::now();
 
@@ -123,6 +126,7 @@ pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16
     return nodes;
 }
 
+#[allow(dead_code)]
 fn _perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
     let mut nodes = 0;
 

@@ -1,6 +1,6 @@
 use crate::{
     moves::precalculate::cache::PrecalculatedCache,
-    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player},
+    state::{game::GameState, pieces::Piece, player::Player},
 };
 
 use super::square_attacked::is_square_attacked;

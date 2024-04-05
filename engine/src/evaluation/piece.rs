@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub const STATIC_PIECE_POINTS: [i32; 7] = [
     0,     // Empty
     100,   // Pawn
@@ -5,7 +6,7 @@ pub const STATIC_PIECE_POINTS: [i32; 7] = [
     325,   // Bishop
     500,   // Rook
     925,   // Queen
-    1000000, // King
+    100000, // King
 ];
 
 pub const OPENING_PIECE_POINTS: [i32; 7] = [
