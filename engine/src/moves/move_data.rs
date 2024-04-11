@@ -47,7 +47,7 @@ impl MoveItem {
 
 #[derive(Debug, Clone)]
 pub struct UnmakeMoveMetadata {
-    pub prev_castle_permissions: CastlePermissions,
+    pub prev_castle_permissions: u8,
     // 0-7 maps to columns A-H, 8 is none
     pub prev_enpassant_square: u64,
     // It marks the number of moves since the last pawn push or piece capture.
@@ -55,7 +55,6 @@ pub struct UnmakeMoveMetadata {
     // pub prev_zorbist_hash
     pub captured_piece: Piece,
 }
-
 
 // we will convert this to our standard move item
 #[derive(Debug, Clone)]

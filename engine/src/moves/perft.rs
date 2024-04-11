@@ -1,12 +1,18 @@
-use super::{
-    attacked::in_check::is_in_check, precalculate::cache::PrecalculatedCache,
+use super::{attacked::in_check::is_in_check, precalculate::cache::PrecalculatedCache};
+use crate::{
+    search::zobrist::ZobristRandomKeys,
+    state::{game::GameState, movelist::MoveList},
 };
-use crate::state::{game::GameState, movelist::MoveList};
 
 use std::time::Instant;
 
 #[allow(dead_code)]
-pub fn perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
+pub fn perft(
+    game: &mut GameState,
+    cache: &PrecalculatedCache,
+    depth: u16,
+    keys: &ZobristRandomKeys,
+) -> u64 {
     let now = Instant::now();
 
     let mut nodes = 0;
@@ -24,13 +30,13 @@ pub fn perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u6
     );
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
-    
+
         let cloned = game.clone();
         let player = game.side_to_move;
-        let _unmake_metadata = game.make_move(move_item);
+        let _unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
-            let move_nodes = _perft(game, cache, depth - 1);
+            let move_nodes = _perft(game, cache, depth - 1, keys);
             nodes += move_nodes;
             println!(
                 "{}: {}",
@@ -50,7 +56,12 @@ pub fn perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u6
 }
 
 #[allow(dead_code)]
-fn _perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
+fn _perft(
+    game: &mut GameState,
+    cache: &PrecalculatedCache,
+    depth: u16,
+    keys: &ZobristRandomKeys,
+) -> u64 {
     let mut nodes = 0;
 
     if depth == 0 {
@@ -68,10 +79,10 @@ fn _perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
         let move_item = &move_list.moves[index];
         let cloned = game.clone();
         let player = game.side_to_move;
-        let _unmake_metadata = game.make_move(move_item);
+        let _unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
-            let move_nodes = _perft(game, cache, depth - 1);
+            let move_nodes = _perft(game, cache, depth - 1, keys);
             nodes += move_nodes;
         }
         // replace with unset
@@ -82,7 +93,12 @@ fn _perft(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
 }
 
 #[allow(dead_code)]
-pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
+pub fn perft_unmake(
+    game: &mut GameState,
+    cache: &PrecalculatedCache,
+    depth: u16,
+    keys: &ZobristRandomKeys,
+) -> u64 {
     let now = Instant::now();
 
     let mut nodes = 0;
@@ -104,10 +120,10 @@ pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16
         // let cloned = game.clone();
 
         let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item);
+        let unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
-            let move_nodes = _perft_unmake(game, cache, depth - 1);
+            let move_nodes = _perft_unmake(game, cache, depth - 1, keys);
             nodes += move_nodes;
             println!(
                 "{}: {}",
@@ -116,7 +132,7 @@ pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16
             );
         }
         // replace with unset
-        game.unmake_move(&move_item, unmake_metadata);
+        game.unmake_move(&move_item, unmake_metadata, keys);
         // game.set(cloned);
     }
 
@@ -127,7 +143,12 @@ pub fn perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16
 }
 
 #[allow(dead_code)]
-fn _perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -> u64 {
+fn _perft_unmake(
+    game: &mut GameState,
+    cache: &PrecalculatedCache,
+    depth: u16,
+    keys: &ZobristRandomKeys,
+) -> u64 {
     let mut nodes = 0;
 
     if depth == 0 {
@@ -144,14 +165,14 @@ fn _perft_unmake(game: &mut GameState, cache: &PrecalculatedCache, depth: u16) -
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
         let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item);
+        let unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
-            let move_nodes = _perft_unmake(game, cache, depth - 1);
+            let move_nodes = _perft_unmake(game, cache, depth - 1, keys);
             nodes += move_nodes;
         }
         // replace with unset
-        game.unmake_move(&move_item, unmake_metadata);
+        game.unmake_move(&move_item, unmake_metadata, keys);
     }
 
     return nodes;

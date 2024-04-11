@@ -4,7 +4,7 @@ use crate::{
         move_data::MoveItem,
         precalculate::cache::PrecalculatedCache,
     },
-    state::{boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player},
+    state::{boards::BitBoard, game::{CastlePermissions, GameState}, movelist::MoveList, pieces::Piece, player::Player},
 };
 // #[inline(always)]
 
@@ -35,7 +35,7 @@ pub fn generate_castling_moves(
 
             // check if 5 is attacked, king side between transition
             // make sure in between is also empty
-            if game.castle_permissions.white_king_side
+            if game.castle_permissions.is_allowed(u8::WHITE_KING_SIDE)
                 && !occupied.get(5)
                 && !occupied.get(6)
                 && !is_square_attacked(5, opponent, game, cache)
@@ -59,7 +59,7 @@ pub fn generate_castling_moves(
             }
             // check if 2 is attacked, queen side between transition
             // make sure in between is also empty
-            if game.castle_permissions.white_queen_side
+            if game.castle_permissions.is_allowed(u8::WHITE_QUEEN_SIDE)
                 && !occupied.get(1)
                 && !occupied.get(2)
                 && !occupied.get(3)
@@ -88,7 +88,7 @@ pub fn generate_castling_moves(
                 return;
             }
 
-            if game.castle_permissions.black_king_side
+            if game.castle_permissions.is_allowed(u8::BLACK_KING_SIDE)
                 && !occupied.get(61)
                 && !occupied.get(62)
                 && !is_square_attacked(61, opponent, game, cache)
@@ -112,7 +112,7 @@ pub fn generate_castling_moves(
                     });
                 }
             }
-            if game.castle_permissions.black_queen_side
+            if game.castle_permissions.is_allowed(u8::BLACK_QUEEN_SIDE)
                 && !occupied.get(57)
                 && !occupied.get(58)
                 && !occupied.get(59)

@@ -1,4 +1,10 @@
-use crate::state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square};
+use crate::state::{
+    boards::BitBoard,
+    game::{CastlePermissions, GameState},
+    pieces::Piece,
+    player::Player,
+    square::Square,
+};
 
 // #[inline(always)]
 pub fn stringify_board(game: &GameState) -> String {
@@ -62,16 +68,16 @@ pub fn stringify_enpassant(game: &GameState) -> String {
 }
 pub fn stringify_castling(game: &GameState) -> String {
     let mut stringified = String::from("");
-    if game.castle_permissions.white_king_side {
+    if game.castle_permissions.is_allowed(u8::WHITE_KING_SIDE) {
         stringified += "K";
     }
-    if game.castle_permissions.white_queen_side {
+    if game.castle_permissions.is_allowed(u8::WHITE_QUEEN_SIDE) {
         stringified += "Q";
     }
-    if game.castle_permissions.black_king_side {
+    if game.castle_permissions.is_allowed(u8::BLACK_KING_SIDE) {
         stringified += "k";
     }
-    if game.castle_permissions.black_queen_side {
+    if game.castle_permissions.is_allowed(u8::BLACK_QUEEN_SIDE) {
         stringified += "q";
     }
 

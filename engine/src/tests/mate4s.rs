@@ -1,11 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use crate::{constants::search::MAX_MAIN_SEARCH_DEPTH, moves, search, state};
+    use crate::{constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_SIZE_POWER_2}, moves, search::{self, transposition::TTable, zobrist::ZobristRandomKeys}, state};
 
     #[test]
     fn mate4s_suite() {
         // from https://wtharvey.com/m8n4.txt
         let cache = moves::precalculate::cache::PrecalculatedCache::create();
+        let mut tt = TTable::init(2_usize.pow(TRANSITION_TABLE_SIZE_POWER_2 as u32));
 
         let mate4s = [
             (
@@ -78,12 +79,15 @@ mod tests {
             ("k1K5/7r/8/4B3/1RP5/8/8/8 w - - 1 0", "b4b8"),
         ];
         for (mate4_fen, mate4_ans) in mate4s {
-            let game = state::game::GameState::from_fen(mate4_fen.to_string()).unwrap();
+            let keys = ZobristRandomKeys::init();
+            let game = state::game::GameState::from_fen(mate4_fen.to_string(), &keys).unwrap();
             let result = search::think::iterative_deepening(
                 game.clone(),
                 &true,
                 &cache,
                 MAX_MAIN_SEARCH_DEPTH,
+                &keys,
+                &mut tt,
             );
             println!("{}", mate4_fen);
             if let Some(m) = result {

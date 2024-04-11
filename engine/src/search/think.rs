@@ -1,70 +1,47 @@
-/*
-function negamax(node, depth, α, β, color) is
-    if depth = 0 or node is a terminal node then
-        return color × the heuristic value of node
-
-    childNodes := generateMoves(node)
-    childNodes := orderMoves(childNodes)
-    value := −∞
-    foreach child in childNodes do
-        value := max(value, −negamax(child, depth − 1, −β, −α, −color))
-        α := max(α, value)
-        if α ≥ β then
-            break (* cut-off *)
-    return value
-*/
-
-/*
-int Quiesce( int alpha, int beta ) {
-    int stand_pat = Evaluate();
-    if( stand_pat >= beta )
-        return beta;
-    if( alpha < stand_pat )
-        alpha = stand_pat;
-
-    until( every_capture_has_been_examined )  {
-        MakeCapture();
-        score = -Quiesce( -beta, -alpha );
-        TakeBackMove();
-
-        if( score >= beta )
-            return beta;
-        if( score > alpha )
-           alpha = score;
-    }
-    return alpha;
-}
-*/
-
 use std::time::Instant;
 
 use crate::{
-    constants::search::{MAX_MAIN_SEARCH_DEPTH, MAX_PLY},
+    constants::search::MAX_PLY,
     moves::{move_data::MoveItem, precalculate::cache::PrecalculatedCache},
     search::{cache::SearchCache, negamax::negamax},
-    state::game::GameState,
+    state::{game::GameState, pieces::Piece},
 };
 
-use super::killer::SimpleMove;
+use super::{killer::SimpleMove, transposition::TTable, zobrist::ZobristRandomKeys};
 
 pub const INF: i32 = std::i32::MAX;
 pub const NEG_INF: i32 = -INF;
+pub const EMPTY_MOVE: SimpleMove = SimpleMove {
+    to: 0,
+    from: 0,
+    promotion: Piece::Empty,
+};
 
 pub fn iterative_deepening(
     mut game: GameState,
     has_time: &bool,
     cache: &PrecalculatedCache,
-    max_depth: u8,
+    main_search_depth: u8,
+    keys: &ZobristRandomKeys,
+    tt: &mut TTable,
 ) -> Option<MoveItem> {
     let mut best_move: Option<MoveItem> = None;
 
-    let mut depth = 0;
+    let mut depth = 1;
     let mut search_cache = SearchCache::init();
 
     // println!("s: {} {:?} {:?}", game.phase, game.opening, game.endgame);
-    let mut pv: Vec<SimpleMove> = Vec::new();
+    // let mut pv: Vec<SimpleMove> = Vec::new();
 
-    while depth <= max_depth && *has_time {
+    let mut pv_table = [[EMPTY_MOVE; MAX_PLY as usize]; MAX_PLY as usize];
+    let mut pv_size = [0_usize; MAX_PLY as usize];
+
+    let mut alpha = NEG_INF;
+    let mut beta = INF;
+
+    println!("hash {}", game.hash);
+
+    while depth <= main_search_depth && *has_time {
         let iter_start = Instant::now();
 
         let mut nodes = 0;
@@ -75,42 +52,66 @@ pub fn iterative_deepening(
             depth,
             0,
             MAX_PLY,
-            NEG_INF,
-            INF,
-            &mut pv,
+            alpha,
+            beta,
+            // &mut pv,
+            &mut pv_table,
+            &mut pv_size,
             cache,
             &mut search_cache,
             &mut nodes,
             &mut q_nodes,
+            keys,
+            tt,
+            &mut best_move,
         );
 
-        best_move = result.move_item;
         let score = result.score;
 
         let iter_elapsed = iter_start.elapsed();
         let ms = iter_elapsed.as_millis();
         let ns = iter_elapsed.as_nanos();
 
-        let nps = (nodes as u128) * 10_u128.pow(9) / ns;
+        let nps = (nodes as u128) * 10_u128.pow(9) / (ns + 1);
+
+        let total_nps = (nodes + q_nodes) * 10_u128.pow(9) / (ns + 1);
 
         if let Some(m) = &best_move {
             let short = m.pure_algebraic_coordinate_notation();
-            println!("info currmove {short} depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes}");
+            println!("info currmove {short} depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
         } else {
-            println!("info depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes}");
+            println!("info depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
         }
+        println!(
+            "{} pv: {:?}",
+            pv_size[0],
+            pv_table[0][0..pv_size[0]].to_vec()
+        );
         if score == INF || score == NEG_INF {
             break;
         }
+
+        // the aspiration window was a bad idea, lets retry without it
+        if score <= alpha || score >= beta {
+            alpha = NEG_INF;
+            beta = INF;
+            println!("retrying");
+            continue;
+        }
+
+        alpha = score - 100;
+        beta = score + 100;
         depth += 1;
     }
 
-    println!("pv: {:?}", pv);
+    // println!("pv: {:?}", pv);
 
     if let Some(move_item) = &best_move {
         let short = move_item.pure_algebraic_coordinate_notation();
         println!("bestmove {short}");
     }
+
+    println!("hash {}", game.hash);
 
     return best_move;
 }

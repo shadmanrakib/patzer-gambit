@@ -3,6 +3,7 @@ use crate::{
     evaluation::psqt_tapered::{
         ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
     },
+    search::zobrist::ZobristRandomKeys,
 };
 
 use super::{pieces::Piece, player::Player};
@@ -99,8 +100,11 @@ impl Boards {
         phase: &mut i32,
         opening: &mut [i32; 2],
         endgame: &mut [i32; 2],
+        hash: &mut u64,
+        keys: &ZobristRandomKeys,
     ) -> Piece {
-        let removed = self.remove_piece(player.opponent(), pos, phase, opening, endgame);
+        let removed =
+            self.remove_piece(player.opponent(), pos, phase, opening, endgame, hash, keys);
 
         self.boards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
@@ -117,6 +121,9 @@ impl Boards {
         endgame[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];
         *phase += PHASE_INCREMENT_BY_PIECE[piece as usize];
 
+        *hash ^= keys.pieces[player as usize][piece as usize][pos as usize];
+        *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
+
         return removed;
     }
 
@@ -128,6 +135,8 @@ impl Boards {
         phase: &mut i32,
         opening: &mut [i32; 2],
         endgame: &mut [i32; 2],
+        hash: &mut u64,
+        keys: &ZobristRandomKeys,
     ) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;
@@ -144,6 +153,9 @@ impl Boards {
         opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
         endgame[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
         *phase -= PHASE_INCREMENT_BY_PIECE[removed as usize];
+
+        *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
+        *hash ^= keys.pieces[player as usize][Piece::Empty as usize][pos as usize];
 
         return removed;
     }

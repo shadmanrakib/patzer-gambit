@@ -9,34 +9,49 @@ use crate::{
         precalculate::cache::PrecalculatedCache,
         pseudolegal::all::generate_pseudolegal_moves,
     },
+    search::zobrist::{calculate_zobrist_hash, ZobristRandomKeys},
     state::{boards::BitBoard, movelist::MoveList},
 };
 
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct CastlePermissions {
-    pub white_queen_side: bool,
-    pub white_king_side: bool,
-    pub black_queen_side: bool,
-    pub black_king_side: bool,
-}
+// we will make this a bitmap
+// abcd, a - white_queen_side, b - white_king_side, c - black_queen_side, d - black_king_side
+// ex 1100 -> KQ
+pub trait CastlePermissions {
+    const WHITE_KING_SIDE: u8 = 1 << 3;
+    const WHITE_QUEEN_SIDE: u8 = 1 << 2;
+    const BLACK_KING_SIDE: u8 = 1 << 1;
+    const BLACK_QUEEN_SIDE: u8 = 1 << 0;
 
-impl CastlePermissions {
-    pub fn revoke_white(&mut self) {
-        self.white_queen_side = false;
-        self.white_king_side = false;
+    fn is_allowed(&self, i: u8) -> bool;
+    fn grant(&mut self, i: u8);
+    fn revoke(&mut self, i: u8);
+    fn revoke_all(&mut self);
+    fn revoke_white(&mut self);
+    fn revoke_black(&mut self);
+}
+impl CastlePermissions for u8 {
+    // const WHITE_KING_SIDE: u8 = 1 << 3;
+    // const WHITE_QUEEN_SIDE: u8 = 1 << 2;
+    // const BLACK_KING_SIDE: u8 = 1 << 1;
+    // const BLACK_QUEEN_SIDE: u8 = 1 << 0;
+
+    fn is_allowed(&self, perm: u8) -> bool {
+        self & perm != 0
     }
-    pub fn revoke_black(&mut self) {
-        self.black_queen_side = false;
-        self.black_king_side = false;
+    fn grant(&mut self, perm: u8) {
+        *self |= perm;
     }
-    #[allow(dead_code)]
-    pub fn none() -> CastlePermissions {
-        CastlePermissions {
-            white_queen_side: false,
-            white_king_side: false,
-            black_queen_side: false,
-            black_king_side: false,
-        }
+    fn revoke(&mut self, perm: u8) {
+        *self &= !perm;
+    }
+    fn revoke_white(&mut self) {
+        *self &= Self::BLACK_KING_SIDE | Self::BLACK_QUEEN_SIDE;
+    }
+    fn revoke_black(&mut self) {
+        *self &= Self::WHITE_KING_SIDE | Self::WHITE_QUEEN_SIDE;
+    }
+    fn revoke_all(&mut self) {
+        *self = 0;
     }
 }
 
@@ -51,7 +66,7 @@ pub struct EnpassantSquare {
 pub struct GameState {
     pub bitboards: Boards,
     pub side_to_move: Player,
-    pub castle_permissions: CastlePermissions,
+    pub castle_permissions: u8,
     // 0-7 maps to columns A-H, 8 is none
     pub enpassant_square: u64,
     // It marks the number of moves since the last pawn push or piece capture.
@@ -66,6 +81,7 @@ pub struct GameState {
     pub opening_pqst_score: i32,
     pub endgame_pqst_score: i32,
     pub color: i32,
+    pub hash: u64,
 }
 
 impl GameState {
@@ -109,7 +125,16 @@ impl GameState {
 
         return Err("Invalid long algrebraic notation.".into());
     }
-    pub fn make_move(&mut self, move_item: &MoveItem) -> UnmakeMoveMetadata {
+    pub fn make_move(
+        &mut self,
+        move_item: &MoveItem,
+        keys: &ZobristRandomKeys,
+    ) -> UnmakeMoveMetadata {
+        self.hash ^= keys.castling[self.castle_permissions as usize];
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+
         let prev_castle_permissions = self.castle_permissions.clone();
         let prev_enpassant_square = self.enpassant_square;
         let prev_half_move_clock = self.half_move_clock;
@@ -127,6 +152,8 @@ impl GameState {
             &mut self.phase,
             &mut self.opening,
             &mut self.endgame,
+            &mut self.hash,
+            keys,
         );
 
         if move_item.piece == Piece::Pawn {
@@ -149,6 +176,8 @@ impl GameState {
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
+                    &mut self.hash,
+                    keys,
                 );
             } else {
                 self.bitboards.remove_piece(
@@ -157,6 +186,8 @@ impl GameState {
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
+                    &mut self.hash,
+                    keys,
                 );
             }
 
@@ -167,6 +198,8 @@ impl GameState {
                 &mut self.phase,
                 &mut self.opening,
                 &mut self.endgame,
+                &mut self.hash,
+                keys,
             );
         } else {
             self.bitboards.remove_piece(
@@ -175,6 +208,8 @@ impl GameState {
                 &mut self.phase,
                 &mut self.opening,
                 &mut self.endgame,
+                &mut self.hash,
+                keys,
             );
 
             self.bitboards.place_piece(
@@ -184,6 +219,8 @@ impl GameState {
                 &mut self.phase,
                 &mut self.opening,
                 &mut self.endgame,
+                &mut self.hash,
+                keys,
             );
 
             if move_item.castling {
@@ -196,6 +233,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -204,6 +243,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                     }
                     (Player::White, 6) => {
@@ -213,6 +254,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -221,6 +264,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                     }
                     (Player::Black, 58) => {
@@ -230,6 +275,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -238,6 +285,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                     }
                     (Player::Black, 62) => {
@@ -247,6 +296,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -255,6 +306,8 @@ impl GameState {
                             &mut self.phase,
                             &mut self.opening,
                             &mut self.endgame,
+                            &mut self.hash,
+                            keys,
                         );
                     }
                     (_, _) => {
@@ -310,16 +363,16 @@ impl GameState {
         if move_item.piece == Piece::Rook {
             match (side_moving, move_item.from_pos) {
                 (Player::White, 0) => {
-                    self.castle_permissions.white_queen_side = false;
+                    self.castle_permissions.revoke(u8::WHITE_QUEEN_SIDE);
                 }
                 (Player::White, 7) => {
-                    self.castle_permissions.white_king_side = false;
+                    self.castle_permissions.revoke(u8::WHITE_KING_SIDE);
                 }
                 (Player::Black, 56) => {
-                    self.castle_permissions.black_queen_side = false;
+                    self.castle_permissions.revoke(u8::BLACK_QUEEN_SIDE);
                 }
                 (Player::Black, 63) => {
-                    self.castle_permissions.black_king_side = false;
+                    self.castle_permissions.revoke(u8::BLACK_KING_SIDE);
                 }
                 (_, _) => {}
             }
@@ -327,16 +380,16 @@ impl GameState {
         if move_item.captured_piece == Piece::Rook {
             match (opponent, move_item.to_pos) {
                 (Player::White, 0) => {
-                    self.castle_permissions.white_queen_side = false;
+                    self.castle_permissions.revoke(u8::WHITE_QUEEN_SIDE);
                 }
                 (Player::White, 7) => {
-                    self.castle_permissions.white_king_side = false;
+                    self.castle_permissions.revoke(u8::WHITE_KING_SIDE);
                 }
                 (Player::Black, 56) => {
-                    self.castle_permissions.black_queen_side = false;
+                    self.castle_permissions.revoke(u8::BLACK_QUEEN_SIDE);
                 }
                 (Player::Black, 63) => {
-                    self.castle_permissions.black_king_side = false;
+                    self.castle_permissions.revoke(u8::BLACK_KING_SIDE);
                 }
                 (_, _) => {}
             }
@@ -346,6 +399,11 @@ impl GameState {
         self.side_to_move = opponent;
         self.color *= -1;
 
+        self.hash ^= keys.castling[self.castle_permissions as usize];
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+
         UnmakeMoveMetadata {
             captured_piece: move_item.captured_piece,
             prev_castle_permissions,
@@ -354,7 +412,17 @@ impl GameState {
         }
     }
 
-    pub fn unmake_move(&mut self, move_item: &MoveItem, unmake_metadata: UnmakeMoveMetadata) {
+    pub fn unmake_move(
+        &mut self,
+        move_item: &MoveItem,
+        unmake_metadata: UnmakeMoveMetadata,
+        keys: &ZobristRandomKeys,
+    ) {
+        self.hash ^= keys.castling[self.castle_permissions as usize];
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+
         // lets handle the easy undos
         self.castle_permissions = unmake_metadata.prev_castle_permissions;
 
@@ -374,6 +442,8 @@ impl GameState {
             &mut self.phase,
             &mut self.opening,
             &mut self.endgame,
+            &mut self.hash,
+            keys,
         );
 
         // lets remove the to piece preliminarly
@@ -383,6 +453,8 @@ impl GameState {
             &mut self.phase,
             &mut self.opening,
             &mut self.endgame,
+            &mut self.hash,
+            keys,
         );
 
         // lets place back the captured piece, if not enpassant
@@ -395,6 +467,8 @@ impl GameState {
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
+                    &mut self.hash,
+                    keys,
                 );
             } else {
                 // we have an enpassant so we need to do a bit more calculation
@@ -414,6 +488,8 @@ impl GameState {
                     &mut self.phase,
                     &mut self.opening,
                     &mut self.endgame,
+                    &mut self.hash,
+                    keys,
                 );
             }
         }
@@ -428,6 +504,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -435,6 +513,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                 }
                 (Player::White, 6) => {
@@ -445,6 +525,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -452,6 +534,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                 }
                 (Player::Black, 58) => {
@@ -462,6 +546,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -469,6 +555,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                 }
                 (Player::Black, 62) => {
@@ -479,6 +567,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -486,6 +576,8 @@ impl GameState {
                         &mut self.phase,
                         &mut self.opening,
                         &mut self.endgame,
+                        &mut self.hash,
+                        keys,
                     );
                 }
                 (_, _) => {
@@ -493,16 +585,51 @@ impl GameState {
                 }
             }
         }
+
+        self.hash ^= keys.castling[self.castle_permissions as usize];
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+    }
+
+    pub fn make_null_move(&mut self, keys: &ZobristRandomKeys) -> u64 {
+        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+
+        self.side_to_move = self.side_to_move.opponent();
+        let enpassant = self.enpassant_square;
+        self.enpassant_square = 0;
+
+        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+
+        return enpassant;
+    }
+    pub fn unmake_null_move(&mut self, enpassant: u64, keys: &ZobristRandomKeys) -> u64 {
+        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+        
+        self.side_to_move = self.side_to_move.opponent();
+        self.enpassant_square = enpassant;
+        
+        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+
+        return enpassant;
     }
 
     #[allow(dead_code)]
-    pub fn new() -> GameState {
+    pub fn new(key: &ZobristRandomKeys) -> GameState {
         let start_board_fen =
             String::from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-        return Self::from_fen(start_board_fen).unwrap();
+        return Self::from_fen(start_board_fen, key).unwrap();
     }
 
-    pub fn from_fen(fen: String) -> Result<GameState, String> {
+    pub fn from_fen(fen: String, keys: &ZobristRandomKeys) -> Result<GameState, String> {
         let parts: Vec<&str> = fen.split(" ").collect();
 
         if parts.len() != 6 {
@@ -510,7 +637,7 @@ impl GameState {
         }
 
         let mut game = GameState {
-            bitboards: fen::parse::parse_fen_board(parts[0]).unwrap(),
+            bitboards: fen::parse::parse_fen_board(parts[0], keys).unwrap(),
             side_to_move: fen::parse::parse_fen_side(parts[1]).unwrap(),
             castle_permissions: fen::parse::parse_fen_castle(parts[2]).unwrap(),
             enpassant_square: fen::parse::parse_fen_enpassant(parts[3]).unwrap(),
@@ -523,6 +650,7 @@ impl GameState {
             color: 0,
             opening: [0, 0],
             endgame: [0, 0],
+            hash: 0,
         };
 
         let (phase, opening, endgame) = crate::evaluation::psqt_tapered::init(&game);
@@ -536,6 +664,8 @@ impl GameState {
         } else {
             -1
         };
+
+        game.hash = calculate_zobrist_hash(&game, keys);
 
         // need to make this cleaner
         return Ok(game);
@@ -555,7 +685,7 @@ impl GameState {
     pub fn print_board(&self) {
         const BLACK_PIECES: [&str; 7] = [".", "♟︎", "♞", "♝", "♜", "♛", "♚"];
         const WHITE_PIECES: [&str; 7] = [".", "♙", "♘", "♗", "♖", "♕", "♔"];
-        
+
         for rank in (0..8).rev() {
             print!("{} | ", rank + 1);
             for file in 0..8 {

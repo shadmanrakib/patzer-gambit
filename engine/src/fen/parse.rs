@@ -1,16 +1,22 @@
 use regex::Regex;
 
-use crate::state::{
-    boards::Boards, game::CastlePermissions, pieces::Piece, player::Player, square::Square,
+use crate::{
+    search::zobrist::ZobristRandomKeys,
+    state::{
+        boards::Boards, game::CastlePermissions, pieces::Piece, player::Player, square::Square,
+    },
 };
 
-pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
+pub fn parse_fen_board(part: &str, keys: &ZobristRandomKeys) -> Result<Boards, String> {
     let mut bitboards: Boards = Default::default();
     // part 1 parsing
     let splitted: Vec<&str> = part.split("/").collect();
     if splitted.len() != 8 {
         return Err("Part 1 of FEN is invalid length".to_string());
     }
+
+    let mut hash = 0;
+
     for rank in (0..8).rev() {
         let rank_str = splitted[7 - rank];
         let mut pos: i8 = (rank * 8).try_into().unwrap();
@@ -24,6 +30,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -35,6 +43,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -46,6 +56,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -57,6 +69,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -68,6 +82,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -79,6 +95,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -90,6 +108,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -101,6 +121,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -112,6 +134,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -123,6 +147,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -134,6 +160,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -145,6 +173,8 @@ pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
                         &mut 0,
                         &mut [0, 0],
                         &mut [0, 0],
+                        &mut 0,
+                        keys,
                     );
                     pos += 1;
                 }
@@ -179,13 +209,8 @@ pub fn parse_fen_enpassant(part: &str) -> Result<u64, String> {
         _ => Err("Invalid enpassant square".into()),
     }
 }
-pub fn parse_fen_castle(part: &str) -> Result<CastlePermissions, String> {
-    let mut permission = CastlePermissions {
-        white_king_side: false,
-        white_queen_side: false,
-        black_king_side: false,
-        black_queen_side: false,
-    };
+pub fn parse_fen_castle(part: &str) -> Result<u8, String> {
+    let mut permission = 0;
 
     if part == "-" {
         return Ok(permission);
@@ -193,13 +218,13 @@ pub fn parse_fen_castle(part: &str) -> Result<CastlePermissions, String> {
 
     for c in part.chars() {
         if c == 'K' {
-            permission.white_king_side = true;
+            permission.grant(u8::WHITE_KING_SIDE);
         } else if c == 'k' {
-            permission.black_king_side = true;
+            permission.grant(u8::BLACK_KING_SIDE);
         } else if c == 'Q' {
-            permission.white_queen_side = true;
+            permission.grant(u8::WHITE_QUEEN_SIDE);
         } else if c == 'q' {
-            permission.black_queen_side = true;
+            permission.grant(u8::BLACK_QUEEN_SIDE);
         } else {
             return Err("Invalid character in castle permission".to_string());
         }
