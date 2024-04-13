@@ -2,7 +2,7 @@ use std::fmt::{Debug, Write};
 
 use crate::{
     constants::search::{MAX_KILLER_MOVES, MAX_PLY},
-    moves::move_data::MoveItem,
+    moves::data::MoveItem,
     state::{pieces::Piece, square::Square},
 };
 

@@ -2,20 +2,15 @@ use std::time::Instant;
 
 use crate::{
     constants::search::MAX_PLY,
-    moves::{move_data::MoveItem, precalculate::cache::PrecalculatedCache},
+    moves::{data::MoveItem, generator::precalculated_lookups::cache::PrecalculatedCache},
     search::{cache::SearchCache, negamax::negamax},
-    state::{game::GameState, pieces::Piece},
+    state::game::GameState,
 };
 
-use super::{killer::SimpleMove, transposition::TTable, zobrist::ZobristRandomKeys};
+use super::{transposition::TTable, zobrist::ZobristRandomKeys};
 
 pub const INF: i32 = std::i32::MAX;
 pub const NEG_INF: i32 = -INF;
-pub const EMPTY_MOVE: SimpleMove = SimpleMove {
-    to: 0,
-    from: 0,
-    promotion: Piece::Empty,
-};
 
 pub fn iterative_deepening(
     mut game: GameState,
@@ -29,12 +24,6 @@ pub fn iterative_deepening(
 
     let mut depth = 1;
     let mut search_cache = SearchCache::init();
-
-    // println!("s: {} {:?} {:?}", game.phase, game.opening, game.endgame);
-    // let mut pv: Vec<SimpleMove> = Vec::new();
-
-    let mut pv_table = [[EMPTY_MOVE; MAX_PLY as usize]; MAX_PLY as usize];
-    let mut pv_size = [0_usize; MAX_PLY as usize];
 
     let mut alpha = NEG_INF;
     let mut beta = INF;
@@ -54,9 +43,6 @@ pub fn iterative_deepening(
             MAX_PLY,
             alpha,
             beta,
-            // &mut pv,
-            &mut pv_table,
-            &mut pv_size,
             cache,
             &mut search_cache,
             &mut nodes,
@@ -77,16 +63,12 @@ pub fn iterative_deepening(
         let total_nps = (nodes + q_nodes) * 10_u128.pow(9) / (ns + 1);
 
         if let Some(m) = &best_move {
-            let short = m.pure_algebraic_coordinate_notation();
+            let short = m.notation();
             println!("info currmove {short} depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
         } else {
             println!("info depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
         }
-        println!(
-            "{} pv: {:?}",
-            pv_size[0],
-            pv_table[0][0..pv_size[0]].to_vec()
-        );
+
         if score == INF || score == NEG_INF {
             break;
         }
@@ -99,15 +81,15 @@ pub fn iterative_deepening(
             continue;
         }
 
-        alpha = score - 100;
-        beta = score + 100;
+        alpha = score - 70;
+        beta = score + 70;
         depth += 1;
     }
 
     // println!("pv: {:?}", pv);
 
     if let Some(move_item) = &best_move {
-        let short = move_item.pure_algebraic_coordinate_notation();
+        let short = move_item.notation();
         println!("bestmove {short}");
     }
 

@@ -1,6 +1,6 @@
 use crate::{
-    moves::precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
-    state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player, square::Square},
+    moves::generator::precalculated_lookups::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
+    state::{game::GameState, pieces::Piece, player::Player},
 };
 
 // #[inline(always)]
@@ -14,8 +14,6 @@ pub fn times_square_attacked(
     let mut attacked_count: i8 = 0;
 
     let occupied = game.bitboards.occupied;
-
-    // let (rank, _file) = Square::rank_and_file(pos);
 
     // knight
     let knight_move_mask = cache.knight_moves_masks[pos as usize];

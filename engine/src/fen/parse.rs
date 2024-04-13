@@ -15,8 +15,6 @@ pub fn parse_fen_board(part: &str, keys: &ZobristRandomKeys) -> Result<Boards, S
         return Err("Part 1 of FEN is invalid length".to_string());
     }
 
-    let mut hash = 0;
-
     for rank in (0..8).rev() {
         let rank_str = splitted[7 - rank];
         let mut pos: i8 = (rank * 8).try_into().unwrap();

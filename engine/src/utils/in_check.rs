@@ -1,5 +1,5 @@
 use crate::{
-    moves::precalculate::cache::PrecalculatedCache,
+    moves::generator::precalculated_lookups::cache::PrecalculatedCache,
     state::{game::GameState, pieces::Piece, player::Player},
 };
 

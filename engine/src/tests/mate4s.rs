@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use crate::{constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_SIZE_POWER_2}, moves, search::{self, transposition::TTable, zobrist::ZobristRandomKeys}, state};
+    use crate::{constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_ADDRESSING_BITS}, moves, search::{self, transposition::TTable, zobrist::ZobristRandomKeys}, state};
 
     #[test]
     fn mate4s_suite() {
         // from https://wtharvey.com/m8n4.txt
-        let cache = moves::precalculate::cache::PrecalculatedCache::create();
-        let mut tt = TTable::init(2_usize.pow(TRANSITION_TABLE_SIZE_POWER_2 as u32));
+        let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
+        let mut tt = TTable::init(2_usize.pow(TRANSITION_TABLE_ADDRESSING_BITS as u32));
 
         let mate4s = [
             (
@@ -91,7 +91,7 @@ mod tests {
             );
             println!("{}", mate4_fen);
             if let Some(m) = result {
-                let ans = m.pure_algebraic_coordinate_notation();
+                let ans = m.notation();
                 if mate4_ans == ans {
                     println!("Correct {}", ans);
                 } else {

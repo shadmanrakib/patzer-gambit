@@ -47,7 +47,7 @@ mod tests {
             },
         ];
 
-        let cache = moves::precalculate::cache::PrecalculatedCache::create();
+        let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
 
         for test in tests {
             

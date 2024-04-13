@@ -5,9 +5,10 @@ use crate::{
     constants::masks::SQUARE_MASKS,
     fen,
     moves::{
-        move_data::{MoveItem, UnmakeMoveMetadata},
-        precalculate::cache::PrecalculatedCache,
-        pseudolegal::all::generate_pseudolegal_moves,
+        generator::{
+            movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
+        },
+        data::{MoveItem, UnmakeMoveMetadata},
     },
     search::zobrist::{calculate_zobrist_hash, ZobristRandomKeys},
     state::{boards::BitBoard, movelist::MoveList},
@@ -30,11 +31,6 @@ pub trait CastlePermissions {
     fn revoke_black(&mut self);
 }
 impl CastlePermissions for u8 {
-    // const WHITE_KING_SIDE: u8 = 1 << 3;
-    // const WHITE_QUEEN_SIDE: u8 = 1 << 2;
-    // const BLACK_KING_SIDE: u8 = 1 << 1;
-    // const BLACK_QUEEN_SIDE: u8 = 1 << 0;
-
     fn is_allowed(&self, perm: u8) -> bool {
         self & perm != 0
     }
@@ -110,12 +106,12 @@ impl GameState {
 
         if re.is_match(&notation) {
             let mut moveslist = MoveList::new();
-            generate_pseudolegal_moves(&mut moveslist, self, self.side_to_move, cache);
+            generate_pseudolegal_moves(&mut moveslist, self, self.side_to_move, cache, false);
 
             for index in 0..moveslist.len() {
                 let move_item = &moveslist.moves[index];
 
-                if move_item.pure_algebraic_coordinate_notation() == notation {
+                if move_item.notation() == notation {
                     return Ok(move_item.clone());
                 }
             }
@@ -611,10 +607,10 @@ impl GameState {
         self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
         let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
         self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
-        
+
         self.side_to_move = self.side_to_move.opponent();
         self.enpassant_square = enpassant;
-        
+
         self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
         let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
         self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash

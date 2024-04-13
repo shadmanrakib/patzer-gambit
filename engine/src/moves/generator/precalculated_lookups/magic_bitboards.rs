@@ -8,7 +8,6 @@ extern crate xorshift;
 use xorshift::{Rng, Xoroshiro128};
 
 // each bit in the bit set represents whether the corresponding bit in the mask should be present
-// #[inline]
 pub fn get_subset_of_mask_by_bit_set(mask: u64, mask_bit_count: i8, bit_set: u64) -> u64 {
     let mut mask_mut = mask.clone();
     let mut subset_mask = 0;
@@ -106,14 +105,12 @@ pub fn find_bishop_magic_numbers(
     return (bishop_magic_numbers, bishop_magic_moves);
 }
 
-// #[inline]
 pub fn generate_magic_number(rng: &mut Xoroshiro128) -> u64 {
     return rng.next_u64() & rng.next_u64() & rng.next_u64();
 }
 #[derive(Debug)]
 pub struct FailedToFindMagicNumberError;
 
-// #[inline]
 fn find_magic_number(
     rng: &mut Xoroshiro128,
     pos: i8,

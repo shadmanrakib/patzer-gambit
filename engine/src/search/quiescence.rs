@@ -21,23 +21,17 @@ int Quiesce( int alpha, int beta ) {
 */
 
 use crate::{
-    constants::search::MAX_PLY,
-    evaluation::{
-        moves::score_captures,
-        psqt_tapered,
-    },
+    evaluation::psqt_tapered,
     moves::{
-        attacked::in_check::is_in_check, move_data::MoveItem,
-        precalculate::cache::PrecalculatedCache, pseudolegal::all::generate_pseudolegal_moves,
+        generator::movegen::generate_pseudolegal_moves,
+        generator::precalculated_lookups::cache::PrecalculatedCache, data::MoveItem,
+        scoring::score_captures,
     },
     state::{game::GameState, movelist::MoveList, player::Player},
+    utils::in_check::is_in_check,
 };
 
-use super::{
-    cache::SearchCache,
-    killer::SimpleMove,
-    zobrist::ZobristRandomKeys,
-};
+use super::{cache::SearchCache, zobrist::ZobristRandomKeys};
 
 pub fn quiescence(
     game: &mut GameState,
@@ -45,9 +39,6 @@ pub fn quiescence(
     max_ply: u8,
     mut alpha: i32,
     beta: i32,
-    // pv: &mut Vec<SimpleMove>,
-    pv_table: &mut [[SimpleMove; MAX_PLY as usize]; MAX_PLY as usize],
-    pv_size: &mut [usize; MAX_PLY as usize],
     cache: &PrecalculatedCache,
     search_cache: &mut SearchCache,
     nodes: &mut u128,
@@ -75,16 +66,12 @@ pub fn quiescence(
     }
 
     let mut moveslist = MoveList::new();
-    generate_pseudolegal_moves(&mut moveslist, &game, player, cache);
+    generate_pseudolegal_moves(&mut moveslist, &game, player, cache, true);
     score_captures(&mut moveslist);
 
     for i in 0..moveslist.len() {
         moveslist.sort_move(i);
         let move_item: &MoveItem = &moveslist.moves[i];
-
-        if !move_item.capturing {
-            continue;
-        }
 
         let unmake_metadata = game.make_move(move_item, keys);
 
@@ -100,9 +87,6 @@ pub fn quiescence(
             max_ply,
             -beta,
             -alpha,
-            // pv: &mut Vec<SimpleMove>,
-            pv_table,
-            pv_size,
             cache,
             search_cache,
             nodes,

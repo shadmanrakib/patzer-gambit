@@ -4,6 +4,7 @@ mod fen;
 mod moves;
 mod search;
 mod state;
+mod utils;
 
 #[cfg(test)]
 mod tests;
@@ -11,8 +12,8 @@ mod tests;
 use std::time::SystemTime;
 
 use crate::{
-    constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_SIZE_POWER_2},
-    moves::move_data::{MoveItem, UnmakeMoveMetadata},
+    constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_ADDRESSING_BITS},
+    moves::data::{MoveItem, UnmakeMoveMetadata},
     search::{transposition::TTable, zobrist::ZobristRandomKeys},
 };
 
@@ -24,7 +25,7 @@ fn main() {
     // let game_str = "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9";
 
     let start_time = SystemTime::now();
-    let cache = moves::precalculate::cache::PrecalculatedCache::create();
+    let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
     println!(
         "Pre-calculated cache create time: {} ms",
         SystemTime::now()
@@ -43,7 +44,7 @@ fn main() {
     let mut game = state::game::GameState::from_fen(game_str.to_string(), &keys).unwrap();
     game.print_state();
     println!("{:?} {}", game.opening, game.hash);
-    let mut tt = TTable::init(TRANSITION_TABLE_SIZE_POWER_2);
+    let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
 
     let mut halfs = 0;
     let mut undos: Vec<(MoveItem, UnmakeMoveMetadata)> = vec![];
@@ -70,7 +71,7 @@ fn main() {
                 &mut tt,
             );
             if let Some(m) = result {
-                println!("{}", m.pure_algebraic_coordinate_notation());
+                println!("{}", m.notation());
             } else {
                 println!("halfs: {halfs}");
                 println!("no moves gg");
@@ -88,7 +89,7 @@ fn main() {
             if let Some(m) = result {
                 let unmake_metadata = game.make_move(&m, &keys);
                 undos.push((m.clone(), unmake_metadata));
-                println!("Played {}", m.pure_algebraic_coordinate_notation());
+                println!("Played {}", m.notation());
             } else {
                 println!("halfs: {halfs}");
                 println!("no moves gg");

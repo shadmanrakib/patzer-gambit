@@ -1,5 +1,4 @@
-pub mod pseudolegal;
-pub mod move_data;
-pub mod precalculate;
-pub mod attacked;
+pub mod generator;
+pub mod data;
 pub mod perft;
+pub mod scoring;

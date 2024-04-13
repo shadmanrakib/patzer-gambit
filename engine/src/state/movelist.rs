@@ -1,6 +1,6 @@
 use std::mem::MaybeUninit;
 
-use crate::moves::move_data::MoveItem;
+use crate::moves::data::MoveItem;
 
 pub struct MoveList {
     pub moves: [MoveItem; 256],

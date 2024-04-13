@@ -1,6 +1,6 @@
 use crate::constants::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
-use crate::moves::move_data::MoveItem;
-use crate::moves::precalculate::cache::PrecalculatedCache;
+use crate::moves::data::MoveItem;
+use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
 use crate::state::boards::BitBoard;
 use crate::state::movelist::MoveList;
 use crate::state::square::Square;
@@ -15,10 +15,13 @@ pub fn generate_pawn_moves(
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
+    only_captures: bool,
 ) {
-    generate_pawn_single_forward_moves(movelist, game, player);
-    generate_pawn_double_forward_moves(movelist, game, player);
     generate_pawn_attack_moves(movelist, game, player, cache);
+    if !only_captures {
+        generate_pawn_double_forward_moves(movelist, game, player);
+        generate_pawn_single_forward_moves(movelist, game, player);
+    }
 }
 
 #[inline(always)]

@@ -1,7 +1,8 @@
-use super::{attacked::in_check::is_in_check, precalculate::cache::PrecalculatedCache};
 use crate::{
+    moves::generator::precalculated_lookups::cache::PrecalculatedCache,
     search::zobrist::ZobristRandomKeys,
     state::{game::GameState, movelist::MoveList},
+    utils::in_check::is_in_check,
 };
 
 use std::time::Instant;
@@ -22,11 +23,12 @@ pub fn perft(
     }
 
     let mut move_list = MoveList::new();
-    super::pseudolegal::all::generate_pseudolegal_moves(
+    super::generator::movegen::generate_pseudolegal_moves(
         &mut move_list,
         game,
         game.side_to_move,
         cache,
+        false,
     );
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
@@ -38,11 +40,7 @@ pub fn perft(
         if !is_in_check(player, game, cache) {
             let move_nodes = _perft(game, cache, depth - 1, keys);
             nodes += move_nodes;
-            println!(
-                "{}: {}",
-                move_item.pure_algebraic_coordinate_notation(),
-                move_nodes
-            );
+            println!("{}: {}", move_item.notation(), move_nodes);
         }
         // replace with unset
         // game.unmake_move(&move_item, unmake_metadata);
@@ -69,11 +67,12 @@ fn _perft(
     }
 
     let mut move_list = MoveList::new();
-    super::pseudolegal::all::generate_pseudolegal_moves(
+    super::generator::movegen::generate_pseudolegal_moves(
         &mut move_list,
         game,
         game.side_to_move,
         cache,
+        false,
     );
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
@@ -108,11 +107,12 @@ pub fn perft_unmake(
     }
 
     let mut move_list = MoveList::new();
-    super::pseudolegal::all::generate_pseudolegal_moves(
+    super::generator::movegen::generate_pseudolegal_moves(
         &mut move_list,
         game,
         game.side_to_move,
         cache,
+        false,
     );
     println!("{:?}", move_list.len());
     for index in 0..move_list.len() {
@@ -125,11 +125,7 @@ pub fn perft_unmake(
         if !is_in_check(player, game, cache) {
             let move_nodes = _perft_unmake(game, cache, depth - 1, keys);
             nodes += move_nodes;
-            println!(
-                "{}: {}",
-                move_item.pure_algebraic_coordinate_notation(),
-                move_nodes
-            );
+            println!("{}: {}", move_item.notation(), move_nodes);
         }
         // replace with unset
         game.unmake_move(&move_item, unmake_metadata, keys);
@@ -156,11 +152,12 @@ fn _perft_unmake(
     }
 
     let mut move_list = MoveList::new();
-    super::pseudolegal::all::generate_pseudolegal_moves(
+    super::generator::movegen::generate_pseudolegal_moves(
         &mut move_list,
         game,
         game.side_to_move,
         cache,
+        false,
     );
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];

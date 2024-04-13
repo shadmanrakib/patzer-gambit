@@ -1,31 +1,15 @@
-/*
-function negamax(node, depth, α, β, color) is
-    if depth = 0 or node is a terminal node then
-        return color × the heuristic value of node
-
-    childNodes := generateMoves(node)
-    childNodes := orderMoves(childNodes)
-    value := −∞
-    foreach child in childNodes do
-        value := max(value, −negamax(child, depth − 1, −β, −α, −color))
-        α := max(α, value)
-        if α ≥ β then
-            break (* cut-off *)
-    return value
-*/
-
-use crate::constants::search::MAX_PLY;
-use crate::evaluation::moves::score_moves;
+use crate::constants::search::{FULL_DEPTH_MOVES, REDUCTION_LIMIT};
 use crate::evaluation::psqt_tapered;
-use crate::moves::attacked::in_check::is_in_check;
-use crate::moves::move_data::MoveItem;
-use crate::moves::precalculate::cache::PrecalculatedCache;
-use crate::moves::pseudolegal::all::generate_pseudolegal_moves;
+use crate::moves::data::MoveItem;
+use crate::moves::generator::movegen::generate_pseudolegal_moves;
+use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
+use crate::moves::scoring::score_moves;
 use crate::search::cache::SearchCache;
 use crate::state::game::GameState;
 use crate::state::movelist::MoveList;
 use crate::state::pieces::Piece;
 use crate::state::player::Player;
+use crate::utils::in_check::is_in_check;
 
 use super::killer::{store_killer_move, SimpleMove};
 use super::quiescence::quiescence;
@@ -38,7 +22,6 @@ const STALEMATE: i32 = 0;
 const CHECKMATE: i32 = NEG_INF;
 
 pub struct NegamaxResult {
-    // pub move_item: Option<MoveItem>,
     pub score: i32,
 }
 
@@ -49,9 +32,6 @@ pub fn negamax(
     max_ply: u8,
     mut alpha: i32,
     beta: i32,
-    // pv: &mut Vec<SimpleMove>,
-    pv_table: &mut [[SimpleMove; MAX_PLY as usize]; MAX_PLY as usize],
-    pv_size: &mut [usize; MAX_PLY as usize],
     cache: &PrecalculatedCache,
     search_cache: &mut SearchCache,
     nodes: &mut u128,
@@ -60,41 +40,21 @@ pub fn negamax(
     tt: &mut TTable,
     best_move: &mut Option<MoveItem>,
 ) -> NegamaxResult {
-    pv_size[ply as usize] = ply as usize;
-
     let player = game.side_to_move;
 
     let mut node_type = NodeType::All;
 
-    // if GameState::from_fen(game.to_fen(), keys).unwrap().hash != game.hash {
-    //     println!(
-    //         "{depth} {} {}",
-    //         GameState::from_fen(game.to_fen(), keys).unwrap().hash,
-    //         game.hash
-    //     );
-    //     panic!();
-    // }
+    let mut tt_move = SimpleMove {
+        from: 0,
+        to: 0,
+        promotion: Piece::King,
+    };
 
     if let Some((simple_move, score, d)) = tt.probe(game.hash, alpha, beta) {
-        if d >= depth {
-            let mut moveslist = MoveList::new();
-            // generate_pseudolegal_moves(&mut moveslist, &game, player, cache);
-            for index in 0..moveslist.len() {
-                let move_item = &moveslist.moves[index];
-
-                if move_item.from_pos == simple_move.from
-                    && move_item.to_pos == simple_move.to
-                    && move_item.promotion_piece == simple_move.promotion
-                {
-                    return NegamaxResult {
-                        score,
-                    };
-                }
-            }
-            return NegamaxResult {
-                score,
-            };
-        }
+        if ply != 0 && d >= depth {
+            return NegamaxResult { score };
+        };
+        tt_move = simple_move;
     }
 
     // handle base case
@@ -103,10 +63,7 @@ pub fn negamax(
 
         let color = if player == Player::White { 1 } else { -1 };
         let score = color * psqt_tapered::eval(game);
-        // let score = color * position::simple(game);
-        return NegamaxResult {
-            score,
-        };
+        return NegamaxResult { score };
     }
     if depth <= 0 {
         let score = quiescence(
@@ -115,9 +72,6 @@ pub fn negamax(
             max_ply,
             alpha,
             beta,
-            // pv,
-            pv_table,
-            pv_size,
             cache,
             search_cache,
             q_nodes,
@@ -134,9 +88,7 @@ pub fn negamax(
             depth,
             NodeType::Pv,
         );
-        return NegamaxResult {
-            score,
-        };
+        return NegamaxResult { score };
 
         // return quiescence(game, ply, max_ply, alpha, beta, cache, search_cache);
     }
@@ -154,17 +106,13 @@ pub fn negamax(
         && game.bitboards.boards[player.opponent() as usize][Piece::Pawn as usize] != 0
     {
         let prev_enpassant = game.make_null_move(keys);
-        let reduction = 2;
         let null_score = -negamax(
             game,
-            depth - 1 - reduction,
+            depth - 1 - 2,
             ply + 1,
             max_ply,
             -beta,
             -beta + 1,
-            // &mut child_pv,
-            pv_table,
-            pv_size,
             cache,
             search_cache,
             nodes,
@@ -177,9 +125,7 @@ pub fn negamax(
         game.unmake_null_move(prev_enpassant, keys);
 
         if null_score >= beta {
-            return NegamaxResult {
-                score: beta,
-            };
+            return NegamaxResult { score: beta };
         }
     }
 
@@ -192,18 +138,10 @@ pub fn negamax(
     let mut best_score: i32 = -INF;
 
     let mut moveslist = MoveList::new();
-    generate_pseudolegal_moves(&mut moveslist, &game, player, cache);
-    score_moves(
-        &mut moveslist,
-        search_cache,
-        ply as usize,
-        player,
-        // &pv,
-        pv_table,
-        pv_size,
-    );
+    generate_pseudolegal_moves(&mut moveslist, &game, player, cache, false);
+    score_moves(&mut moveslist, search_cache, ply as usize, player, tt_move);
     let mut legal_moves_count: u8 = 0;
-    let mut found_pv_node = false;
+    let mut moves_searched = 0;
 
     for index in 0..moveslist.len() {
         moveslist.sort_move(index);
@@ -216,25 +154,74 @@ pub fn negamax(
             continue;
         };
 
-        // println!("m {}", move_item.pure_algebraic_coordinate_notation());
-
-        // wooo, we have a legal move
         legal_moves_count += 1;
 
-        // let mut child_pv = Vec::new();
         let mut score;
-        if found_pv_node {
-            // perform pvs search, i.e prove other moves are worse
+        // if found_pv_node {
+        //     // perform pvs search, i.e prove other moves are worse
+        //     score = -negamax(
+        //         game,
+        //         depth - 1,
+        //         ply + 1,
+        //         max_ply,
+        //         -alpha - 1,
+        //         -alpha,
+        //         cache,
+        //         search_cache,
+        //         nodes,
+        //         q_nodes,
+        //         keys,
+        //         tt,
+        //         best_move,
+        //     )
+        //     .score;
+
+        //     // proof failed, resort to normal search
+        //     if score > alpha && score < beta {
+        //         score = -negamax(
+        //             game,
+        //             depth - 1,
+        //             ply + 1,
+        //             max_ply,
+        //             -beta,
+        //             -alpha,
+        //             cache,
+        //             search_cache,
+        //             nodes,
+        //             q_nodes,
+        //             keys,
+        //             tt,
+        //             best_move,
+        //         )
+        //         .score;
+        //     }
+        // } else {
+        //     score = -negamax(
+        //         game,
+        //         depth - 1,
+        //         ply + 1,
+        //         max_ply,
+        //         -beta,
+        //         -alpha,
+        //         cache,
+        //         search_cache,
+        //         nodes,
+        //         q_nodes,
+        //         keys,
+        //         tt,
+        //         best_move,
+        //     )
+        //     .score;
+        // }
+
+        if moves_searched == 0 {
             score = -negamax(
                 game,
                 depth - 1,
                 ply + 1,
                 max_ply,
-                -alpha - 1,
+                -beta,
                 -alpha,
-                // &mut child_pv,
-                pv_table,
-                pv_size,
                 cache,
                 search_cache,
                 nodes,
@@ -244,19 +231,20 @@ pub fn negamax(
                 best_move,
             )
             .score;
-
-            // proof failed, resort to normal search
-            if score > alpha && score < beta {
+        } else {
+            if moves_searched >= FULL_DEPTH_MOVES
+                && depth >= REDUCTION_LIMIT
+                && !move_item.capturing
+                && !move_item.promoting
+                && !move_item.castling
+            {
                 score = -negamax(
                     game,
-                    depth - 1,
+                    depth - 2,
                     ply + 1,
                     max_ply,
-                    -beta,
+                    -(alpha + 1),
                     -alpha,
-                    // &mut child_pv,
-                    pv_table,
-                    pv_size,
                     cache,
                     search_cache,
                     nodes,
@@ -266,30 +254,52 @@ pub fn negamax(
                     best_move,
                 )
                 .score;
+            } else {
+                score = alpha + 1; // done to trigger research
             }
-        } else {
-            score = -negamax(
-                game,
-                depth - 1,
-                ply + 1,
-                max_ply,
-                -beta,
-                -alpha,
-                // &mut child_pv,
-                pv_table,
-                pv_size,
-                cache,
-                search_cache,
-                nodes,
-                q_nodes,
-                keys,
-                tt,
-                best_move,
-            )
-            .score;
+
+            if (score > alpha) {
+                // like pvs
+                score = -negamax(
+                    game,
+                    depth - 1,
+                    ply + 1,
+                    max_ply,
+                    -(alpha + 1),
+                    -alpha,
+                    cache,
+                    search_cache,
+                    nodes,
+                    q_nodes,
+                    keys,
+                    tt,
+                    best_move,
+                )
+                .score;
+                if score > alpha && score < beta {
+                    score = -negamax(
+                        game,
+                        depth - 1,
+                        ply + 1,
+                        max_ply,
+                        -beta,
+                        -alpha,
+                        cache,
+                        search_cache,
+                        nodes,
+                        q_nodes,
+                        keys,
+                        tt,
+                        best_move,
+                    )
+                    .score;
+                }
+            }
         }
 
         game.unmake_move(&move_item, unmake_metadata, keys);
+
+        moves_searched += 1;
 
         // println!("u {}", move_item.pure_algebraic_coordinate_notation());
 
@@ -305,9 +315,7 @@ pub fn negamax(
 
             tt.record(game.hash, move_item.into(), score, depth, NodeType::Cut);
 
-            return NegamaxResult {
-                score,
-            };
+            return NegamaxResult { score };
         }
 
         if score > alpha {
@@ -315,24 +323,16 @@ pub fn negamax(
 
             node_type = NodeType::Pv;
 
-            found_pv_node = true; // assume we have a pv node, so we can do pvs
+            // found_pv_node = true; // assume we have a pv node, so we can do pvs
 
             if !move_item.capturing {
                 search_cache.history_moves[player as usize][move_item.piece as usize]
                     [move_item.to_pos as usize] += 2_i16.pow(depth as u32);
             }
 
-            if ply == 0{
+            if ply == 0 {
                 *best_move = Some(move_item.clone());
             }
-            
-            // update pv
-            pv_table[ply as usize][ply as usize] = move_item.into();
-            let next_ply = (ply + 1) as usize;
-            for copying in next_ply..pv_size[next_ply] {
-                pv_table[ply as usize][copying] = pv_table[next_ply][copying];
-            }
-            pv_size[ply as usize] = pv_size[next_ply];
         }
     }
 
@@ -351,9 +351,7 @@ pub fn negamax(
             NodeType::Pv,
         );
 
-        return NegamaxResult {
-            score,
-        };
+        return NegamaxResult { score };
     }
 
     if best_move_idx >= 0 {
@@ -378,7 +376,5 @@ pub fn negamax(
         );
     }
 
-    NegamaxResult {
-        score: best_score,
-    }
+    NegamaxResult { score: best_score }
 }

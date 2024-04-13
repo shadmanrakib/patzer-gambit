@@ -1,36 +1,34 @@
-use crate::{
-    moves::{
-        move_data::MoveItem,
-        precalculate::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
-    },
-    state::{boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player, square::Square},
-};
+use crate::moves::data::MoveItem;
+use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
+use crate::state::boards::BitBoard;
+use crate::state::game::GameState;
+use crate::state::movelist::MoveList;
+use crate::state::pieces::Piece;
+use crate::state::player::Player;
+use crate::state::square::Square;
 
+// single forward non promotion, double, promotion, capture
 // #[inline(always)]
-pub fn generate_bishop_moves(
+pub fn generate_king_moves(
     movelist: &mut MoveList,
     game: &GameState,
     player: Player,
     cache: &PrecalculatedCache,
+    only_captures: bool,
 ) {
-    let mut bishops = game
+    let mut kings = game
         .bitboards
-        .get_board_by_piece(player, Piece::Bishop)
+        .get_board_by_piece(player, Piece::King)
         .clone();
-    let occupied = game.bitboards.occupied.clone();
     let opponent_occupied = game.bitboards.pos_to_player[player.opponent() as usize];
 
-    while bishops != 0 {
-        let pos = bishops.pop_mut();
+    // should only really run once
+    while kings != 0 {
+        let pos = kings.pop_mut();
 
         let from = Square::from(pos);
 
-        let magic_index = hash_with_magic(
-            cache.bishop_magics[pos as usize],
-            occupied,
-        );
-        let moves_mask = cache.bishop_magic_attack_tables[magic_index];
-
+        let moves_mask = cache.king_moves_masks[pos as usize];
         let mut valid_silents = moves_mask & !game.bitboards.occupied;
         let mut valid_captures = moves_mask & opponent_occupied;
 
@@ -42,7 +40,7 @@ pub fn generate_bishop_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Bishop,
+                piece: Piece::King,
                 promotion_piece: Piece::Empty,
                 captured_piece: game.bitboards.pos_to_piece[capture_pos as usize],
                 promoting: false,
@@ -54,6 +52,10 @@ pub fn generate_bishop_moves(
             })
         }
 
+        if only_captures {
+            continue;
+        }
+
         while valid_silents != 0 {
             let silent_pos = valid_silents.pop_mut();
 
@@ -62,7 +64,7 @@ pub fn generate_bishop_moves(
             movelist.push(MoveItem {
                 from_pos: from.into(),
                 to_pos: to.into(),
-                piece: Piece::Bishop,
+                piece: Piece::King,
                 promotion_piece: Piece::Empty,
                 captured_piece: Piece::Empty,
                 promoting: false,

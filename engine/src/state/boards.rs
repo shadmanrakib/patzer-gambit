@@ -111,11 +111,6 @@ impl Boards {
         self.pos_to_player[player as usize].set(pos);
         self.occupied.set(pos);
 
-        // let pqst_pos = if player == Player::White {
-        //     pos
-        // } else {
-        //     pos ^ 56
-        // } as usize;
         let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
         opening[player as usize] += OPENING_PSQT_TABLES[piece as usize][pqst_pos];
         endgame[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];

@@ -1,5 +1,5 @@
 use crate::{
-    constants::search::{MAX_KILLER_MOVES, MAX_PLY},
+    constants::search::MAX_KILLER_MOVES,
     search::{
         cache::SearchCache,
         killer::{is_similar, SimpleMove},
@@ -7,7 +7,12 @@ use crate::{
     state::{movelist::MoveList, player::Player},
 };
 
-pub const MVV_LVA_SCORE: [[i16; 7]; 7] = [
+const MAX_SCORE: i16 = std::i16::MAX;
+
+const MMV_LVA_OFFSET: i16 = std::i16::MAX - 1 - 10000;
+const MIN_SCORE: i16 = std::i16::MIN;
+
+const MVV_LVA_SCORE: [[i16; 7]; 7] = [
     [0, 0, 0, 0, 0, 0, 0], // victim None, attacker K, Q, R, B, N, P, None
     [0, 150, 140, 130, 120, 110, 100], // victim P, attacker K, Q, R, B, N, P, None
     [0, 250, 240, 230, 220, 210, 200], // victim K, attacker K, Q, R, B, N, P, None
@@ -17,20 +22,6 @@ pub const MVV_LVA_SCORE: [[i16; 7]; 7] = [
     [0, 0, 0, 0, 0, 0, 0], // victim K, attacker K, Q, R, B, N, P, None
 ];
 
-const MAX_SCORE: i16 = std::i16::MAX;
-const MMV_LVA_OFFSET: i16 = std::i16::MAX - 1 - 10000;
-const MIN_SCORE: i16 = std::i16::MIN;
-
-#[allow(dead_code)]
-pub const PROMOTION_POINTS: [i16; 7] = [
-    0,  // Empty
-    0,  // Pawn
-    15, // Knight
-    0,  // Bishop
-    0,  // Rook
-    20, // Queen
-    0,  // King
-];
 
 pub fn score_captures(moveslist: &mut MoveList) {
     for i in 0..moveslist.len() {
@@ -44,21 +35,18 @@ pub fn score_captures(moveslist: &mut MoveList) {
     }
 }
 
-#[allow(dead_code)]
 pub fn score_moves(
     moveslist: &mut MoveList,
     search_cache: &mut SearchCache,
     ply: usize,
     player: Player,
-    // pv: &Vec<SimpleMove>,
-    pv_table: &mut [[SimpleMove; MAX_PLY as usize]; MAX_PLY as usize],
-    pv_size: &mut [usize; MAX_PLY as usize],
+    tt_move: SimpleMove,
 ) {
     for i in 0..moveslist.len() {
         let move_item = &mut moveslist.moves[i];
-        if pv_table[0][ply].from == move_item.from_pos
-            && pv_table[0][ply].to == move_item.to_pos
-            && pv_table[0][ply].promotion == move_item.promotion_piece
+        if tt_move.from == move_item.from_pos
+            && tt_move.to == move_item.to_pos
+            && tt_move.promotion == move_item.promotion_piece
         {
             move_item.score = MAX_SCORE;
         } else if move_item.capturing {
@@ -66,12 +54,6 @@ pub fn score_moves(
                 [move_item.piece as usize]
                 + MMV_LVA_OFFSET;
         } else {
-            // move_item.score += <i32>::try_into(
-            //     (OPENING_PSQT_TABLES[move_item.piece as usize][move_item.to_pos as usize]
-            //         - OPENING_PSQT_TABLES[move_item.piece as usize][move_item.from_pos as usize])
-            //         / 4,
-            // )
-            // .unwrap_or(0);
             move_item.score = search_cache.history_moves[player as usize][move_item.piece as usize]
                 [move_item.to_pos as usize];
 

@@ -1,9 +1,10 @@
 use crate::{
     moves::{
-        attacked::{in_check::is_in_check, square_attacked::is_square_attacked},
-        move_data::MoveItem,
-        precalculate::cache::PrecalculatedCache,
+        generator::precalculated_lookups::
+            cache::PrecalculatedCache
+        , data::MoveItem
     },
+    utils::{in_check::is_in_check, square_attacked::is_square_attacked},
     state::{boards::BitBoard, game::{CastlePermissions, GameState}, movelist::MoveList, pieces::Piece, player::Player},
 };
 // #[inline(always)]
