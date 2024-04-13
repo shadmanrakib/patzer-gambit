@@ -28,13 +28,12 @@ pub fn iterative_deepening(
     let mut alpha = NEG_INF;
     let mut beta = INF;
 
-    println!("hash {}", game.hash);
-
     while depth <= main_search_depth && *has_time {
         let iter_start = Instant::now();
 
         let mut nodes = 0;
         let mut q_nodes = 0;
+        let mut seldepth = 0;
 
         let result = negamax(
             &mut game,
@@ -50,6 +49,7 @@ pub fn iterative_deepening(
             keys,
             tt,
             &mut best_move,
+            &mut seldepth,
         );
 
         let score = result.score;
@@ -64,14 +64,14 @@ pub fn iterative_deepening(
 
         if let Some(m) = &best_move {
             let short = m.notation();
-            println!("info currmove {short} depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
+            println!("info currmove {short} depth {depth} seldepth {seldepth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
         } else {
-            println!("info depth {depth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
+            println!("info depth {depth} score cp {score} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
         }
 
-        if score == INF || score == NEG_INF {
-            break;
-        }
+        // if score == INF || score == NEG_INF {
+        //     break;
+        // }
 
         // the aspiration window was a bad idea, lets retry without it
         if score <= alpha || score >= beta {
@@ -81,8 +81,8 @@ pub fn iterative_deepening(
             continue;
         }
 
-        alpha = score - 70;
-        beta = score + 70;
+        alpha = score.saturating_sub(70);
+        beta = score.saturating_add(70);
         depth += 1;
     }
 
@@ -92,8 +92,6 @@ pub fn iterative_deepening(
         let short = move_item.notation();
         println!("bestmove {short}");
     }
-
-    println!("hash {}", game.hash);
 
     return best_move;
 }

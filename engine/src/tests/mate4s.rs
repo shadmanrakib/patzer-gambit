@@ -6,7 +6,7 @@ mod tests {
     fn mate4s_suite() {
         // from https://wtharvey.com/m8n4.txt
         let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
-        let mut tt = TTable::init(2_usize.pow(TRANSITION_TABLE_ADDRESSING_BITS as u32));
+        let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
 
         let mate4s = [
             (
@@ -98,6 +98,7 @@ mod tests {
                     game.print_board();
                     println!("fail... expected: {}, got: {}", mate4_ans, ans);
                 }
+                assert_eq!(mate4_ans, ans);
             } else {
                 println!("no moves");
             }

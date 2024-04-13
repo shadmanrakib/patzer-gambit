@@ -39,16 +39,22 @@ pub fn negamax(
     keys: &ZobristRandomKeys,
     tt: &mut TTable,
     best_move: &mut Option<MoveItem>,
+    seldepth: &mut u8,
 ) -> NegamaxResult {
     let player = game.side_to_move;
 
     let mut node_type = NodeType::All;
+
+    *seldepth = std::cmp::max(*seldepth, ply);
 
     let mut tt_move = SimpleMove {
         from: 0,
         to: 0,
         promotion: Piece::King,
     };
+    if game.half_move_clock >= 50 {
+        return NegamaxResult { score: 0 };
+    }
 
     if let Some((simple_move, score, d)) = tt.probe(game.hash, alpha, beta) {
         if ply != 0 && d >= depth {
@@ -56,11 +62,9 @@ pub fn negamax(
         };
         tt_move = simple_move;
     }
-
     // handle base case
     if ply == max_ply {
         *nodes += 1;
-
         let color = if player == Player::White { 1 } else { -1 };
         let score = color * psqt_tapered::eval(game);
         return NegamaxResult { score };
@@ -105,10 +109,11 @@ pub fn negamax(
         && game.bitboards.boards[player as usize][Piece::Pawn as usize] != 0
         && game.bitboards.boards[player.opponent() as usize][Piece::Pawn as usize] != 0
     {
+        let r = 2;
         let prev_enpassant = game.make_null_move(keys);
         let null_score = -negamax(
             game,
-            depth - 1 - 2,
+            depth - 1 - r,
             ply + 1,
             max_ply,
             -beta,
@@ -120,6 +125,7 @@ pub fn negamax(
             keys,
             tt,
             best_move,
+            seldepth,
         )
         .score;
         game.unmake_null_move(prev_enpassant, keys);
@@ -157,63 +163,6 @@ pub fn negamax(
         legal_moves_count += 1;
 
         let mut score;
-        // if found_pv_node {
-        //     // perform pvs search, i.e prove other moves are worse
-        //     score = -negamax(
-        //         game,
-        //         depth - 1,
-        //         ply + 1,
-        //         max_ply,
-        //         -alpha - 1,
-        //         -alpha,
-        //         cache,
-        //         search_cache,
-        //         nodes,
-        //         q_nodes,
-        //         keys,
-        //         tt,
-        //         best_move,
-        //     )
-        //     .score;
-
-        //     // proof failed, resort to normal search
-        //     if score > alpha && score < beta {
-        //         score = -negamax(
-        //             game,
-        //             depth - 1,
-        //             ply + 1,
-        //             max_ply,
-        //             -beta,
-        //             -alpha,
-        //             cache,
-        //             search_cache,
-        //             nodes,
-        //             q_nodes,
-        //             keys,
-        //             tt,
-        //             best_move,
-        //         )
-        //         .score;
-        //     }
-        // } else {
-        //     score = -negamax(
-        //         game,
-        //         depth - 1,
-        //         ply + 1,
-        //         max_ply,
-        //         -beta,
-        //         -alpha,
-        //         cache,
-        //         search_cache,
-        //         nodes,
-        //         q_nodes,
-        //         keys,
-        //         tt,
-        //         best_move,
-        //     )
-        //     .score;
-        // }
-
         if moves_searched == 0 {
             score = -negamax(
                 game,
@@ -229,11 +178,13 @@ pub fn negamax(
                 keys,
                 tt,
                 best_move,
+                seldepth,
             )
             .score;
         } else {
             if moves_searched >= FULL_DEPTH_MOVES
                 && depth >= REDUCTION_LIMIT
+                && !in_check
                 && !move_item.capturing
                 && !move_item.promoting
                 && !move_item.castling
@@ -252,13 +203,14 @@ pub fn negamax(
                     keys,
                     tt,
                     best_move,
+                    seldepth,
                 )
                 .score;
             } else {
                 score = alpha + 1; // done to trigger research
             }
 
-            if (score > alpha) {
+            if score > alpha {
                 // like pvs
                 score = -negamax(
                     game,
@@ -274,6 +226,7 @@ pub fn negamax(
                     keys,
                     tt,
                     best_move,
+                    seldepth,
                 )
                 .score;
                 if score > alpha && score < beta {
@@ -291,6 +244,7 @@ pub fn negamax(
                         keys,
                         tt,
                         best_move,
+                        seldepth,
                     )
                     .score;
                 }
@@ -301,11 +255,29 @@ pub fn negamax(
 
         moves_searched += 1;
 
-        // println!("u {}", move_item.pure_algebraic_coordinate_notation());
+        // if ply == 0 {
+        //     println!("{} {}", move_item.notation(), score);
+        // }
 
         if score > best_score {
             best_score = score;
             best_move_idx = index as i32;
+            if ply == 0 {
+                *best_move = Some(move_item.clone());
+            }
+        }
+
+        if score > alpha {
+            alpha = score;
+
+            node_type = NodeType::Pv;
+
+            // if !move_item.capturing {
+            //     search_cache.history_moves[player as usize][move_item.piece as usize]
+            //         [move_item.to_pos as usize] = search_cache.history_moves[player as usize]
+            //         [move_item.piece as usize][move_item.to_pos as usize]
+            //         + (depth as i16);
+            // }
         }
 
         if score >= beta {
@@ -317,27 +289,14 @@ pub fn negamax(
 
             return NegamaxResult { score };
         }
-
-        if score > alpha {
-            alpha = score;
-
-            node_type = NodeType::Pv;
-
-            // found_pv_node = true; // assume we have a pv node, so we can do pvs
-
-            if !move_item.capturing {
-                search_cache.history_moves[player as usize][move_item.piece as usize]
-                    [move_item.to_pos as usize] += 2_i16.pow(depth as u32);
-            }
-
-            if ply == 0 {
-                *best_move = Some(move_item.clone());
-            }
-        }
     }
 
     if legal_moves_count == 0 {
-        let score = if in_check { CHECKMATE } else { STALEMATE };
+        let score = if in_check {
+            CHECKMATE + (ply as i32)
+        } else {
+            STALEMATE
+        };
 
         tt.record(
             game.hash,

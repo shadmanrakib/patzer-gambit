@@ -4,7 +4,7 @@ use crate::{
         cache::SearchCache,
         killer::{is_similar, SimpleMove},
     },
-    state::{movelist::MoveList, player::Player},
+    state::{movelist::MoveList, player::{self, Player}},
 };
 
 const MAX_SCORE: i16 = std::i16::MAX;
@@ -54,8 +54,8 @@ pub fn score_moves(
                 [move_item.piece as usize]
                 + MMV_LVA_OFFSET;
         } else {
-            move_item.score = search_cache.history_moves[player as usize][move_item.piece as usize]
-                [move_item.to_pos as usize];
+            // move_item.score = search_cache.history_moves[player as usize][move_item.piece as usize]
+            //     [move_item.to_pos as usize];
 
             for i in 0..MAX_KILLER_MOVES {
                 if is_similar(&search_cache.killer_moves[ply][i], move_item) {
