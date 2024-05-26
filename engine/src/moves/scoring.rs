@@ -4,7 +4,7 @@ use crate::{
         cache::SearchCache,
         killer::{is_similar, SimpleMove},
     },
-    state::{movelist::MoveList, player::{self, Player}},
+    state::{movelist::MoveList, player::Player},
 };
 
 const MAX_SCORE: i16 = std::i16::MAX;

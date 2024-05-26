@@ -1,4 +1,7 @@
+use std::sync::Arc;
+
 use crate::constants::search::{FULL_DEPTH_MOVES, REDUCTION_LIMIT};
+use crate::controller::Controller;
 use crate::evaluation::psqt_tapered;
 use crate::moves::data::MoveItem;
 use crate::moves::generator::movegen::generate_pseudolegal_moves;
@@ -23,6 +26,8 @@ const CHECKMATE: i32 = NEG_INF;
 
 pub struct NegamaxResult {
     pub score: i32,
+    // pub mated: bool,
+    // pub mate: i8,
 }
 
 pub fn negamax(
@@ -40,6 +45,7 @@ pub fn negamax(
     tt: &mut TTable,
     best_move: &mut Option<MoveItem>,
     seldepth: &mut u8,
+    controller: Arc<dyn Controller>,
 ) -> NegamaxResult {
     let player = game.side_to_move;
 
@@ -53,21 +59,35 @@ pub fn negamax(
         promotion: Piece::King,
     };
     if game.half_move_clock >= 50 {
-        return NegamaxResult { score: 0 };
+        return NegamaxResult {
+            score: 0,
+            // mate: 0,
+            // mated: false,
+        };
     }
 
-    if let Some((simple_move, score, d)) = tt.probe(game.hash, alpha, beta) {
+    if let Some((simple_move, score, d)) =
+        tt.probe(game.hash, alpha, beta)
+    {
         if ply != 0 && d >= depth {
-            return NegamaxResult { score };
+            return NegamaxResult {
+                score,
+                // mate: 1,
+                // mated: false,
+            };
         };
         tt_move = simple_move;
     }
     // handle base case
-    if ply == max_ply {
+    if ply == max_ply || controller.has_terminated() {
         *nodes += 1;
         let color = if player == Player::White { 1 } else { -1 };
         let score = color * psqt_tapered::eval(game);
-        return NegamaxResult { score };
+        return NegamaxResult {
+            score,
+            // mate: 0,
+            // mated: false,
+        };
     }
     if depth <= 0 {
         let score = quiescence(
@@ -80,6 +100,7 @@ pub fn negamax(
             search_cache,
             q_nodes,
             keys,
+            seldepth,
         );
         tt.record(
             game.hash,
@@ -92,7 +113,11 @@ pub fn negamax(
             depth,
             NodeType::Pv,
         );
-        return NegamaxResult { score };
+        return NegamaxResult {
+            score,
+            // mate: 0,
+            // mated: false,
+        };
 
         // return quiescence(game, ply, max_ply, alpha, beta, cache, search_cache);
     }
@@ -126,12 +151,17 @@ pub fn negamax(
             tt,
             best_move,
             seldepth,
+            controller.clone(),
         )
         .score;
         game.unmake_null_move(prev_enpassant, keys);
 
         if null_score >= beta {
-            return NegamaxResult { score: beta };
+            return NegamaxResult {
+                score: beta,
+                // mate: 0,
+                // mated: false,
+            };
         }
     }
 
@@ -179,6 +209,7 @@ pub fn negamax(
                 tt,
                 best_move,
                 seldepth,
+                controller.clone(),
             )
             .score;
         } else {
@@ -204,6 +235,7 @@ pub fn negamax(
                     tt,
                     best_move,
                     seldepth,
+                    controller.clone(),
                 )
                 .score;
             } else {
@@ -227,6 +259,7 @@ pub fn negamax(
                     tt,
                     best_move,
                     seldepth,
+                    controller.clone(),
                 )
                 .score;
                 if score > alpha && score < beta {
@@ -245,6 +278,7 @@ pub fn negamax(
                         tt,
                         best_move,
                         seldepth,
+                        controller.clone(),
                     )
                     .score;
                 }
@@ -285,9 +319,19 @@ pub fn negamax(
                 store_killer_move(&mut search_cache.killer_moves, move_item, ply as usize);
             }
 
-            tt.record(game.hash, move_item.into(), score, depth, NodeType::Cut);
+            tt.record(
+                game.hash,
+                move_item.into(),
+                score,
+                depth,
+                NodeType::Cut,
+            );
 
-            return NegamaxResult { score };
+            return NegamaxResult {
+                score,
+                // mate: 0,
+                // mated: false,
+            };
         }
     }
 
@@ -310,7 +354,11 @@ pub fn negamax(
             NodeType::Pv,
         );
 
-        return NegamaxResult { score };
+        return NegamaxResult {
+            score,
+            // mated: in_check,
+            // mate: 0,
+        };
     }
 
     if best_move_idx >= 0 {
@@ -335,5 +383,9 @@ pub fn negamax(
         );
     }
 
-    NegamaxResult { score: best_score }
+    NegamaxResult {
+        score: best_score,
+        // mate: 1,
+        // mated: false,
+    }
 }

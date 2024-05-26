@@ -21,11 +21,9 @@ int Quiesce( int alpha, int beta ) {
 */
 
 use crate::{
-    evaluation::psqt_tapered,
+    evaluation::{piece::STATIC_PIECE_POINTS, psqt_tapered},
     moves::{
-        generator::movegen::generate_pseudolegal_moves,
-        generator::precalculated_lookups::cache::PrecalculatedCache, data::MoveItem,
-        scoring::score_captures,
+        data::MoveItem, generator::{movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache}, scoring::score_captures
     },
     state::{game::GameState, movelist::MoveList, player::Player},
     utils::in_check::is_in_check,
@@ -43,8 +41,11 @@ pub fn quiescence(
     search_cache: &mut SearchCache,
     nodes: &mut u128,
     keys: &ZobristRandomKeys,
+    seldepth: &mut u8,
 ) -> i32 {
     *nodes += 1;
+
+    *seldepth = std::cmp::max(*seldepth, ply);
 
     let player = game.side_to_move;
     let color = if player == Player::White { 1 } else { -1 };
@@ -73,6 +74,10 @@ pub fn quiescence(
         moveslist.sort_move(i);
         let move_item: &MoveItem = &moveslist.moves[i];
 
+        // if stand_pat + STATIC_PIECE_POINTS[move_item.capturing as usize] + 100 <= alpha {
+        //     continue;
+        // }
+
         let unmake_metadata = game.make_move(move_item, keys);
 
         if is_in_check(player, &game, cache) {
@@ -91,6 +96,7 @@ pub fn quiescence(
             search_cache,
             nodes,
             keys,
+            seldepth,
         );
 
         game.unmake_move(move_item, unmake_metadata, keys);

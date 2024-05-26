@@ -1,12 +1,21 @@
 #[cfg(test)]
 mod tests {
-    use crate::{constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_ADDRESSING_BITS}, moves, search::{self, transposition::TTable, zobrist::ZobristRandomKeys}, state};
+    use std::sync::{atomic::AtomicBool, Arc, Mutex};
+
+    use crate::{
+        constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_SIZE},
+        moves,
+        search::transposition::TTable,
+        searcher::Searcher,
+        uci::UciSearchController,
+    };
 
     #[test]
     fn mate4s_suite() {
         // from https://wtharvey.com/m8n4.txt
         let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
-        let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
+        // let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
+        let mut tt = TTable::init(TRANSITION_TABLE_SIZE);
 
         let mate4s = [
             (
@@ -78,24 +87,25 @@ mod tests {
             ),
             ("k1K5/7r/8/4B3/1RP5/8/8/8 w - - 1 0", "b4b8"),
         ];
+
+        let controller = Arc::new(UciSearchController {
+            terminated: Arc::new(AtomicBool::new(false)),
+        });
+        let searcher = Arc::new(Mutex::new(Searcher::new()));
+
         for (mate4_fen, mate4_ans) in mate4s {
-            let keys = ZobristRandomKeys::init();
-            let game = state::game::GameState::from_fen(mate4_fen.to_string(), &keys).unwrap();
-            let result = search::think::iterative_deepening(
-                game.clone(),
-                &true,
-                &cache,
-                MAX_MAIN_SEARCH_DEPTH,
-                &keys,
-                &mut tt,
-            );
+            searcher.lock().unwrap().fen(mate4_fen.into()).unwrap();
+            let result = searcher
+                .lock()
+                .unwrap()
+                .go(MAX_MAIN_SEARCH_DEPTH, controller.clone());
             println!("{}", mate4_fen);
             if let Some(m) = result {
                 let ans = m.notation();
                 if mate4_ans == ans {
                     println!("Correct {}", ans);
                 } else {
-                    game.print_board();
+                    searcher.lock().unwrap().position.print_board();
                     println!("fail... expected: {}, got: {}", mate4_ans, ans);
                 }
                 assert_eq!(mate4_ans, ans);

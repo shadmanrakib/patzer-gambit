@@ -24,16 +24,16 @@ pub struct TTEntry {
 
 pub struct TTable {
     pub table: Vec<TTEntry>,
-    pub addressing_bits: usize,
-    pub addressing_mask: usize,
+    // pub addressing_bits: usize,
+    // pub addressing_mask: usize,
     pub size: usize,
 }
 
 impl TTable {
-    pub fn init(addressing_bits: usize) -> TTable {
+    pub fn init(size: usize) -> TTable {
         // minimum 1 maximum 31
-        let addressing_mask = (1 << addressing_bits) - 1;
-        let size = 2_usize.pow(addressing_bits as u32);
+        // let addressing_mask = (1 << addressing_bits) - 1;
+        // let size = 2_usize.pow(addressing_bits as u32);
         let mut table = Vec::with_capacity(size);
         for _ in 0..size {
             table.push(TTEntry {
@@ -54,12 +54,15 @@ impl TTable {
         TTable {
             table,
             size,
-            addressing_bits,
-            addressing_mask,
+            // addressing_bits,
+            // addressing_mask,
         }
     }
     pub fn probe(&self, key: u64, alpha: i32, beta: i32) -> Option<(SimpleMove, i32, u8)> {
-        let entry = &self.table[key as usize & self.addressing_mask];
+        // let entry = &self.table[key as usize & self.addressing_mask];
+        let index = key as usize % self.size;
+        // let index = key as usize & self.addressing_mask;
+        let entry = &self.table[index];
         // println!("{:?} {} {}", entry, key, entry.key);
 
         if entry.key == key {
@@ -83,7 +86,9 @@ impl TTable {
         depth: u8,
         node: NodeType,
     ) {
-        let index = (key % (self.size as u64)) as usize;
+        let index = key as usize % self.size;
+        // let index = key as usize & self.addressing_mask;
+
         self.table[index].key = key;
         self.table[index].best_move = best_move;
         self.table[index].score = score;
