@@ -57,6 +57,21 @@ impl Debug for SimpleMove {
     }
 }
 
+impl SimpleMove {
+    pub fn to_string(&self) -> String {
+        let from_square = Square::from(self.from).stringify();
+        let to_square = Square::from(self.to).stringify();
+        let promotion = {
+            if self.promotion != Piece::Empty {
+                self.promotion.to_string().to_lowercase()
+            } else {
+                "".to_string()
+            }
+        };
+        format!("{}{}{}", from_square, to_square, promotion)
+    }
+}
+
 #[inline(always)]
 pub fn store_killer_move(killers: &mut KillerMoves, current_move: &MoveItem, ply: usize) {
     let first_killer = killers[ply as usize][0];

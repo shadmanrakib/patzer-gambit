@@ -5,10 +5,7 @@ use crate::{
     controller::Controller,
     moves::{data::MoveItem, generator::precalculated_lookups::cache::PrecalculatedCache},
     search::{
-        cache::SearchCache,
-        negamax::negamax,
-        transposition::TTable,
-        zobrist::ZobristRandomKeys,
+        cache::SearchCache, negamax::negamax, transposition::TTable, zobrist::ZobristRandomKeys,
     },
     state::game::GameState,
 };
@@ -42,6 +39,26 @@ impl Searcher {
     }
     pub fn make_move(&mut self, move_item: &MoveItem) {
         self.position.make_move(move_item, &self.zobrist);
+    }
+
+    pub fn get_pv(&mut self) -> Vec<String> {
+        let mut moves = vec![];
+        let mut position = self.position.clone();
+
+        while let Some((simple_move, _, d)) = self.tt.probe(position.hash, INF, -INF) {
+            if d > 0 {
+                let notation = simple_move.to_string();
+                moves.push(notation.clone());
+                if d >= 1 {
+                    let move_item = position.notation_to_move(notation, &self.cache).unwrap();
+                    position.make_move(&move_item, &self.zobrist);
+                    continue;
+                }
+            }
+            break;
+        }
+
+        moves
     }
 
     pub fn go(
@@ -93,8 +110,10 @@ impl Searcher {
             let total_nps = (nodes + q_nodes) * 10_u128.pow(9) / (ns + 1);
 
             if let Some(m) = &best_move {
-                let short = m.notation();
-                println!("info currmove {short} depth {depth} seldepth {seldepth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
+                // println!("info currmove {short} depth {depth} seldepth {seldepth} score cp {score} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
+                // println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps} pv {short}");
+                let pv = self.get_pv().join(" ");
+                println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {total_nps} pv {pv}");
             } else {
                 println!("info depth {depth} score cp {score} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} qnodes {q_nodes} tnps {total_nps}");
             }

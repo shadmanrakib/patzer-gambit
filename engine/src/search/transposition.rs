@@ -49,7 +49,7 @@ impl TTable {
             });
         }
 
-        println!("Created Table Size {size}");
+        // println!("Created Table Size {size}");
 
         TTable {
             table,

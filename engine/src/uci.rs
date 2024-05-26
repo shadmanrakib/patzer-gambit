@@ -58,8 +58,9 @@ pub fn uci_loop() {
                 if parts.len() < 2 {
                     continue;
                 }
+
                 let s = &mut searcher.lock().unwrap();
-                let old_pos = searcher.lock().unwrap().position.clone();
+                let old_pos = s.position.clone();
 
                 let mut idx = 1;
                 if parts[idx] == "startpos" {
@@ -103,7 +104,6 @@ pub fn uci_loop() {
                 c.start();
                 thread::spawn(move || {
                     s.lock().unwrap().go(100, c.clone());
-                    println!("went");
                     c.stop();
                 });
             }
