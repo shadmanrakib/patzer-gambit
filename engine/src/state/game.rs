@@ -5,12 +5,12 @@ use crate::{
     constants::masks::SQUARE_MASKS,
     fen,
     moves::{
+        data::{MoveItem, UnmakeMoveMetadata},
         generator::{
             movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
         },
-        data::{MoveItem, UnmakeMoveMetadata},
     },
-    search::zobrist::{calculate_zobrist_hash, ZobristRandomKeys},
+    search::zobrist::{self, calculate_zobrist_hash, ZobristRandomKeys},
     state::{boards::BitBoard, movelist::MoveList},
 };
 
@@ -70,6 +70,9 @@ pub struct GameState {
     // It marks the number of full moves. It starts at 1 and is incremented after black's move.
     pub full_move_number: u32,
 
+    // for 3 fold repetion
+    pub prev_position_hashes: Vec<u64>,
+
     // for pqst
     pub phase: i32,
     pub opening: [i32; 2],
@@ -95,6 +98,7 @@ impl GameState {
         self.color = other.color;
         self.opening = other.opening;
         self.endgame = other.endgame;
+        self.prev_position_hashes = other.prev_position_hashes;
     }
     // TODO: will implement later
     pub fn notation_to_move(
@@ -126,10 +130,10 @@ impl GameState {
         move_item: &MoveItem,
         keys: &ZobristRandomKeys,
     ) -> UnmakeMoveMetadata {
-        self.hash ^= keys.castling[self.castle_permissions as usize];
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+        // self.hash ^= keys.castling[self.castle_permissions as usize];
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
 
         let prev_castle_permissions = self.castle_permissions.clone();
         let prev_enpassant_square = self.enpassant_square;
@@ -395,10 +399,13 @@ impl GameState {
         self.side_to_move = opponent;
         self.color *= -1;
 
-        self.hash ^= keys.castling[self.castle_permissions as usize];
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+        // self.hash ^= keys.castling[self.castle_permissions as usize];
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
+
+        self.hash = calculate_zobrist_hash(self, keys);
+        self.prev_position_hashes.push(self.hash);
 
         UnmakeMoveMetadata {
             captured_piece: move_item.captured_piece,
@@ -408,16 +415,39 @@ impl GameState {
         }
     }
 
+    pub fn has_three_fold_rep(&self) -> bool {
+        let size = self.prev_position_hashes.len();
+        let last = self.prev_position_hashes.last().unwrap();
+        // Ensure we have at least 5 elements to compare
+        let mut count = 0;
+        for i in (0..size).rev().step_by(2) {
+            if self.prev_position_hashes[i] == *last {
+                count += 1;
+
+                if count >= 3 {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
     pub fn unmake_move(
         &mut self,
         move_item: &MoveItem,
         unmake_metadata: UnmakeMoveMetadata,
         keys: &ZobristRandomKeys,
     ) {
-        self.hash ^= keys.castling[self.castle_permissions as usize];
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+        // self.prev_position_hashes.pop();
+        // if let Some(hash) = self.prev_position_hashes.last() {
+        //     self.hash = hash.clone();
+        // }
+
+        // self.hash ^= keys.castling[self.castle_permissions as usize];
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
 
         // lets handle the easy undos
         self.castle_permissions = unmake_metadata.prev_castle_permissions;
@@ -582,38 +612,51 @@ impl GameState {
             }
         }
 
-        self.hash ^= keys.castling[self.castle_permissions as usize];
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        self.hash ^= keys.side_to_move[self.side_to_move as usize];
+        // self.hash ^= keys.castling[self.castle_permissions as usize];
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
+
+        self.prev_position_hashes.pop();
+        if let Some(hash) = self.prev_position_hashes.last() {
+            self.hash = hash.clone();
+        }
     }
 
     pub fn make_null_move(&mut self, keys: &ZobristRandomKeys) -> u64 {
-        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
 
         self.side_to_move = self.side_to_move.opponent();
         let enpassant = self.enpassant_square;
         self.enpassant_square = 0;
 
-        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+        self.hash = calculate_zobrist_hash(self, keys);
+        self.prev_position_hashes.push(self.hash);
+
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
 
         return enpassant;
     }
     pub fn unmake_null_move(&mut self, enpassant: u64, keys: &ZobristRandomKeys) -> u64 {
-        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+        self.prev_position_hashes.pop();
+        if let Some(hash) = self.prev_position_hashes.last() {
+            self.hash = hash.clone();
+        }
+
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
 
         self.side_to_move = self.side_to_move.opponent();
         self.enpassant_square = enpassant;
 
-        self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
+        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
 
         return enpassant;
     }
@@ -640,6 +683,7 @@ impl GameState {
             half_move_clock: parts[4].parse::<u32>().unwrap(),
             full_move_number: parts[5].parse::<u32>().unwrap(),
             // temp values
+            prev_position_hashes: Vec::new(),
             phase: 0,
             opening_pqst_score: 0,
             endgame_pqst_score: 0,
@@ -662,6 +706,7 @@ impl GameState {
         };
 
         game.hash = calculate_zobrist_hash(&game, keys);
+        game.prev_position_hashes = vec![game.hash];
 
         // need to make this cleaner
         return Ok(game);
@@ -703,6 +748,7 @@ impl GameState {
         println!("    A B C D E F G H");
         println!();
         println!("fen: {}", self.to_fen());
+        println!("zobrist: {}", self.hash);
     }
 
     pub fn print_state(&self) {

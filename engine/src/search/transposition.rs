@@ -2,6 +2,8 @@ use crate::state::pieces::Piece;
 
 use super::killer::SimpleMove;
 
+use std::collections::HashMap;
+
 /**
  * Transposition Table
  */
@@ -20,20 +22,21 @@ pub struct TTEntry {
     pub score: i32,
     pub best_move: SimpleMove,
     pub node: NodeType,
+    pub ancient: bool,
 }
 
 pub struct TTable {
     pub table: Vec<TTEntry>,
-    // pub addressing_bits: usize,
-    // pub addressing_mask: usize,
+    pub addressing_bits: usize,
+    pub addressing_mask: usize,
     pub size: usize,
 }
 
 impl TTable {
-    pub fn init(size: usize) -> TTable {
+    pub fn init(addressing_bits: usize) -> TTable {
         // minimum 1 maximum 31
-        // let addressing_mask = (1 << addressing_bits) - 1;
-        // let size = 2_usize.pow(addressing_bits as u32);
+        let addressing_mask = (1 << addressing_bits) - 1;
+        let size = 2_usize.pow(addressing_bits as u32);
         let mut table = Vec::with_capacity(size);
         for _ in 0..size {
             table.push(TTEntry {
@@ -46,33 +49,25 @@ impl TTable {
                     promotion: Piece::Empty,
                 },
                 node: NodeType::None,
+                ancient: true, // another way to remove it instead of an empty field
             });
         }
-
-        // println!("Created Table Size {size}");
 
         TTable {
             table,
             size,
-            // addressing_bits,
-            // addressing_mask,
+            addressing_bits,
+            addressing_mask,
         }
     }
     pub fn probe(&self, key: u64, alpha: i32, beta: i32) -> Option<(SimpleMove, i32, u8)> {
-        // let entry = &self.table[key as usize & self.addressing_mask];
-        let index = key as usize % self.size;
-        // let index = key as usize & self.addressing_mask;
-        let entry = &self.table[index];
-        // println!("{:?} {} {}", entry, key, entry.key);
+        let entry = &self.table[key as usize & self.addressing_mask];
 
-        if entry.key == key {
-            if entry.node == NodeType::Pv {
-                return Some((entry.best_move.clone(), entry.score, entry.depth));
-            }
-            if entry.node == NodeType::Cut && entry.score >= beta {
-                return Some((entry.best_move.clone(), entry.score, entry.depth));
-            }
-            if entry.node == NodeType::All && entry.score < alpha {
+        if (entry.best_move.to | entry.best_move.from) != 0 && entry.key == key {
+            if entry.node == NodeType::Pv
+                || entry.node == NodeType::Cut && entry.score >= beta
+                || entry.node == NodeType::All && entry.score <= alpha
+            {
                 return Some((entry.best_move.clone(), entry.score, entry.depth));
             }
         }
@@ -85,16 +80,21 @@ impl TTable {
         score: i32,
         depth: u8,
         node: NodeType,
+        interupted: bool,
     ) {
-        let index = key as usize % self.size;
-        // let index = key as usize & self.addressing_mask;
+        let index = key as usize & self.addressing_mask;
 
-        self.table[index].key = key;
-        self.table[index].best_move = best_move;
-        self.table[index].score = score;
-        self.table[index].depth = depth;
-        self.table[index].node = node;
+        if (self.table[index].depth > depth && !self.table[index].ancient) || interupted {
+            return;
+        }
 
-        // println!("Inserted: {:?}", self.table[index]);
+        self.table[index] = TTEntry {
+            key,
+            best_move,
+            score,
+            depth,
+            node,
+            ancient: false,
+        }
     }
 }

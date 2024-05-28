@@ -9,12 +9,13 @@ mod utils;
 mod searcher;
 mod uci;
 mod controller;
+mod time;
+mod incremental;
 
 #[cfg(test)]
 mod tests;
 
-use std::time::SystemTime;
-
+use incremental::inc_test;
 use uci::uci_loop;
 
 use crate::{

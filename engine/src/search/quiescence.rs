@@ -20,10 +20,17 @@ int Quiesce( int alpha, int beta ) {
 }
 */
 
+use std::sync::Arc;
+
 use crate::{
+    controller::Controller,
     evaluation::{piece::STATIC_PIECE_POINTS, psqt_tapered},
     moves::{
-        data::MoveItem, generator::{movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache}, scoring::score_captures
+        data::MoveItem,
+        generator::{
+            movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
+        },
+        scoring::score_captures,
     },
     state::{game::GameState, movelist::MoveList, player::Player},
     utils::in_check::is_in_check,
@@ -42,6 +49,7 @@ pub fn quiescence(
     nodes: &mut u128,
     keys: &ZobristRandomKeys,
     seldepth: &mut u8,
+    controller: Arc<dyn Controller>,
 ) -> i32 {
     *nodes += 1;
 
@@ -52,7 +60,7 @@ pub fn quiescence(
 
     let stand_pat = color * psqt_tapered::eval(game);
 
-    if ply >= max_ply {
+    if ply >= max_ply || controller.should_stop(true, player, *nodes, ply) {
         return stand_pat;
     }
 
@@ -74,7 +82,7 @@ pub fn quiescence(
         moveslist.sort_move(i);
         let move_item: &MoveItem = &moveslist.moves[i];
 
-        // if stand_pat + STATIC_PIECE_POINTS[move_item.capturing as usize] + 100 <= alpha {
+        // if stand_pat + STATIC_PIECE_POINTS[move_item.capturing as usize] + 50 <= alpha {
         //     continue;
         // }
 
@@ -97,6 +105,7 @@ pub fn quiescence(
             nodes,
             keys,
             seldepth,
+            controller.clone(),
         );
 
         game.unmake_move(move_item, unmake_metadata, keys);

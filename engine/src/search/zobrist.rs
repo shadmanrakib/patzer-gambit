@@ -2,13 +2,13 @@ use std::time::SystemTime;
 
 use xorshift::{Rand, Rng, SeedableRng, SplitMix64, Xoroshiro128};
 
-use crate::state::{boards::BitBoard, game::GameState};
+use crate::state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player};
 
 pub struct ZobristRandomKeys {
     pub pieces: [[[u64; 64]; 7]; 2],
     pub enpassant: [u64; 64],
     pub castling: [u64; 16],
-    pub side_to_move: [u64; 2],
+    pub side_to_move: u64,
 }
 
 impl ZobristRandomKeys {
@@ -23,11 +23,12 @@ impl ZobristRandomKeys {
         let mut pieces = [[[0_u64; 64]; 7]; 2];
         let mut enpassant = [0_u64; 64];
         let mut castling = [0_u64; 16];
-        let side_to_move = [0, rng.next_u64()];
+        let side_to_move = rng.next_u64();
 
         // piece keys
         for sq in 0..64 {
-            let empty_key = rng.next_u64();
+            // let empty_key = rng.next_u64();
+            let empty_key = 0;
             pieces[0][0][sq] = empty_key;
             pieces[1][0][sq] = empty_key;
 
@@ -65,17 +66,21 @@ pub fn calculate_zobrist_hash(game: &GameState, keys: &ZobristRandomKeys) -> u64
 
     hash ^= keys.castling[game.castle_permissions as usize];
 
-    hash ^= keys.side_to_move[game.side_to_move as usize];
+    if game.side_to_move == Player::White {
+        hash ^= keys.side_to_move;
+    }
 
     // piece keys
     for sq in 0..64 {
-        let piece = game.bitboards.pos_to_piece[sq] as usize;
-        let side = if game.bitboards.pos_to_player[0].get(sq as i8) {
-            0
-        } else {
-            1
-        };
-        hash ^= keys.pieces[side as usize][piece][sq];
+        if game.bitboards.pos_to_piece[sq] != Piece::Empty {
+            let piece = game.bitboards.pos_to_piece[sq] as usize;
+            let side = if game.bitboards.pos_to_player[Player::White as usize].get(sq as i8) {
+                Player::White as usize
+            } else {
+                Player::Black as usize
+            };
+            hash ^= keys.pieces[side as usize][piece][sq];
+        }
     }
 
     hash

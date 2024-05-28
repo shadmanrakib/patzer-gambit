@@ -1,0 +1,87 @@
+uci
+isready
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+go wtime 60000 btime 60000 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6
+go wtime 58600 btime 60000 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6
+go wtime 57700 btime 59600 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5
+go wtime 56800 btime 59100 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7
+go wtime 56000 btime 58600 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5
+go wtime 55200 btime 58000 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5
+go wtime 54500 btime 57400 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7
+go wtime 53800 btime 56800 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7
+go wtime 53100 btime 56100 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6
+go wtime 52500 btime 55400 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4
+go wtime 51900 btime 54600 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8
+go wtime 51300 btime 54100 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8
+go wtime 50700 btime 53300 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7
+go wtime 50200 btime 52300 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4
+go wtime 49700 btime 52100 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3
+go wtime 49200 btime 50900 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3
+go wtime 48800 btime 50300 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8
+go wtime 48400 btime 48900 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6
+go wtime 48000 btime 47400 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6 b3d5 d7d5
+go wtime 47600 btime 45800 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6 b3d5 d7d5 c2c4 d5c5
+go wtime 47300 btime 44800 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6 b3d5 d7d5 c2c4 d5c5 c1d1 d8d1
+go wtime 47000 btime 43500 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6 b3d5 d7d5 c2c4 d5c5 c1d1 d8d1 f1d1 c5c4
+go wtime 46700 btime 41300 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6 b3d5 d7d5 c2c4 d5c5 c1d1 d8d1 f1d1 c5c4 e3e4 c4e4
+go wtime 46600 btime 38900 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6 b3d5 d7d5 c2c4 d5c5 c1d1 d8d1 f1d1 c5c4 e3e4 c4e4 d1d7 e4b1
+go wtime 46600 btime 36300 winc 2000 binc 2000
+stop
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7 b1c3 c5b4 e1g1 e4c3 b2c3 b4c3 a1c1 g7g8 b5b3 c3f6 b3d5 d7d5 c2c4 d5c5 c1d1 d8d1 f1d1 c5c4 e3e4 c4e4 d1d7 e4b1 d7d1 b1d1
+go wtime 46800 btime 33300 winc 2000 binc 2000
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8
+d
+go wtime 50700 btime 53300 winc 2000 binc 2000
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8
+
+go wtime 51300 btime 54100 winc 2000 binc 2000
+position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e3 g8f6 d2d4 e7e6 c1d2 d7d5 f1d3 f8e7 g1f3 c7c5 d4c5 e7c5 d3b5 c8d7 b5d7 d8d7 d2c3 b8c6 d1e2 f6e4 e2d3 e8g8 d3b5 a8d8 c3g7 g8g7
+go wtime 50200 btime 52300 winc 2000 binc 2000

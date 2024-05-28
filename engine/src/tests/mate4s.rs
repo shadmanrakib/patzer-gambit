@@ -3,7 +3,7 @@ mod tests {
     use std::sync::{atomic::AtomicBool, Arc, Mutex};
 
     use crate::{
-        constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_SIZE},
+        constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_ADDRESSING_BITS, TRANSITION_TABLE_SIZE},
         moves,
         search::transposition::TTable,
         searcher::Searcher,
@@ -13,9 +13,9 @@ mod tests {
     #[test]
     fn mate4s_suite() {
         // from https://wtharvey.com/m8n4.txt
-        let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
+        // let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
         // let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
-        let mut tt = TTable::init(TRANSITION_TABLE_SIZE);
+        // let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
 
         let mate4s = [
             (
@@ -93,15 +93,17 @@ mod tests {
         });
         let searcher = Arc::new(Mutex::new(Searcher::new()));
 
+        println!("hey");
+
         for (mate4_fen, mate4_ans) in mate4s {
             searcher.lock().unwrap().fen(mate4_fen.into()).unwrap();
             let result = searcher
                 .lock()
                 .unwrap()
-                .go(MAX_MAIN_SEARCH_DEPTH, controller.clone());
+                .go(10, controller.clone());
             println!("{}", mate4_fen);
             if let Some(m) = result {
-                let ans = m.notation();
+                let ans = m.to_string();
                 if mate4_ans == ans {
                     println!("Correct {}", ans);
                 } else {

@@ -114,10 +114,10 @@ impl Boards {
         let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
         opening[player as usize] += OPENING_PSQT_TABLES[piece as usize][pqst_pos];
         endgame[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];
-        *phase += PHASE_INCREMENT_BY_PIECE[piece as usize];
+        *phase -= PHASE_INCREMENT_BY_PIECE[piece as usize];
 
-        *hash ^= keys.pieces[player as usize][piece as usize][pos as usize];
-        *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
+        // *hash ^= keys.pieces[player as usize][piece as usize][pos as usize];
+        // *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
 
         return removed;
     }
@@ -147,10 +147,10 @@ impl Boards {
         let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
         opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
         endgame[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
-        *phase -= PHASE_INCREMENT_BY_PIECE[removed as usize];
+        *phase += PHASE_INCREMENT_BY_PIECE[removed as usize];
 
-        *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
-        *hash ^= keys.pieces[player as usize][Piece::Empty as usize][pos as usize];
+        // *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
+        // *hash ^= keys.pieces[player as usize][Piece::Empty as usize][pos as usize];
 
         return removed;
     }

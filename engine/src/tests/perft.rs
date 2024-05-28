@@ -1,7 +1,12 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        moves::{self, perft::{perft, perft_unmake}}, search::zobrist::ZobristRandomKeys, state
+        moves::{
+            self,
+            perft::{perft, perft_unmake},
+        },
+        search::zobrist::ZobristRandomKeys,
+        state,
     };
 
     struct PerftTest {
@@ -13,6 +18,7 @@ mod tests {
     #[test]
     fn perft_suite() {
         // from https://www.chessprogramming.org/Perft_Results and using stockfish perft for expected
+        println!("perft suite");
         let tests = [
             PerftTest {
                 fen: "8/2p5/3p4/KP5r/4P2k/8/6p1/7R b - - 1 3".into(),
@@ -48,12 +54,10 @@ mod tests {
         ];
 
         let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
-
+        let keys = ZobristRandomKeys::init();
+        
         for test in tests {
-            
-            let keys = ZobristRandomKeys::init();
             let mut game = state::game::GameState::from_fen(test.fen.to_string(), &keys).unwrap();
-            
             println!("Test {}", &test.fen);
             let nodes = perft_unmake(&mut game, &cache, test.depth, &keys);
             println!("Found: {}\tExpected: {}", nodes, test.expected_nodes);

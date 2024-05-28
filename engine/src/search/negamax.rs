@@ -43,9 +43,9 @@ pub fn negamax(
     q_nodes: &mut u128,
     keys: &ZobristRandomKeys,
     tt: &mut TTable,
-    best_move: &mut Option<MoveItem>,
     seldepth: &mut u8,
     controller: Arc<dyn Controller>,
+    best_move: &mut Option<MoveItem>,
 ) -> NegamaxResult {
     let player = game.side_to_move;
 
@@ -58,28 +58,27 @@ pub fn negamax(
         to: 0,
         promotion: Piece::King,
     };
-    if game.half_move_clock >= 50 {
-        return NegamaxResult {
-            score: 0,
-            // mate: 0,
-            // mated: false,
-        };
-    }
+    // if game.half_move_clock >= 50 || game.has_three_fold_rep() {
+    //     return NegamaxResult {
+    //         score: 0,
+    //         // mate: 0,
+    //         // mated: false,
+    //     };
+    // }
 
-    if let Some((simple_move, score, d)) =
-        tt.probe(game.hash, alpha, beta)
-    {
-        if ply != 0 && d >= depth {
+    if let Some((simple_move, score, d)) = tt.probe(game.hash, alpha, beta) {
+        if d >= depth {
             return NegamaxResult {
                 score,
                 // mate: 1,
                 // mated: false,
             };
         };
+
         tt_move = simple_move;
     }
     // handle base case
-    if ply == max_ply || controller.has_terminated() {
+    if ply == max_ply || controller.should_stop(true, player, *nodes, ply) {
         *nodes += 1;
         let color = if player == Player::White { 1 } else { -1 };
         let score = color * psqt_tapered::eval(game);
@@ -98,21 +97,24 @@ pub fn negamax(
             beta,
             cache,
             search_cache,
-            q_nodes,
+            nodes,
             keys,
             seldepth,
+            controller.clone(),
         );
-        tt.record(
-            game.hash,
-            SimpleMove {
-                from: 0,
-                to: 0,
-                promotion: Piece::King,
-            },
-            score,
-            depth,
-            NodeType::Pv,
-        );
+        // let interupted = controller.should_stop(true, player, *nodes, ply);
+        // tt.record(
+        //     game.hash,
+        //     SimpleMove {
+        //         from: 0,
+        //         to: 0,
+        //         promotion: Piece::King,
+        //     },
+        //     score,
+        //     depth,
+        //     NodeType::Pv,
+        //     interupted,
+        // );
         return NegamaxResult {
             score,
             // mate: 0,
@@ -126,13 +128,14 @@ pub fn negamax(
 
     let in_check = is_in_check(player, game, cache);
 
+    // let color = if player == Player::White { 1 } else { -1 };
+    // let standpat = psqt_tapered::eval(game) * color;
+
     // null pruning
-    if !in_check
-        && depth >= 3
-        && ply != 0
-        && game.phase < 170
-        && game.bitboards.boards[player as usize][Piece::Pawn as usize] != 0
-        && game.bitboards.boards[player.opponent() as usize][Piece::Pawn as usize] != 0
+    if !in_check && depth >= 3 && ply != 0 && game.phase < 170
+    // && standpat >= beta
+    // && game.bitboards.boards[player as usize][Piece::Pawn as usize] != 0
+    // && game.bitboards.boards[player.opponent() as usize][Piece::Pawn as usize] != 0
     {
         let r = 2;
         let prev_enpassant = game.make_null_move(keys);
@@ -149,9 +152,9 @@ pub fn negamax(
             q_nodes,
             keys,
             tt,
-            best_move,
             seldepth,
             controller.clone(),
+            best_move,
         )
         .score;
         game.unmake_null_move(prev_enpassant, keys);
@@ -179,6 +182,8 @@ pub fn negamax(
     let mut legal_moves_count: u8 = 0;
     let mut moves_searched = 0;
 
+    let mut best_draw = false;
+
     for index in 0..moveslist.len() {
         moveslist.sort_move(index);
         let move_item = &moveslist.moves[index];
@@ -192,64 +197,19 @@ pub fn negamax(
 
         legal_moves_count += 1;
 
-        let mut score;
-        if moves_searched == 0 {
-            score = -negamax(
-                game,
-                depth - 1,
-                ply + 1,
-                max_ply,
-                -beta,
-                -alpha,
-                cache,
-                search_cache,
-                nodes,
-                q_nodes,
-                keys,
-                tt,
-                best_move,
-                seldepth,
-                controller.clone(),
-            )
-            .score;
-        } else {
-            if moves_searched >= FULL_DEPTH_MOVES
-                && depth >= REDUCTION_LIMIT
-                && !in_check
-                && !move_item.capturing
-                && !move_item.promoting
-                && !move_item.castling
-            {
-                score = -negamax(
-                    game,
-                    depth - 2,
-                    ply + 1,
-                    max_ply,
-                    -(alpha + 1),
-                    -alpha,
-                    cache,
-                    search_cache,
-                    nodes,
-                    q_nodes,
-                    keys,
-                    tt,
-                    best_move,
-                    seldepth,
-                    controller.clone(),
-                )
-                .score;
-            } else {
-                score = alpha + 1; // done to trigger research
-            }
+        let mut score: i32;
 
-            if score > alpha {
-                // like pvs
+        let draw = game.has_three_fold_rep() || game.half_move_clock >= 50;
+        if game.has_three_fold_rep() || game.half_move_clock >= 50 {
+            score = 0;
+        } else {
+            if moves_searched == 0 {
                 score = -negamax(
                     game,
                     depth - 1,
                     ply + 1,
                     max_ply,
-                    -(alpha + 1),
+                    -beta,
                     -alpha,
                     cache,
                     search_cache,
@@ -257,18 +217,25 @@ pub fn negamax(
                     q_nodes,
                     keys,
                     tt,
-                    best_move,
                     seldepth,
                     controller.clone(),
+                    best_move,
                 )
                 .score;
-                if score > alpha && score < beta {
+            } else {
+                if moves_searched >= FULL_DEPTH_MOVES
+                    && depth >= REDUCTION_LIMIT
+                    && !in_check
+                    && !move_item.capturing
+                    && !move_item.promoting
+                    && !move_item.castling
+                {
                     score = -negamax(
                         game,
-                        depth - 1,
+                        depth - 2,
                         ply + 1,
                         max_ply,
-                        -beta,
+                        -(alpha + 1),
                         -alpha,
                         cache,
                         search_cache,
@@ -276,11 +243,55 @@ pub fn negamax(
                         q_nodes,
                         keys,
                         tt,
-                        best_move,
                         seldepth,
                         controller.clone(),
+                        best_move,
                     )
                     .score;
+                } else {
+                    score = alpha + 1; // done to trigger research
+                }
+
+                if score > alpha {
+                    // like pvs
+                    score = -negamax(
+                        game,
+                        depth - 1,
+                        ply + 1,
+                        max_ply,
+                        -(alpha + 1),
+                        -alpha,
+                        cache,
+                        search_cache,
+                        nodes,
+                        q_nodes,
+                        keys,
+                        tt,
+                        seldepth,
+                        controller.clone(),
+                        best_move,
+                    )
+                    .score;
+                    if score > alpha && score < beta {
+                        score = -negamax(
+                            game,
+                            depth - 1,
+                            ply + 1,
+                            max_ply,
+                            -beta,
+                            -alpha,
+                            cache,
+                            search_cache,
+                            nodes,
+                            q_nodes,
+                            keys,
+                            tt,
+                            seldepth,
+                            controller.clone(),
+                            best_move,
+                        )
+                        .score;
+                    }
                 }
             }
         }
@@ -293,47 +304,55 @@ pub fn negamax(
         //     println!("{} {}", move_item.notation(), score);
         // }
 
+        let interupted = controller.should_stop(true, player, *nodes, ply);
+
         if score > best_score {
             best_score = score;
             best_move_idx = index as i32;
             if ply == 0 {
                 *best_move = Some(move_item.clone());
             }
-        }
+            best_draw = draw;
 
-        if score > alpha {
-            alpha = score;
+            alpha = std::cmp::max(alpha, score);
 
-            node_type = NodeType::Pv;
+            if score >= beta {
+                if !move_item.capturing {
+                    store_killer_move(&mut search_cache.killer_moves, move_item, ply as usize);
+                }
 
-            // if !move_item.capturing {
-            //     search_cache.history_moves[player as usize][move_item.piece as usize]
-            //         [move_item.to_pos as usize] = search_cache.history_moves[player as usize]
-            //         [move_item.piece as usize][move_item.to_pos as usize]
-            //         + (depth as i16);
-            // }
-        }
+                tt.record(
+                    game.hash,
+                    move_item.into(),
+                    score,
+                    depth,
+                    NodeType::Cut,
+                    interupted || draw,
+                );
 
-        if score >= beta {
-            if !move_item.capturing {
-                store_killer_move(&mut search_cache.killer_moves, move_item, ply as usize);
+                return NegamaxResult {
+                    score,
+                    // mate: 0,
+                    // mated: false,
+                };
             }
-
-            tt.record(
-                game.hash,
-                move_item.into(),
-                score,
-                depth,
-                NodeType::Cut,
-            );
-
-            return NegamaxResult {
-                score,
-                // mate: 0,
-                // mated: false,
-            };
         }
+
+        // if score > alpha {
+        //     alpha = score;
+
+        //     node_type = NodeType::Pv;
+
+        //     // if !move_item.capturing {
+        //     //     search_cache.history_moves[player as usize][move_item.piece as usize]
+        //     //         [move_item.to_pos as usize] = search_cache.history_moves[player as usize]
+        //     //         [move_item.piece as usize][move_item.to_pos as usize]
+        //     //         + (depth as i16);
+        //     // }
+        // }
     }
+
+    let interupted = controller.should_stop(true, player, *nodes, ply);
 
     if legal_moves_count == 0 {
         let score = if in_check {
@@ -342,17 +361,20 @@ pub fn negamax(
             STALEMATE
         };
 
-        tt.record(
-            game.hash,
-            SimpleMove {
-                to: 0,
-                from: 0,
-                promotion: Piece::King,
-            },
-            score,
-            depth,
-            NodeType::Pv,
-        );
+        // println!("checkmate! {}", score);
+
+        // tt.record(
+        //     game.hash,
+        //     SimpleMove {
+        //         to: 0,
+        //         from: 0,
+        //         promotion: Piece::King,
+        //     },
+        //     score,
+        //     depth,
+        //     NodeType::Pv,
+        //     interupted,
+        // );
 
         return NegamaxResult {
             score,
@@ -361,27 +383,14 @@ pub fn negamax(
         };
     }
 
-    if best_move_idx >= 0 {
-        tt.record(
-            game.hash,
-            (&moveslist.moves[best_move_idx as usize]).into(),
-            best_score,
-            depth,
-            node_type,
-        );
-    } else {
-        tt.record(
-            game.hash,
-            SimpleMove {
-                to: 0,
-                from: 0,
-                promotion: Piece::King,
-            },
-            best_score,
-            depth,
-            node_type,
-        );
-    }
+    tt.record(
+        game.hash,
+        (&moveslist.moves[(if best_move_idx >= 0 { best_move_idx } else { 0 }) as usize]).into(),
+        best_score,
+        depth,
+        node_type,
+        interupted || best_draw,
+    );
 
     NegamaxResult {
         score: best_score,
