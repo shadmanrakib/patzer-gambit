@@ -1,8 +1,5 @@
 use crate::state::pieces::Piece;
-
 use super::killer::SimpleMove;
-
-use std::collections::HashMap;
 
 /**
  * Transposition Table
@@ -34,10 +31,12 @@ pub struct TTable {
 
 impl TTable {
     pub fn init(addressing_bits: usize) -> TTable {
-        // minimum 1 maximum 31
+        // addressing bits: minimum 1 maximum 31
+
         let addressing_mask = (1 << addressing_bits) - 1;
         let size = 2_usize.pow(addressing_bits as u32);
         let mut table = Vec::with_capacity(size);
+
         for _ in 0..size {
             table.push(TTEntry {
                 key: 0, // zobrist hash
@@ -63,7 +62,7 @@ impl TTable {
     pub fn probe(&self, key: u64, alpha: i32, beta: i32) -> Option<(SimpleMove, i32, u8)> {
         let entry = &self.table[key as usize & self.addressing_mask];
 
-        if (entry.best_move.to | entry.best_move.from) != 0 && entry.key == key {
+        if entry.key == key {
             if entry.node == NodeType::Pv
                 || entry.node == NodeType::Cut && entry.score >= beta
                 || entry.node == NodeType::All && entry.score <= alpha
@@ -80,11 +79,11 @@ impl TTable {
         score: i32,
         depth: u8,
         node: NodeType,
-        interupted: bool,
+        ignore: bool,
     ) {
         let index = key as usize & self.addressing_mask;
 
-        if (self.table[index].depth > depth && !self.table[index].ancient) || interupted {
+        if ignore || (self.table[index].depth > depth && !self.table[index].ancient) {
             return;
         }
 
