@@ -1,7 +1,7 @@
 use crate::{
     moves::generator::precalculated_lookups::cache::PrecalculatedCache,
-    search::zobrist::ZobristRandomKeys,
-    state::{game::GameState, movelist::MoveList},
+    search::zobrist::ZobristHasher,
+    state::{game::GameState, moves::MoveList},
     utils::in_check::is_in_check,
 };
 
@@ -12,7 +12,7 @@ pub fn perft(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristRandomKeys,
+    keys: &ZobristHasher,
 ) -> u64 {
     let now = Instant::now();
 
@@ -58,7 +58,7 @@ fn _perft(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristRandomKeys,
+    keys: &ZobristHasher,
 ) -> u64 {
     let mut nodes = 0;
 
@@ -96,7 +96,7 @@ pub fn perft_unmake(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristRandomKeys,
+    keys: &ZobristHasher,
 ) -> u64 {
     let now = Instant::now();
 
@@ -143,7 +143,7 @@ fn _perft_unmake(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristRandomKeys,
+    keys: &ZobristHasher,
 ) -> u64 {
     let mut nodes = 0;
 

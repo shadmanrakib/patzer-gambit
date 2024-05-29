@@ -10,8 +10,7 @@ pub struct MoveList {
 impl MoveList {
     pub fn new() -> MoveList {
         MoveList {
-            // we use maybeuninit because there is no point of providing
-            // a "zero" value for this list. it will only slow us down.
+            // we use maybeuninit to initialize list without "zeroing" for performance.
             moves: unsafe {
                 let m = MaybeUninit::uninit();
                 m.assume_init()
@@ -27,14 +26,6 @@ impl MoveList {
         self.end
     }
     pub fn sort_move(&mut self, index: usize) {
-        // let mut max = self.moves[index].score;
-        // for i in (index + 1)..self.len() {
-        //     if self.moves[i].score > max {
-        //         max = self.moves[i].score;
-        //         self.moves.swap(i, index);
-        //     }
-        // }
-
         for i in (index + 1)..self.len() {
             if self.moves[i].score > self.moves[index].score {
                 self.moves.swap(index as usize, i as usize);

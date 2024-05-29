@@ -220,7 +220,7 @@ pub const ENDGAME_PSQT_TABLES: [PSQT; 7] = [
 ];
 
 pub const PHASE_INCREMENT_BY_PIECE: [i32; 7] = [0, 0, 1, 1, 2, 4, 0];
-const TOTAL_PHASE: i32 = {
+pub const TOTAL_PHASE: i32 = {
     PHASE_INCREMENT_BY_PIECE[Piece::Pawn as usize] * 16
         + PHASE_INCREMENT_BY_PIECE[Piece::Knight as usize] * 4
         + PHASE_INCREMENT_BY_PIECE[Piece::Bishop as usize] * 4

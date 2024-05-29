@@ -3,8 +3,8 @@ use std::time::Instant;
 use crate::{
     evaluation::psqt_tapered,
     moves::{self, generator::precalculated_lookups::cache::PrecalculatedCache},
-    search::zobrist::{calculate_zobrist_hash, ZobristRandomKeys},
-    state::{self, game::GameState, movelist::MoveList},
+    search::zobrist::ZobristHasher,
+    state::{self, game::GameState, moves::MoveList},
     utils::in_check::is_in_check,
 };
 
@@ -13,9 +13,10 @@ struct IncTest {
     depth: u16,
 }
 
+#[allow(unused)]
 pub fn inc_test() {
     let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
-    let keys = ZobristRandomKeys::init();
+    let keys = ZobristHasher::init();
 
     let cases = [
         IncTest {
@@ -57,36 +58,12 @@ fn inc_test_fn(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristRandomKeys,
+    zobrist: &ZobristHasher,
 ) -> () {
     let now = Instant::now();
 
     if depth == 0 {
         return;
-    }
-
-    if game.hash != calculate_zobrist_hash(game, keys) {
-        println!("Fails to incrementally update hash");
-        panic!();
-    }
-    let (phase, opening, endgame) = psqt_tapered::init(game);
-    if game.hash != calculate_zobrist_hash(game, keys) {
-        println!("Fails to incrementally update hash");
-        panic!();
-    }
-    if game.phase != phase
-        || game.opening[0] != opening[0]
-        || game.opening[1] != opening[1]
-        || game.endgame[0] != endgame[0]
-        || game.endgame[1] != endgame[1]
-    {
-        println!("Fails to incrementally update value");
-        println!("static: p:{:?}\to:{:?}\te:{:?}", phase, opening, endgame);
-        println!(
-            "inc: p:{:?}\to:{:?}\te:{:?}",
-            game.phase, game.opening, game.endgame
-        );
-        panic!();
     }
 
     let mut move_list = MoveList::new();
@@ -97,44 +74,33 @@ fn inc_test_fn(
         cache,
         false,
     );
-    // println!("{:?}", move_list.len());
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
-        // let cloned = game.clone();
 
         let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item, keys);
-        // must do opponent since make move toggles opponents
+        let unmake_metadata = game.make_move(move_item, zobrist);
         if !is_in_check(player, game, cache) {
-            _inc_test(game, cache, depth - 1, keys);
+            _inc_test(game, cache, depth - 1, zobrist);
         }
-        // replace with unset
-        game.unmake_move(&move_item, unmake_metadata, keys);
-        // game.set(cloned);
+        game.unmake_move(&move_item, unmake_metadata, zobrist);
     }
 
     let elapsed = now.elapsed();
     println!("Elapsed: {} ms", elapsed.as_millis());
-
-    return;
 }
 
 fn _inc_test(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristRandomKeys,
+    zobrist: &ZobristHasher,
 ) -> () {
-    if depth == 0 {
-        return;
-    }
-
-    if game.hash != calculate_zobrist_hash(game, keys) {
+    if game.hash != zobrist.hash(game) {
         println!("Fails to incrementally update hash");
         panic!();
     }
     let (phase, opening, endgame) = psqt_tapered::init(game);
-    if game.hash != calculate_zobrist_hash(game, keys) {
+    if game.hash != zobrist.hash(game) {
         println!("Fails to incrementally update hash");
         panic!();
     }
@@ -157,6 +123,10 @@ fn _inc_test(
         panic!();
     }
 
+    if depth == 0 {
+        return;
+    }
+
     let mut move_list = MoveList::new();
     crate::moves::generator::movegen::generate_pseudolegal_moves(
         &mut move_list,
@@ -168,14 +138,12 @@ fn _inc_test(
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
         let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item, keys);
+        let unmake_metadata = game.make_move(move_item, zobrist);
         // must do opponent since make move toggles opponents
         if !is_in_check(player, game, cache) {
-            _inc_test(game, cache, depth - 1, keys);
+            _inc_test(game, cache, depth - 1, zobrist);
         }
         // replace with unset
-        game.unmake_move(&move_item, unmake_metadata, keys);
+        game.unmake_move(&move_item, unmake_metadata, zobrist);
     }
-
-    return;
 }

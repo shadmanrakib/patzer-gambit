@@ -1,5 +1,5 @@
 use std::{
-    fs::OpenOptions, io::{self, BufRead, Write}, sync::{
+    io::{self, BufRead}, sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     }, thread

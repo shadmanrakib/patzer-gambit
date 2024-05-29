@@ -3,7 +3,7 @@ use crate::{
     evaluation::psqt_tapered::{
         ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
     },
-    search::zobrist::ZobristRandomKeys,
+    search::zobrist::ZobristHasher,
 };
 
 use super::{pieces::Piece, player::Player};
@@ -101,7 +101,7 @@ impl Boards {
         opening: &mut [i32; 2],
         endgame: &mut [i32; 2],
         hash: &mut u64,
-        keys: &ZobristRandomKeys,
+        keys: &ZobristHasher,
     ) -> Piece {
         let removed =
             self.remove_piece(player.opponent(), pos, phase, opening, endgame, hash, keys);
@@ -131,7 +131,7 @@ impl Boards {
         opening: &mut [i32; 2],
         endgame: &mut [i32; 2],
         hash: &mut u64,
-        keys: &ZobristRandomKeys,
+        keys: &ZobristHasher,
     ) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;

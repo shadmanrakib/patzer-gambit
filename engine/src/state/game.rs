@@ -3,6 +3,7 @@ use regex::Regex;
 use super::{boards::Boards, pieces::Piece, player::Player, square::Square};
 use crate::{
     constants::masks::SQUARE_MASKS,
+    evaluation::psqt_tapered::{PHASE_INCREMENT_BY_PIECE, TOTAL_PHASE},
     fen,
     moves::{
         data::{MoveItem, UnmakeMoveMetadata},
@@ -10,25 +11,24 @@ use crate::{
             movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
         },
     },
-    search::zobrist::{self, calculate_zobrist_hash, ZobristRandomKeys},
-    state::{boards::BitBoard, movelist::MoveList},
+    search::zobrist::ZobristHasher,
+    state::{boards::BitBoard, moves::MoveList},
 };
 
 // we will make this a bitmap
 // abcd, a - white_queen_side, b - white_king_side, c - black_queen_side, d - black_king_side
 // ex 1100 -> KQ
 pub trait CastlePermissions {
-    const WHITE_KING_SIDE: u8 = 1 << 3;
-    const WHITE_QUEEN_SIDE: u8 = 1 << 2;
-    const BLACK_KING_SIDE: u8 = 1 << 1;
-    const BLACK_QUEEN_SIDE: u8 = 1 << 0;
-
-    fn is_allowed(&self, i: u8) -> bool;
-    fn grant(&mut self, i: u8);
-    fn revoke(&mut self, i: u8);
-    fn revoke_all(&mut self);
+    const WHITE_KING_SIDE: u8 = (1 << 3);
+    const WHITE_QUEEN_SIDE: u8 = (1 << 3);
+    const BLACK_KING_SIDE: u8 = (1 << 3);
+    const BLACK_QUEEN_SIDE: u8 = (1 << 3);
+    fn is_allowed(&self, perm: u8) -> bool;
+    fn grant(&mut self, perm: u8);
+    fn revoke(&mut self, perm: u8);
     fn revoke_white(&mut self);
     fn revoke_black(&mut self);
+    fn revoke_all(&mut self);
 }
 impl CastlePermissions for u8 {
     fn is_allowed(&self, perm: u8) -> bool {
@@ -71,7 +71,7 @@ pub struct GameState {
     pub full_move_number: u32,
 
     // for 3 fold repetion
-    pub prev_position_hashes: Vec<u64>,
+    pub history: Vec<u64>,
 
     // for pqst
     pub phase: i32,
@@ -98,7 +98,7 @@ impl GameState {
         self.color = other.color;
         self.opening = other.opening;
         self.endgame = other.endgame;
-        self.prev_position_hashes = other.prev_position_hashes;
+        self.history = other.history;
     }
     // TODO: will implement later
     pub fn notation_to_move(
@@ -125,10 +125,97 @@ impl GameState {
 
         return Err("Invalid long algrebraic notation.".into());
     }
+
+    pub fn has_three_fold_rep(&self) -> bool {
+        let size = self.history.len();
+        let last = self.history.last().unwrap();
+        let mut count = 0;
+        for i in (0..size).rev().step_by(2) {
+            if self.history[i] == *last {
+                count += 1;
+
+                if count >= 3 {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    pub fn has_insufficient_material(&self) -> bool {
+        // there is no chance for there to be insufficient material if we still have 4 bishops
+        // worth of materials on the board
+        if self.phase < TOTAL_PHASE - PHASE_INCREMENT_BY_PIECE[Piece::Bishop as usize] * 4 {
+            return false;
+        }
+
+        let num_wp =
+            self.bitboards.boards[Player::White as usize][Piece::Pawn as usize].count_ones();
+        let num_bp =
+            self.bitboards.boards[Player::Black as usize][Piece::Pawn as usize].count_ones();
+
+        let num_wq =
+            self.bitboards.boards[Player::White as usize][Piece::Queen as usize].count_ones();
+        let num_bq =
+            self.bitboards.boards[Player::Black as usize][Piece::Queen as usize].count_ones();
+
+        let num_wr =
+            self.bitboards.boards[Player::White as usize][Piece::Rook as usize].count_ones();
+        let num_br =
+            self.bitboards.boards[Player::Black as usize][Piece::Rook as usize].count_ones();
+
+        let num_wn =
+            self.bitboards.boards[Player::White as usize][Piece::Knight as usize].count_ones();
+        let num_bn =
+            self.bitboards.boards[Player::Black as usize][Piece::Knight as usize].count_ones();
+
+        let num_wb =
+            self.bitboards.boards[Player::White as usize][Piece::Bishop as usize].count_ones();
+        let num_bb =
+            self.bitboards.boards[Player::Black as usize][Piece::Bishop as usize].count_ones();
+
+        // its possible to mate if you have a pawn, a rook, a queen, or bishop + knight
+        // assuming pawn promotes
+        if num_wp > 0
+            || num_bp > 0
+            || num_wq > 0
+            || num_bq > 0
+            || num_wr > 0
+            || num_br > 0
+            || (num_wb > 0 && num_wn > 0)
+            || (num_bb > 0 && num_bn > 0)
+        {
+            return false;
+        }
+
+        // its possible to mate with two bishops of diff colors.
+        let white_squares_mask = 0x55aa55aa55aa552a;
+        let black_squares_mask = 0xaa55aa55aa55aa55;
+        let num_wwb = (self.bitboards.boards[Player::White as usize][Piece::Bishop as usize]
+            & white_squares_mask)
+            .count_ones();
+        let num_wbb = (self.bitboards.boards[Player::White as usize][Piece::Bishop as usize]
+            & black_squares_mask)
+            .count_ones();
+        let num_bwb = (self.bitboards.boards[Player::Black as usize][Piece::Bishop as usize]
+            & white_squares_mask)
+            .count_ones();
+        let num_bbb = (self.bitboards.boards[Player::Black as usize][Piece::Bishop as usize]
+            & black_squares_mask)
+            .count_ones();
+
+        if (num_wwb > 0 && num_wbb > 0) || (num_bwb > 0 && num_bbb > 0) {
+            return false;
+        }
+
+        return true;
+    }
+
     pub fn make_move(
         &mut self,
         move_item: &MoveItem,
-        keys: &ZobristRandomKeys,
+        zobrist: &ZobristHasher,
     ) -> UnmakeMoveMetadata {
         // self.hash ^= keys.castling[self.castle_permissions as usize];
         // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
@@ -153,7 +240,7 @@ impl GameState {
             &mut self.opening,
             &mut self.endgame,
             &mut self.hash,
-            keys,
+            zobrist,
         );
 
         if move_item.piece == Piece::Pawn {
@@ -177,7 +264,7 @@ impl GameState {
                     &mut self.opening,
                     &mut self.endgame,
                     &mut self.hash,
-                    keys,
+                    zobrist,
                 );
             } else {
                 self.bitboards.remove_piece(
@@ -187,7 +274,7 @@ impl GameState {
                     &mut self.opening,
                     &mut self.endgame,
                     &mut self.hash,
-                    keys,
+                    zobrist,
                 );
             }
 
@@ -199,7 +286,7 @@ impl GameState {
                 &mut self.opening,
                 &mut self.endgame,
                 &mut self.hash,
-                keys,
+                zobrist,
             );
         } else {
             self.bitboards.remove_piece(
@@ -209,7 +296,7 @@ impl GameState {
                 &mut self.opening,
                 &mut self.endgame,
                 &mut self.hash,
-                keys,
+                zobrist,
             );
 
             self.bitboards.place_piece(
@@ -220,7 +307,7 @@ impl GameState {
                 &mut self.opening,
                 &mut self.endgame,
                 &mut self.hash,
-                keys,
+                zobrist,
             );
 
             if move_item.castling {
@@ -234,7 +321,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -244,7 +331,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                     }
                     (Player::White, 6) => {
@@ -255,7 +342,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -265,7 +352,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                     }
                     (Player::Black, 58) => {
@@ -276,7 +363,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -286,7 +373,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                     }
                     (Player::Black, 62) => {
@@ -297,7 +384,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                         self.bitboards.place_piece(
                             side_moving,
@@ -307,7 +394,7 @@ impl GameState {
                             &mut self.opening,
                             &mut self.endgame,
                             &mut self.hash,
-                            keys,
+                            zobrist,
                         );
                     }
                     (_, _) => {
@@ -399,13 +486,13 @@ impl GameState {
         self.side_to_move = opponent;
         self.color *= -1;
 
-        // self.hash ^= keys.castling[self.castle_permissions as usize];
-        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
+        self.hash ^= zobrist.castling[self.castle_permissions as usize];
+        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
+        self.hash ^= zobrist.enpassant[hash_enpassant_sq as usize];
+        self.hash ^= zobrist.side_to_move;
 
-        self.hash = calculate_zobrist_hash(self, keys);
-        self.prev_position_hashes.push(self.hash);
+        self.hash = zobrist.hash(self);
+        self.history.push(self.hash);
 
         UnmakeMoveMetadata {
             captured_piece: move_item.captured_piece,
@@ -415,40 +502,12 @@ impl GameState {
         }
     }
 
-    pub fn has_three_fold_rep(&self) -> bool {
-        let size = self.prev_position_hashes.len();
-        let last = self.prev_position_hashes.last().unwrap();
-        // Ensure we have at least 5 elements to compare
-        let mut count = 0;
-        for i in (0..size).rev().step_by(2) {
-            if self.prev_position_hashes[i] == *last {
-                count += 1;
-
-                if count >= 3 {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
     pub fn unmake_move(
         &mut self,
         move_item: &MoveItem,
         unmake_metadata: UnmakeMoveMetadata,
-        keys: &ZobristRandomKeys,
+        zobrist: &ZobristHasher,
     ) {
-        // self.prev_position_hashes.pop();
-        // if let Some(hash) = self.prev_position_hashes.last() {
-        //     self.hash = hash.clone();
-        // }
-
-        // self.hash ^= keys.castling[self.castle_permissions as usize];
-        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
-
         // lets handle the easy undos
         self.castle_permissions = unmake_metadata.prev_castle_permissions;
 
@@ -469,7 +528,7 @@ impl GameState {
             &mut self.opening,
             &mut self.endgame,
             &mut self.hash,
-            keys,
+            zobrist,
         );
 
         // lets remove the to piece preliminarly
@@ -480,7 +539,7 @@ impl GameState {
             &mut self.opening,
             &mut self.endgame,
             &mut self.hash,
-            keys,
+            zobrist,
         );
 
         // lets place back the captured piece, if not enpassant
@@ -494,7 +553,7 @@ impl GameState {
                     &mut self.opening,
                     &mut self.endgame,
                     &mut self.hash,
-                    keys,
+                    zobrist,
                 );
             } else {
                 // we have an enpassant so we need to do a bit more calculation
@@ -515,7 +574,7 @@ impl GameState {
                     &mut self.opening,
                     &mut self.endgame,
                     &mut self.hash,
-                    keys,
+                    zobrist,
                 );
             }
         }
@@ -531,7 +590,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -540,7 +599,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                 }
                 (Player::White, 6) => {
@@ -552,7 +611,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -561,7 +620,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                 }
                 (Player::Black, 58) => {
@@ -573,7 +632,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -582,7 +641,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                 }
                 (Player::Black, 62) => {
@@ -594,7 +653,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                     self.bitboards.remove_piece(
                         self.side_to_move,
@@ -603,7 +662,7 @@ impl GameState {
                         &mut self.opening,
                         &mut self.endgame,
                         &mut self.hash,
-                        keys,
+                        zobrist,
                     );
                 }
                 (_, _) => {
@@ -612,18 +671,13 @@ impl GameState {
             }
         }
 
-        // self.hash ^= keys.castling[self.castle_permissions as usize];
-        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
-
-        self.prev_position_hashes.pop();
-        if let Some(hash) = self.prev_position_hashes.last() {
+        self.history.pop();
+        if let Some(hash) = self.history.last() {
             self.hash = hash.clone();
         }
     }
 
-    pub fn make_null_move(&mut self, keys: &ZobristRandomKeys) -> u64 {
+    pub fn make_null_move(&mut self, zobrist: &ZobristHasher) -> u64 {
         // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
         // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
         // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
@@ -632,8 +686,8 @@ impl GameState {
         let enpassant = self.enpassant_square;
         self.enpassant_square = 0;
 
-        self.hash = calculate_zobrist_hash(self, keys);
-        self.prev_position_hashes.push(self.hash);
+        self.hash = zobrist.hash(self);
+        self.history.push(self.hash);
 
         // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
         // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
@@ -641,34 +695,26 @@ impl GameState {
 
         return enpassant;
     }
-    pub fn unmake_null_move(&mut self, enpassant: u64, keys: &ZobristRandomKeys) -> u64 {
-        self.prev_position_hashes.pop();
-        if let Some(hash) = self.prev_position_hashes.last() {
-            self.hash = hash.clone();
-        }
-
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
-        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
-
+    pub fn unmake_null_move(&mut self, enpassant: u64, zobrist: &ZobristHasher) -> u64 {
         self.side_to_move = self.side_to_move.opponent();
         self.enpassant_square = enpassant;
 
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
-        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+        self.history.pop();
+        if let Some(hash) = self.history.last() {
+            self.hash = hash.clone();
+        }
 
         return enpassant;
     }
 
     #[allow(dead_code)]
-    pub fn new(key: &ZobristRandomKeys) -> GameState {
+    pub fn new(key: &ZobristHasher) -> GameState {
         let start_board_fen =
             String::from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         return Self::from_fen(start_board_fen, key).unwrap();
     }
 
-    pub fn from_fen(fen: String, keys: &ZobristRandomKeys) -> Result<GameState, String> {
+    pub fn from_fen(fen: String, zobrist: &ZobristHasher) -> Result<GameState, String> {
         let parts: Vec<&str> = fen.split(" ").collect();
 
         if parts.len() != 6 {
@@ -676,14 +722,14 @@ impl GameState {
         }
 
         let mut game = GameState {
-            bitboards: fen::parse::parse_fen_board(parts[0], keys).unwrap(),
+            bitboards: fen::parse::parse_fen_board(parts[0], zobrist).unwrap(),
             side_to_move: fen::parse::parse_fen_side(parts[1]).unwrap(),
             castle_permissions: fen::parse::parse_fen_castle(parts[2]).unwrap(),
             enpassant_square: fen::parse::parse_fen_enpassant(parts[3]).unwrap(),
             half_move_clock: parts[4].parse::<u32>().unwrap(),
             full_move_number: parts[5].parse::<u32>().unwrap(),
             // temp values
-            prev_position_hashes: Vec::new(),
+            history: Vec::new(),
             phase: 0,
             opening_pqst_score: 0,
             endgame_pqst_score: 0,
@@ -705,8 +751,8 @@ impl GameState {
             -1
         };
 
-        game.hash = calculate_zobrist_hash(&game, keys);
-        game.prev_position_hashes = vec![game.hash];
+        game.hash = zobrist.hash(&game);
+        game.history = vec![game.hash];
 
         // need to make this cleaner
         return Ok(game);
@@ -746,12 +792,12 @@ impl GameState {
         }
         println!("  -----------------");
         println!("    A B C D E F G H");
-        println!();
-        println!("fen: {}", self.to_fen());
-        println!("zobrist: {}", self.hash);
     }
 
     pub fn print_state(&self) {
         self.print_board();
+        println!();
+        println!("fen: {}", self.to_fen());
+        println!("zobrist: {}", self.hash);
     }
 }

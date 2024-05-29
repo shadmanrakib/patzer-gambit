@@ -1,6 +1,4 @@
 use std::{
-    fs::OpenOptions,
-    io::{self, BufRead, Write},
     sync::Arc,
     time::Instant,
 };
@@ -21,12 +19,11 @@ use crate::{
     search::{
         cache::SearchCache,
         killer::{store_killer_move, SimpleMove},
-        negamax::negamax,
         quiescence::quiescence,
         transposition::{NodeType, TTable},
-        zobrist::ZobristRandomKeys,
+        zobrist::ZobristHasher,
     },
-    state::{game::GameState, movelist::MoveList, pieces::Piece, player::Player},
+    state::{game::GameState, moves::MoveList, pieces::Piece, player::Player},
     utils::in_check::is_in_check,
 };
 
@@ -37,14 +34,14 @@ pub const CHECKMATE: i32 = NEG_INF;
 
 pub struct Searcher {
     pub cache: PrecalculatedCache,
-    pub zobrist: ZobristRandomKeys,
+    pub zobrist: ZobristHasher,
     pub tt: TTable,
     pub position: GameState,
 }
 
 impl Searcher {
     pub fn new() -> Searcher {
-        let zobrist = ZobristRandomKeys::init();
+        let zobrist = ZobristHasher::init();
         Searcher {
             cache: PrecalculatedCache::create(),
             position: GameState::new(&zobrist),
@@ -74,9 +71,13 @@ impl Searcher {
                 if d > 0 {
                     let notation = simple_move.to_string();
                     moves.push(simple_move);
+                    
                     if d >= 1 {
-                        let move_item = position.notation_to_move(notation, &self.cache).unwrap();
-                        position.make_move(&move_item, &self.zobrist);
+                        if let Ok(move_item) =  position.notation_to_move(notation.clone(), &self.cache) {
+                            position.make_move(&move_item, &self.zobrist);
+                        } else {
+                            println!("Not found {}", notation);
+                        }
                         continue;
                     }
                 }
@@ -149,15 +150,10 @@ impl Searcher {
                 best_move = Some(SimpleMove::from(pv[0]));
             }
 
-            // if score == INF || score == NEG_INF {
-            //     break;
-            // }
-
             // the aspiration window was a bad idea, lets retry without it
             if score <= alpha || score >= beta {
                 alpha = NEG_INF;
                 beta = INF;
-                // println!("retrying");
                 continue;
             }
 
@@ -189,7 +185,7 @@ impl Searcher {
             println!("bestmove {short}");
             if let Some(mv) = &bm {
                 let short2 = mv.notation();
-                // println!("apples bestmove correct {} {short} {short2}", short == short2);
+                println!("apples bestmove correct {} {short} {short2}", short == short2);
             }
         } else {
             println!("bestmove");
@@ -506,7 +502,7 @@ impl Searcher {
             best_score,
             depth,
             node_type,
-            interupted || best_draw,
+            best_draw,
         );
 
         best_score

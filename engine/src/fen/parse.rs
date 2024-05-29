@@ -1,13 +1,13 @@
 use regex::Regex;
 
 use crate::{
-    search::zobrist::ZobristRandomKeys,
+    search::zobrist::ZobristHasher,
     state::{
         boards::Boards, game::CastlePermissions, pieces::Piece, player::Player, square::Square,
     },
 };
 
-pub fn parse_fen_board(part: &str, keys: &ZobristRandomKeys) -> Result<Boards, String> {
+pub fn parse_fen_board(part: &str, keys: &ZobristHasher) -> Result<Boards, String> {
     let mut bitboards: Boards = Default::default();
     // part 1 parsing
     let splitted: Vec<&str> = part.split("/").collect();

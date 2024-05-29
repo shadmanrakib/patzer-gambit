@@ -32,11 +32,11 @@ use crate::{
         },
         scoring::score_captures,
     },
-    state::{game::GameState, movelist::MoveList, player::Player},
+    state::{game::GameState, moves::MoveList, player::Player},
     utils::in_check::is_in_check,
 };
 
-use super::{cache::SearchCache, zobrist::ZobristRandomKeys};
+use super::{cache::SearchCache, zobrist::ZobristHasher};
 
 pub fn quiescence(
     game: &mut GameState,
@@ -47,7 +47,7 @@ pub fn quiescence(
     cache: &PrecalculatedCache,
     search_cache: &mut SearchCache,
     nodes: &mut u128,
-    keys: &ZobristRandomKeys,
+    keys: &ZobristHasher,
     seldepth: &mut u8,
     controller: Arc<dyn Controller>,
 ) -> i32 {

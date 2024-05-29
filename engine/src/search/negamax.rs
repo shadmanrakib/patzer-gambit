@@ -9,7 +9,7 @@ use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
 use crate::moves::scoring::score_moves;
 use crate::search::cache::SearchCache;
 use crate::state::game::GameState;
-use crate::state::movelist::MoveList;
+use crate::state::moves::MoveList;
 use crate::state::pieces::Piece;
 use crate::state::player::Player;
 use crate::utils::in_check::is_in_check;
@@ -17,7 +17,7 @@ use crate::utils::in_check::is_in_check;
 use super::killer::{store_killer_move, SimpleMove};
 use super::quiescence::quiescence;
 use super::transposition::{NodeType, TTable};
-use super::zobrist::ZobristRandomKeys;
+use super::zobrist::ZobristHasher;
 
 pub const INF: i32 = std::i32::MAX;
 pub const NEG_INF: i32 = -INF;
@@ -41,7 +41,7 @@ pub fn negamax(
     search_cache: &mut SearchCache,
     nodes: &mut u128,
     q_nodes: &mut u128,
-    keys: &ZobristRandomKeys,
+    keys: &ZobristHasher,
     tt: &mut TTable,
     seldepth: &mut u8,
     controller: Arc<dyn Controller>,

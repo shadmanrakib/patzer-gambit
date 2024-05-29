@@ -5,7 +5,7 @@ use crate::{
         , data::MoveItem
     },
     utils::{in_check::is_in_check, square_attacked::is_square_attacked},
-    state::{boards::BitBoard, game::{CastlePermissions, GameState}, movelist::MoveList, pieces::Piece, player::Player},
+    state::{boards::BitBoard, game::{CastlePermissions, GameState}, moves::MoveList, pieces::Piece, player::Player},
 };
 // #[inline(always)]
 

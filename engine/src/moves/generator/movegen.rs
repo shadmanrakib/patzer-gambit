@@ -1,6 +1,6 @@
 use crate::{
     moves::generator::{pieces, precalculated_lookups::cache::PrecalculatedCache},
-    state::{game::GameState, movelist::MoveList, player::Player},
+    state::{game::GameState, moves::MoveList, player::Player},
 };
 
 pub fn generate_pseudolegal_moves(

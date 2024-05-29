@@ -5,7 +5,7 @@ mod tests {
             self,
             perft::{perft, perft_unmake},
         },
-        search::zobrist::ZobristRandomKeys,
+        search::zobrist::ZobristHasher,
         state,
     };
 
@@ -54,7 +54,7 @@ mod tests {
         ];
 
         let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
-        let keys = ZobristRandomKeys::init();
+        let keys = ZobristHasher::init();
         
         for test in tests {
             let mut game = state::game::GameState::from_fen(test.fen.to_string(), &keys).unwrap();

@@ -6,7 +6,7 @@ use crate::{
         data::MoveItem,
     },
     state::{
-        boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player,
+        boards::BitBoard, game::GameState, moves::MoveList, pieces::Piece, player::Player,
         square::Square,
     },
 };

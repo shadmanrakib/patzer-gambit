@@ -3,7 +3,7 @@ use crate::{
         data::MoveItem,
         generator::precalculated_lookups::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
     },
-    state::{boards::BitBoard, game::GameState, movelist::MoveList, pieces::Piece, player::Player, square::Square},
+    state::{boards::BitBoard, game::GameState, moves::MoveList, pieces::Piece, player::Player, square::Square},
 };
 
 // #[inline(always)]
