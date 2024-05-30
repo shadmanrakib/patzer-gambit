@@ -112,7 +112,13 @@ impl Searcher {
         // println!("main search depth {}", main_search_depth);
 
         while depth <= main_search_depth
-            && !controller.should_stop(false, self.position.side_to_move, info.total_nodes, depth)
+            && !controller.should_stop(
+                false,
+                self.position.side_to_move,
+                info.total_nodes,
+                depth,
+                false,
+            )
         {
             let iter_start = Instant::now();
 
@@ -222,7 +228,7 @@ impl Searcher {
         if ply == max_ply
             || info
                 .controller
-                .should_stop(true, player, info.total_nodes, ply)
+                .should_stop(true, player, info.total_nodes, ply, false)
         {
             return self.position.score();
         }
@@ -318,9 +324,9 @@ impl Searcher {
 
             moves_searched += 1;
 
-            let interupted = info
-                .controller
-                .should_stop(true, player, info.total_nodes, ply);
+            let interupted =
+                info.controller
+                    .should_stop(true, player, info.total_nodes, ply, false);
 
             if score > best_score {
                 best_score = score;
@@ -354,8 +360,6 @@ impl Searcher {
             }
         }
 
-        // let interupted: bool = controller.should_stop(true, player, *nodes, ply);
-
         if legal_moves_count == 0 {
             let score = if in_check {
                 CHECKMATE + (ply as i32)
@@ -367,7 +371,7 @@ impl Searcher {
 
         let interupted = info
             .controller
-            .should_stop(true, player, info.total_nodes, ply);
+            .should_stop(true, player, info.total_nodes, ply, false);
         self.tt.record(
             self.position.hash,
             (&moveslist.moves[(if best_move_idx >= 0 { best_move_idx } else { 0 }) as usize])
@@ -400,7 +404,7 @@ impl Searcher {
         if ply >= max_ply
             || info
                 .controller
-                .should_stop(true, player, info.total_nodes, ply)
+                .should_stop(true, player, info.total_nodes, ply, true)
         {
             return stand_pat;
         }

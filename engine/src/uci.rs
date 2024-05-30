@@ -13,17 +13,17 @@ pub struct UciSearchController {
 }
 
 impl Controller for UciSearchController {
-    fn should_stop(&self, _: bool, _: Player, _: u64, _: u8) -> bool {
-        self.terminated.load(Ordering::SeqCst)
+    fn should_stop(&self, _: bool, _: Player, _: u64, _: u8, _: bool) -> bool {
+        self.terminated.load(Ordering::Relaxed)
     }
 }
 
 impl UciSearchController {
     fn stop(&self) {
-        self.terminated.store(true, Ordering::SeqCst)
+        self.terminated.store(true, Ordering::Relaxed)
     }
     fn start(&self) {
-        self.terminated.store(false, Ordering::SeqCst)
+        self.terminated.store(false, Ordering::Relaxed)
     }
 }
 

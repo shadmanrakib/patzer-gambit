@@ -17,10 +17,18 @@ pub struct TimeControl {
 }
 
 impl Controller for TimeControl {
-    fn should_stop(&self, in_search: bool, side: Player, nodes: u64, ply_or_depth: u8) -> bool {
-        if self
+    #[inline(always)]
+    fn should_stop(
+        &self,
+        in_search: bool,
+        side: Player,
+        nodes: u64,
+        ply_or_depth: u8,
+        ignore_terminated: bool,
+    ) -> bool {
+        if !ignore_terminated && self
             .stop_controller
-            .should_stop(in_search, side, nodes, ply_or_depth)
+            .should_stop(in_search, side, nodes, ply_or_depth, false)
         {
             return true;
         }

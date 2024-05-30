@@ -20,6 +20,6 @@ use incremental::inc_test;
 use uci::uci_loop;
 
 fn main() {
-    inc_test();
+    // inc_test();
     uci_loop();
 }
