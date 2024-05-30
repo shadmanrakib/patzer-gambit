@@ -225,10 +225,11 @@ impl GameState {
         move_item: &MoveItem,
         zobrist: &ZobristHasher,
     ) -> UnmakeMoveMetadata {
-        // self.hash ^= keys.castling[self.castle_permissions as usize];
+        // remove prev from hash
+        self.hash ^= zobrist.castling[self.castle_permissions as usize];
         // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize];
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize];
+        self.hash ^= zobrist.enpassant[self.enpassant_square.trailing_zeros() as usize];
+        // self.hash ^= keys.side_to_move;
 
         let prev_castle_permissions = self.castle_permissions.clone();
         let prev_enpassant_square = self.enpassant_square;
@@ -494,12 +495,12 @@ impl GameState {
         self.side_to_move = opponent;
         self.color *= -1;
 
+        // new values to hash
         self.hash ^= zobrist.castling[self.castle_permissions as usize];
-        let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        self.hash ^= zobrist.enpassant[hash_enpassant_sq as usize];
+        self.hash ^= zobrist.enpassant[self.enpassant_square.trailing_zeros() as usize];
         self.hash ^= zobrist.side_to_move;
 
-        self.hash = zobrist.hash(self);
+        // self.hash = zobrist.hash(self);
         self.history.push(self.hash);
 
         UnmakeMoveMetadata {
@@ -686,15 +687,14 @@ impl GameState {
     }
 
     pub fn make_null_move(&mut self, zobrist: &ZobristHasher) -> u64 {
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // remove prev side from hash
-        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
+        self.hash ^= zobrist.side_to_move; // change opponents
+        self.hash ^= zobrist.enpassant[self.enpassant_square.trailing_zeros() as usize]; // remove enpassant from hash
 
         self.side_to_move = self.side_to_move.opponent();
         let enpassant = self.enpassant_square;
         self.enpassant_square = 0;
 
-        self.hash = zobrist.hash(self);
+        // self.hash = zobrist.hash(self);
         self.history.push(self.hash);
 
         // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
