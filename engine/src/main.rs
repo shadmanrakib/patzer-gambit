@@ -7,16 +7,16 @@ mod state;
 
 mod searcher;
 mod uci;
-mod controller;
 mod time;
 mod incremental;
 mod zobrist;
 mod transposition;
+mod searchinfo;
+mod perft;
 
 #[cfg(test)]
 mod tests;
 
-use incremental::inc_test;
 use uci::uci_loop;
 
 fn main() {

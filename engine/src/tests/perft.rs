@@ -3,8 +3,8 @@ mod tests {
     use crate::{
         moves::{
             self,
-            perft::{perft, perft_unmake},
         },
+        perft::perft,
         zobrist::ZobristHasher,
         state,
     };
@@ -59,9 +59,8 @@ mod tests {
         for test in tests {
             let mut game = state::game::GameState::from_fen(test.fen.to_string(), &keys).unwrap();
             println!("Test {}", &test.fen);
-            let nodes = perft_unmake(&mut game, &cache, test.depth, &keys);
+            let nodes = perft(&mut game, &cache, test.depth, &keys);
             println!("Found: {}\tExpected: {}", nodes, test.expected_nodes);
-            perft(&mut game, &cache, test.depth, &keys);
             assert_eq!(nodes, test.expected_nodes);
         }
     }

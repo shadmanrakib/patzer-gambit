@@ -1,29 +1,33 @@
-use std::sync::Arc;
+use crate::state::player::Player;
+use crate::time::{TeriminationStatus, TimeControl};
+use crate::moves::data::MoveItem;
 
-use crate::{controller::Controller, moves::data::MoveItem, state::pieces::Piece};
-
-use super::killer::{init_killer_moves, KillerMoves};
+use crate::search::killer::{init_killer_moves, KillerMoves};
 
 pub struct SearchInfo {
     pub total_nodes: u64,
     pub iteration_nodes: u64,
     pub seldepth: u8,
     pub iteration_qnodes: u64,
-    pub controller: Arc<dyn Controller>,
+    pub timer: TimeControl,
+    pub terimination_status: TeriminationStatus,
+    pub check_termination_node_interval: u64,
     pub killer_moves: KillerMoves,
     pub best_move: Option<MoveItem>,
 }
 
 impl SearchInfo {
-    pub fn init(controller: Arc<dyn Controller>) -> SearchInfo {
+    pub fn init(timer: TimeControl) -> SearchInfo {
         SearchInfo {
             killer_moves: init_killer_moves(),
             total_nodes: 0,
             iteration_nodes: 0,
             iteration_qnodes: 0,
             seldepth: 0,
-            controller,
+            timer,
             best_move: None,
+            terimination_status: TeriminationStatus::Distant,
+            check_termination_node_interval: 0xFFF,
         }
     }
     pub fn new_iteration(&mut self) {
@@ -43,5 +47,16 @@ impl SearchInfo {
     #[inline(always)]
     pub fn maximize_seldepth(&mut self, local_ply: u8) {
         self.seldepth = std::cmp::max(self.seldepth, local_ply);
+    }
+
+    #[inline(always)]
+    pub fn update_termination_status(&mut self, side: Player, ply: u8, check_depth: bool) {
+        self.terimination_status = self.timer.check_termination(
+            side,
+            ply,
+            self.total_nodes,
+            self.check_termination_node_interval,
+            check_depth
+        )
     }
 }

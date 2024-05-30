@@ -1,10 +1,7 @@
 use std::time::Instant;
 
 use crate::{
-    evaluation::psqt_tapered,
-    moves::{self, generator::precalculated_lookups::cache::PrecalculatedCache},
-    zobrist::ZobristHasher,
-    state::{self, game::GameState, moves::MoveList},
+    evaluation, moves::{self, generator::precalculated_lookups::cache::PrecalculatedCache}, state::{self, game::GameState, moves::MoveList}, zobrist::ZobristHasher
 };
 
 struct IncTest {
@@ -96,7 +93,7 @@ fn _inc_test(
         println!("Fails to incrementally update hash");
         panic!();
     }
-    let (phase, opening, endgame) = psqt_tapered::init(game);
+    let (phase, opening, endgame) = evaluation::init(game);
     if game.hash != zobrist.hash(game) {
         println!("Fails to incrementally update hash");
         panic!();

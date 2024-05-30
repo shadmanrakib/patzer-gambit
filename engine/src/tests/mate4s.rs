@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::{atomic::AtomicBool, Arc, Mutex};
-
-    use crate::{
-        searcher::Searcher,
-        uci::UciSearchController,
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
     };
+
+    use crate::{searcher::Searcher, time::TimeControl};
 
     #[test]
     fn mate4s_suite() {
@@ -85,19 +85,16 @@ mod tests {
             ("k1K5/7r/8/4B3/1RP5/8/8/8 w - - 1 0", "b4b8"),
         ];
 
-        let controller = Arc::new(UciSearchController {
-            terminated: Arc::new(AtomicBool::new(false)),
-        });
+        let stopped = Arc::new(AtomicBool::new(false));
         let searcher = Arc::new(Mutex::new(Searcher::new()));
-
         println!("hey");
 
         for (mate4_fen, mate4_ans) in mate4s {
             searcher.lock().unwrap().fen(mate4_fen.into()).unwrap();
-            let result = searcher
-                .lock()
-                .unwrap()
-                .go(10, controller.clone());
+            let s = stopped.clone();
+            s.store(false, Ordering::Relaxed);
+            let time = TimeControl::new(s);
+            let result = searcher.lock().unwrap().go(10, time);
             println!("{}", mate4_fen);
             if let Some(m) = result {
                 let ans = m.to_string();

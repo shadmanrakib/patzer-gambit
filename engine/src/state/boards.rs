@@ -1,8 +1,6 @@
 use crate::{
     constants::masks::INVERTED_SQUARE_MASKS,
-    evaluation::psqt_tapered::{
-        ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
-    },
+    evaluation::{ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX},
     zobrist::ZobristHasher,
 };
 

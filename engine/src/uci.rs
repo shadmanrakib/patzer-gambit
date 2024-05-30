@@ -1,31 +1,13 @@
 use std::{
-    io::{self, BufRead}, sync::{
+    io::{self, BufRead},
+    sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
-    }, thread
+    },
+    thread,
 };
 
-use crate::{controller::Controller, searcher::Searcher, state::player::Player, time::TimeControl};
-
-// Controller so we can stop search when needed
-pub struct UciSearchController {
-    pub(crate) terminated: Arc<AtomicBool>,
-}
-
-impl Controller for UciSearchController {
-    fn should_stop(&self, _: bool, _: Player, _: u64, _: u8, _: bool) -> bool {
-        self.terminated.load(Ordering::Relaxed)
-    }
-}
-
-impl UciSearchController {
-    fn stop(&self) {
-        self.terminated.store(true, Ordering::Relaxed)
-    }
-    fn start(&self) {
-        self.terminated.store(false, Ordering::Relaxed)
-    }
-}
+use crate::{searcher::Searcher, time::TimeControl};
 
 fn parse_position(searcher: &mut Searcher, parts: &Vec<&str>) {
     if parts.len() < 2 {
@@ -77,12 +59,12 @@ fn parse_position(searcher: &mut Searcher, parts: &Vec<&str>) {
     }
 }
 
-fn parse_go(parts: Vec<String>, stop_controller: Arc<dyn Controller>) -> TimeControl {
-    let mut time = TimeControl::new(stop_controller);
+fn parse_go(parts: Vec<String>, stopped: Arc<AtomicBool>) -> TimeControl {
+    let mut time = TimeControl::new(stopped);
     let mut iter = parts.iter().skip(1); // Skip the "go" command
     while let Some(token) = iter.next() {
         // Match the token against known commands
-        match &**token {
+        match token.as_str() {
             "wtime" => {
                 if let Some(value) = iter.next() {
                     if let Ok(time_value) = value.parse::<u128>() {
@@ -162,28 +144,14 @@ fn parse_go(parts: Vec<String>, stop_controller: Arc<dyn Controller>) -> TimeCon
 pub fn uci_loop() {
     let stdin = io::stdin();
 
-    let controller = Arc::new(UciSearchController {
-        terminated: Arc::new(AtomicBool::new(false)),
-    });
-
+    let stopped = Arc::new(AtomicBool::new(false));
     let searcher = Arc::new(Mutex::new(Searcher::new()));
 
     intro();
 
-    // let mut file = OpenOptions::new()
-    //     .append(true)
-    //     .create(true)
-    //     .open("/Users/shadmanrakib/Desktop/patzer-gambit/engine/output.txt").unwrap();
-
-    //     writeln!(file, "=========").unwrap();
-    //     writeln!(file, "=========").unwrap();
-
     for line in stdin.lock().lines() {
         let line = line.unwrap_or("".into());
-        // let l_clone = line.clone();
         let parts: Vec<&str> = line.split_whitespace().collect();
-
-        // writeln!(file, "{}", l_clone).unwrap();
 
         if parts.is_empty() {
             continue;
@@ -196,18 +164,26 @@ pub fn uci_loop() {
             "position" => parse_position(&mut searcher.lock().unwrap(), &parts),
             "go" => {
                 let s = searcher.clone();
-                let c: Arc<UciSearchController> = controller.clone();
+                let stopped = stopped.clone();
                 let p: Vec<String> = parts.iter().map(|item| item.to_string()).collect();
-                c.start();
+                stopped.store(false, Ordering::Relaxed);
                 thread::spawn(move || {
-                    let time: Arc<TimeControl> = Arc::new(parse_go(p, c.clone()));
+                    let time = parse_go(p, stopped);
                     s.lock().unwrap().go(100, time);
                 });
             }
-            "stop" => controller.stop(),
+            "stop" => stopped.store(true, Ordering::SeqCst),
             "quit" => {
-                controller.stop();
+                stopped.store(true, Ordering::SeqCst);
                 break;
+            }
+            "perft" => {
+                if parts.len() <= 1 {
+                    return;
+                }
+                if let Ok(depth) = parts[1].parse::<u16>() {
+                    searcher.lock().unwrap().perft(depth);
+                }
             }
             "d" => searcher.lock().unwrap().position.print_state(),
             "play" => {
@@ -242,7 +218,7 @@ fn intro() {
     println!("╚═╝░░░░░╚═╝░░╚═╝░░░╚═╝░░░╚══════╝╚══════╝╚═╝░░╚═╝   ░╚═════╝░╚═╝░░╚═╝╚═╝░░░░░╚═╝╚═════╝░╚═╝░░░╚═╝░░░");
     println!("");
     println!("");
-    println!("A partial UCI chess engine that's a whole lot worse than drunk magnus but magnitudes better than me.");
+    println!("A partial UCI chess engine that's a whole lot worse than drunk magnus but magnitudes better than me");
     println!("");
     println!("");
     println!("-------------------------------------------------------------------------------------------------------");

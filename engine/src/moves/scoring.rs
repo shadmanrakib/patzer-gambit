@@ -1,9 +1,7 @@
 use crate::{
     constants::search::MAX_KILLER_MOVES,
-    search::{
-        searchinfo::SearchInfo,
-        killer::{is_similar, SimpleMove},
-    },
+    search::killer::{is_similar, SimpleMove},
+    searchinfo::SearchInfo,
     state::{moves::MoveList, player::Player},
 };
 

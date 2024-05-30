@@ -1,11 +1,10 @@
-use std::{sync::Arc, time::Instant};
+use std::time::Instant;
 
 use crate::{
     constants::search::{
         FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS,
     },
-    controller::Controller,
-    evaluation::psqt_tapered,
+    evaluation,
     moves::{
         data::MoveItem,
         generator::{
@@ -13,11 +12,11 @@ use crate::{
         },
         scoring::{score_captures, score_moves},
     },
-    search::{
-        killer::{store_killer_move, SimpleMove},
-        searchinfo::SearchInfo,
-    },
+    perft,
+    search::killer::{store_killer_move, SimpleMove},
+    searchinfo::SearchInfo,
     state::{game::GameState, moves::MoveList, pieces::Piece, player::Player},
+    time::{TeriminationStatus, TimeControl},
     transposition::{NodeType, TTable},
     zobrist::ZobristHasher,
 };
@@ -54,6 +53,9 @@ impl Searcher {
     pub fn make_move(&mut self, move_item: &MoveItem) {
         self.position.make_move(move_item, &self.zobrist);
     }
+    pub fn perft(&mut self, depth: u16) -> u64 {
+        perft::perft(&mut self.position, &self.cache, depth, &self.zobrist)
+    }
 
     pub fn get_pv(&mut self, depth: u8) -> Vec<SimpleMove> {
         let mut moves = vec![];
@@ -87,43 +89,24 @@ impl Searcher {
         moves
     }
 
-    pub fn go(
-        &mut self,
-        main_search_depth: u8,
-        controller: Arc<dyn Controller>,
-    ) -> Option<SimpleMove> {
+    pub fn go(&mut self, main_search_depth: u8, time_control: TimeControl) -> Option<SimpleMove> {
         let mut best_move: Option<SimpleMove> = None;
-        // let mut file: std::fs::File = OpenOptions::new()
-        //     .append(true)
-        //     .create(true)
-        //     .open("/Users/shadmanrakib/Desktop/patzer-gambit/engine/output2.txt")
-        //     .unwrap();
 
         let mut depth = 1;
-        let mut info = SearchInfo::init(controller.clone());
+        let mut info = SearchInfo::init(time_control);
 
         let mut alpha = NEG_INF;
         let mut beta = INF;
 
-        // let fen = self.position.to_fen();
-        // let f: String = format!("position fen {fen}");
-        // writeln!(file, "{}", f).unwrap();
+        while depth <= main_search_depth {
+            info.update_termination_status(self.position.side_to_move, depth, true);
+            if info.terimination_status == TeriminationStatus::Terminated {
+                break;
+            }
 
-        // println!("main search depth {}", main_search_depth);
-
-        while depth <= main_search_depth
-            && !controller.should_stop(
-                false,
-                self.position.side_to_move,
-                info.total_nodes,
-                depth,
-                false,
-            )
-        {
             let iter_start = Instant::now();
 
             info.new_iteration(); // get clear older iterations useless info/stats
-
             let score = self.negamax(depth, 0, MAX_PLY, alpha, beta, &mut info);
 
             let iter_elapsed = iter_start.elapsed();
@@ -141,10 +124,7 @@ impl Searcher {
 
             let nodes = info.iteration_nodes;
             let seldepth = info.seldepth;
-            // println!("qnodes: {}", info.iteration_qnodes);
             println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} pv {pv_str}");
-            // let f: String = format!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {total_nps} pv {pv_str}");
-            // writeln!(file, "{}", f).unwrap();
 
             // the aspiration window was a bad idea, lets reset it and try again
             if score <= alpha || score >= beta {
@@ -161,8 +141,7 @@ impl Searcher {
             depth += 1;
         }
 
-        // get occupancy and mark non-empty nodes as ancient so that they don't linger
-        // around
+        // get occupancy and mark non-empty nodes as ancient so that they don't linger around
         let mut occ: u64 = 0;
         for i in 0..self.tt.table.len() {
             let entry = &mut self.tt.table[i];
@@ -200,8 +179,14 @@ impl Searcher {
         beta: i32,
         info: &mut SearchInfo,
     ) -> i32 {
-        info.increment_node_counts(false);
+        if info.total_nodes & info.check_termination_node_interval == 0
+            || info.terimination_status == TeriminationStatus::Soon
+        {
+            info.update_termination_status(self.position.side_to_move, ply, false);
+        }
+
         info.maximize_seldepth(ply);
+        info.increment_node_counts(false);
 
         let player = self.position.side_to_move;
 
@@ -212,7 +197,10 @@ impl Searcher {
             to: 0,
             promotion: Piece::King,
         };
-
+        // handle base cases
+        if self.position.has_insufficient_material() {
+            return 0;
+        }
         if let Some((simple_move, score, d)) = self.tt.probe(self.position.hash, alpha, beta) {
             if d >= depth {
                 return score;
@@ -220,16 +208,7 @@ impl Searcher {
 
             tt_move = simple_move;
         }
-
-        // handle base cases
-        if self.position.has_insufficient_material() {
-            return 0;
-        }
-        if ply == max_ply
-            || info
-                .controller
-                .should_stop(true, player, info.total_nodes, ply, false)
-        {
+        if ply == max_ply || info.terimination_status == TeriminationStatus::Terminated {
             return self.position.score();
         }
         if depth <= 0 {
@@ -324,9 +303,9 @@ impl Searcher {
 
             moves_searched += 1;
 
-            let interupted =
-                info.controller
-                    .should_stop(true, player, info.total_nodes, ply, false);
+            // let interupted =
+            //     info.controller
+            //         .should_stop(true, player, info.total_nodes, ply, false);
 
             if score > best_score {
                 best_score = score;
@@ -348,7 +327,8 @@ impl Searcher {
                     score,
                     depth,
                     NodeType::Cut,
-                    interupted || draw,
+                    draw,
+                    // interupted || draw,
                 );
 
                 return score;
@@ -369,9 +349,9 @@ impl Searcher {
             return score;
         }
 
-        let interupted = info
-            .controller
-            .should_stop(true, player, info.total_nodes, ply, false);
+        // let interupted = info
+        //     .controller
+        //     .should_stop(true, player, info.total_nodes, ply, false);
         self.tt.record(
             self.position.hash,
             (&moveslist.moves[(if best_move_idx >= 0 { best_move_idx } else { 0 }) as usize])
@@ -379,7 +359,8 @@ impl Searcher {
             best_score,
             depth,
             node_type,
-            best_draw || interupted,
+            best_draw,
+            // best_draw || interupted,
         );
 
         best_score
@@ -393,19 +374,21 @@ impl Searcher {
         beta: i32,
         info: &mut SearchInfo,
     ) -> i32 {
+        if info.total_nodes & info.check_termination_node_interval == 0
+            || info.terimination_status == TeriminationStatus::Soon
+        {
+            info.update_termination_status(self.position.side_to_move, ply, false);
+        }
+
         info.increment_node_counts(true);
         info.maximize_seldepth(ply);
 
         let player = self.position.side_to_move;
         let color = if player == Player::White { 1 } else { -1 };
 
-        let stand_pat = color * psqt_tapered::eval(&self.position);
+        let stand_pat = color * evaluation::eval(&self.position);
 
-        if ply >= max_ply
-            || info
-                .controller
-                .should_stop(true, player, info.total_nodes, ply, true)
-        {
+        if ply == max_ply {
             return stand_pat;
         }
 

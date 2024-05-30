@@ -1,7 +1,21 @@
-use std::{sync::Arc, time::Instant};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Instant,
+};
 
-use crate::{constants::search::MAX_PLY, controller::Controller, state::player::Player};
+use crate::state::player::Player;
 
+#[derive(PartialEq)]
+pub enum TeriminationStatus {
+    Terminated,
+    Soon,
+    Distant,
+}
+
+#[derive(Debug)]
 pub struct TimeControl {
     pub times: [u128; 2],
     pub increments: [u128; 2],
@@ -13,32 +27,11 @@ pub struct TimeControl {
     pub move_time: Option<u128>,
     pub nodes: Option<u64>,
     pub search_mate_in: Option<u8>,
-    pub stop_controller: Arc<dyn Controller>,
-}
-
-impl Controller for TimeControl {
-    #[inline(always)]
-    fn should_stop(
-        &self,
-        in_search: bool,
-        side: Player,
-        nodes: u64,
-        ply_or_depth: u8,
-        ignore_terminated: bool,
-    ) -> bool {
-        if !ignore_terminated && self
-            .stop_controller
-            .should_stop(in_search, side, nodes, ply_or_depth, false)
-        {
-            return true;
-        }
-
-        !self.should_search(side, ply_or_depth, nodes)
-    }
+    pub stopped: Arc<AtomicBool>,
 }
 
 impl TimeControl {
-    pub fn new(stop_controller: Arc<dyn Controller>) -> TimeControl {
+    pub fn new(stopped: Arc<AtomicBool>) -> TimeControl {
         TimeControl {
             times: [0, 0],
             increments: [0, 0],
@@ -50,7 +43,7 @@ impl TimeControl {
             move_time: None,
             nodes: None,
             search_mate_in: None,
-            stop_controller,
+            stopped,
         }
     }
 
@@ -58,39 +51,81 @@ impl TimeControl {
         self.start_time.elapsed().as_millis()
     }
 
-    pub fn should_search(&self, side: Player, ply: u8, nodes: u64) -> bool {
+    #[inline(always)]
+    pub fn check_termination(
+        &self,
+        side: Player,
+        ply: u8,
+        nodes: u64,
+        check_node_interval: u64,
+        check_depth: bool,
+    ) -> TeriminationStatus {
+        if self.stopped.load(Ordering::SeqCst) {
+            return TeriminationStatus::Terminated;
+        }
+
         if self.infinite {
-            return true;
+            return TeriminationStatus::Distant;
+        }
+
+        if check_depth {
+            if let Some(depth) = self.depth {
+                if ply > depth {
+                    return TeriminationStatus::Terminated;
+                }
+                return TeriminationStatus::Distant;
+            }
         }
 
         let elapsed = self.elapsed();
-
         if let Some(mt) = self.move_time {
-            return elapsed < mt;
+            if elapsed >= mt {
+                return TeriminationStatus::Terminated;
+            }
+            let stopping_overhead = 20;
+            if elapsed >= mt - stopping_overhead {
+                return TeriminationStatus::Soon;
+            }
+            return TeriminationStatus::Distant;
         }
 
         if let Some(moves) = self.search_mate_in {
-            return ply <= (moves * 2);
-        }
-
-        if let Some(depth) = self.depth {
-            return ply <= depth;
+            if ply > (moves * 2) {
+                return TeriminationStatus::Terminated;
+            }
+            if ply > (moves * 2) - 1 {
+                return TeriminationStatus::Soon;
+            }
+            return TeriminationStatus::Distant;
         }
 
         if let Some(n) = self.nodes {
-            return nodes <= n;
+            if nodes > n {
+                return TeriminationStatus::Terminated;
+            }
+            if nodes > n - check_node_interval {
+                return TeriminationStatus::Soon;
+            }
+            return TeriminationStatus::Distant;
         }
 
         // we implement Cray Blitz's time control
-        let comms_overhead = 100;
-        let time_left: u128 = self.times[side as usize];
-        let num_book_moves = 0;
-        let n_moves = std::cmp::min(num_book_moves, 10);
-        let factor = 2 - n_moves / 10;
-        let target = time_left / <usize as TryInto<u128>>::try_into(self.moves_to_go).unwrap();
-        let allocated_time = factor * target - comms_overhead;
+        // let comms_overhead = 100;
+        // let time_left: u128 = self.times[side as usize];
+        // let num_book_moves = 0;
+        // let n_moves = std::cmp::min(num_book_moves, 10);
+        // let factor = 2 - n_moves / 10;
+        // let target = time_left / <usize as TryInto<u128>>::try_into(self.moves_to_go).unwrap();
+        // let allocated_time = factor * target - comms_overhead;
 
-        return elapsed < allocated_time;
+        // if elapsed >= allocated_time {
+        //     return TeriminationStatus::Terminated;
+        // }
+        // let stopping_overhead = 20;
+        // if elapsed >= allocated_time - stopping_overhead {
+        //     return TeriminationStatus::Soon;
+        // }
+        return TeriminationStatus::Distant;
     }
 
     pub fn set_wtime(&mut self, time: u128) {
