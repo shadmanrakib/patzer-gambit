@@ -11,13 +11,13 @@ pub struct TimeControl {
     pub start_time: Instant,
     pub depth: Option<u8>,
     pub move_time: Option<u128>,
-    pub nodes: Option<u128>,
+    pub nodes: Option<u64>,
     pub search_mate_in: Option<u8>,
     pub stop_controller: Arc<dyn Controller>,
 }
 
 impl Controller for TimeControl {
-    fn should_stop(&self, in_search: bool, side: Player, nodes: u128, ply_or_depth: u8) -> bool {
+    fn should_stop(&self, in_search: bool, side: Player, nodes: u64, ply_or_depth: u8) -> bool {
         if self
             .stop_controller
             .should_stop(in_search, side, nodes, ply_or_depth)
@@ -50,7 +50,7 @@ impl TimeControl {
         self.start_time.elapsed().as_millis()
     }
 
-    pub fn should_search(&self, side: Player, ply: u8, nodes: u128) -> bool {
+    pub fn should_search(&self, side: Player, ply: u8, nodes: u64) -> bool {
         if self.infinite {
             return true;
         }
@@ -109,7 +109,7 @@ impl TimeControl {
     pub fn set_depth(&mut self, depth: u8) {
         self.depth = Some(depth);
     }
-    pub fn set_nodes(&mut self, nodes: u128) {
+    pub fn set_nodes(&mut self, nodes: u64) {
         self.nodes = Some(nodes);
     }
     pub fn set_move_time(&mut self, time: u128) {

@@ -3,9 +3,8 @@ use std::time::Instant;
 use crate::{
     evaluation::psqt_tapered,
     moves::{self, generator::precalculated_lookups::cache::PrecalculatedCache},
-    search::zobrist::ZobristHasher,
+    zobrist::ZobristHasher,
     state::{self, game::GameState, moves::MoveList},
-    utils::in_check::is_in_check,
 };
 
 struct IncTest {
@@ -76,10 +75,8 @@ fn inc_test_fn(
     );
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
-
-        let player = game.side_to_move;
         let unmake_metadata = game.make_move(move_item, zobrist);
-        if !is_in_check(player, game, cache) {
+        if !game.in_check(game.side_to_move.opponent(), cache) {
             _inc_test(game, cache, depth - 1, zobrist);
         }
         game.unmake_move(&move_item, unmake_metadata, zobrist);
@@ -137,10 +134,9 @@ fn _inc_test(
     );
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
-        let player = game.side_to_move;
         let unmake_metadata = game.make_move(move_item, zobrist);
         // must do opponent since make move toggles opponents
-        if !is_in_check(player, game, cache) {
+        if !game.in_check(game.side_to_move.opponent(), cache) {
             _inc_test(game, cache, depth - 1, zobrist);
         }
         // replace with unset

@@ -1,7 +1,7 @@
 use crate::{
     constants::search::MAX_KILLER_MOVES,
     search::{
-        cache::SearchCache,
+        searchinfo::SearchInfo,
         killer::{is_similar, SimpleMove},
     },
     state::{moves::MoveList, player::Player},
@@ -37,7 +37,7 @@ pub fn score_captures(moveslist: &mut MoveList) {
 
 pub fn score_moves(
     moveslist: &mut MoveList,
-    search_cache: &mut SearchCache,
+    search_cache: &mut SearchInfo,
     ply: usize,
     player: Player,
     tt_move: SimpleMove,

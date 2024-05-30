@@ -62,7 +62,6 @@ impl ZobristHasher {
         let mut hash = 0;
 
         hash ^= self.enpassant[game.enpassant_square.trailing_zeros() as usize];
-
         hash ^= self.castling[game.castle_permissions as usize];
 
         if game.side_to_move == Player::White {

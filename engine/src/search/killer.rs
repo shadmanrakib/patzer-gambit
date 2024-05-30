@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Write};
+use std::fmt::Debug;
 
 use crate::{
     constants::search::{MAX_KILLER_MOVES, MAX_PLY},
@@ -44,16 +44,7 @@ impl Into<SimpleMove> for &MoveItem {
 
 impl Debug for SimpleMove {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let from_square = Square::from(self.from).stringify();
-        let to_square = Square::from(self.to).stringify();
-        let promotion = {
-            if self.promotion != Piece::Empty {
-                self.promotion.to_string().to_lowercase()
-            } else {
-                "".to_string()
-            }
-        };
-        f.write_fmt(format_args!("{}{}{}", from_square, to_square, promotion))
+        f.write_fmt(format_args!("{}", self.to_string()))
     }
 }
 

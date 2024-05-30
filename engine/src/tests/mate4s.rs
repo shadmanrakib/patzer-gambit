@@ -3,9 +3,6 @@ mod tests {
     use std::sync::{atomic::AtomicBool, Arc, Mutex};
 
     use crate::{
-        constants::search::{MAX_MAIN_SEARCH_DEPTH, TRANSITION_TABLE_ADDRESSING_BITS, TRANSITION_TABLE_SIZE},
-        moves,
-        search::transposition::TTable,
         searcher::Searcher,
         uci::UciSearchController,
     };

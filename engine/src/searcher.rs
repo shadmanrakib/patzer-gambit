@@ -1,7 +1,4 @@
-use std::{
-    sync::Arc,
-    time::Instant,
-};
+use std::{sync::Arc, time::Instant};
 
 use crate::{
     constants::search::{
@@ -14,17 +11,15 @@ use crate::{
         generator::{
             movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
         },
-        scoring::score_moves,
+        scoring::{score_captures, score_moves},
     },
     search::{
-        cache::SearchCache,
         killer::{store_killer_move, SimpleMove},
-        quiescence::quiescence,
-        transposition::{NodeType, TTable},
-        zobrist::ZobristHasher,
+        searchinfo::SearchInfo,
     },
     state::{game::GameState, moves::MoveList, pieces::Piece, player::Player},
-    utils::in_check::is_in_check,
+    transposition::{NodeType, TTable},
+    zobrist::ZobristHasher,
 };
 
 pub const INF: i32 = std::i32::MAX;
@@ -71,9 +66,11 @@ impl Searcher {
                 if d > 0 {
                     let notation = simple_move.to_string();
                     moves.push(simple_move);
-                    
+
                     if d >= 1 {
-                        if let Ok(move_item) =  position.notation_to_move(notation.clone(), &self.cache) {
+                        if let Ok(move_item) =
+                            position.notation_to_move(notation.clone(), &self.cache)
+                        {
                             position.make_move(&move_item, &self.zobrist);
                         } else {
                             println!("Not found {}", notation);
@@ -96,8 +93,6 @@ impl Searcher {
         controller: Arc<dyn Controller>,
     ) -> Option<SimpleMove> {
         let mut best_move: Option<SimpleMove> = None;
-        let mut bm: Option<MoveItem> = None;
-
         // let mut file: std::fs::File = OpenOptions::new()
         //     .append(true)
         //     .create(true)
@@ -105,7 +100,7 @@ impl Searcher {
         //     .unwrap();
 
         let mut depth = 1;
-        let mut search_cache = SearchCache::init();
+        let mut info = SearchInfo::init(controller.clone());
 
         let mut alpha = NEG_INF;
         let mut beta = INF;
@@ -114,34 +109,22 @@ impl Searcher {
         // let f: String = format!("position fen {fen}");
         // writeln!(file, "{}", f).unwrap();
 
-        while depth <= main_search_depth {
+        // println!("main search depth {}", main_search_depth);
+
+        while depth <= main_search_depth
+            && !controller.should_stop(false, self.position.side_to_move, info.total_nodes, depth)
+        {
             let iter_start = Instant::now();
 
-            let mut nodes = 0;
-            let mut q_nodes = 0;
-            let mut seldepth = 0;
+            info.new_iteration(); // get clear older iterations useless info/stats
 
-            let score = self.negamax(
-                depth,
-                0,
-                MAX_PLY,
-                alpha,
-                beta,
-                &mut search_cache,
-                &mut nodes,
-                &mut q_nodes,
-                &mut seldepth,
-                controller.clone(),
-                &mut bm,
-            );
+            let score = self.negamax(depth, 0, MAX_PLY, alpha, beta, &mut info);
 
             let iter_elapsed = iter_start.elapsed();
             let ms = iter_elapsed.as_millis();
             let ns = iter_elapsed.as_nanos();
 
-            let nps = (nodes as u128) * 10_u128.pow(9) / (ns + 1);
-
-            let total_nps = (nodes + q_nodes) * 10_u128.pow(9) / (ns + 1);
+            let nps = (info.iteration_nodes as u128) * 10_u128.pow(9) / (ns + 1);
 
             let pv = self.get_pv(depth);
             let pv_str_vec: Vec<String> = pv.iter().map(|x| x.to_string()).collect();
@@ -150,27 +133,30 @@ impl Searcher {
                 best_move = Some(SimpleMove::from(pv[0]));
             }
 
-            // the aspiration window was a bad idea, lets retry without it
+            let nodes = info.iteration_nodes;
+            let seldepth = info.seldepth;
+            // println!("qnodes: {}", info.iteration_qnodes);
+            println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} pv {pv_str}");
+            // let f: String = format!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {total_nps} pv {pv_str}");
+            // writeln!(file, "{}", f).unwrap();
+
+            // the aspiration window was a bad idea, lets reset it and try again
             if score <= alpha || score >= beta {
                 alpha = NEG_INF;
                 beta = INF;
                 continue;
             }
 
-            println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {total_nps} pv {pv_str}");
-            // let f: String = format!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {total_nps} pv {pv_str}");
-            // writeln!(file, "{}", f).unwrap();
-
+            // otherwise we create next aspiration window
             alpha = score.saturating_sub(70);
             beta = score.saturating_add(70);
 
+            // increase depth
             depth += 1;
-
-            if controller.should_stop(false, self.position.side_to_move, nodes, depth) {
-                break;
-            }
         }
 
+        // get occupancy and mark non-empty nodes as ancient so that they don't linger
+        // around
         let mut occ: u64 = 0;
         for i in 0..self.tt.table.len() {
             let entry = &mut self.tt.table[i];
@@ -183,10 +169,13 @@ impl Searcher {
         if let Some(move_item) = &best_move {
             let short = move_item.to_string();
             println!("bestmove {short}");
-            if let Some(mv) = &bm {
-                let short2 = mv.notation();
-                println!("apples bestmove correct {} {short} {short2}", short == short2);
-            }
+            // if let Some(mv) = &info.best_move {
+            //     let short2 = mv.notation();
+            //     println!(
+            //         "apples bestmove correct {} {short} {short2}",
+            //         short == short2
+            //     );
+            // }
         } else {
             println!("bestmove");
         }
@@ -203,31 +192,20 @@ impl Searcher {
         max_ply: u8,
         mut alpha: i32,
         beta: i32,
-        search_cache: &mut SearchCache,
-        nodes: &mut u128,
-        q_nodes: &mut u128,
-        seldepth: &mut u8,
-        controller: Arc<dyn Controller>,
-        best_move: &mut Option<MoveItem>,
+        info: &mut SearchInfo,
     ) -> i32 {
+        info.increment_node_counts(false);
+        info.maximize_seldepth(ply);
+
         let player = self.position.side_to_move;
 
         let mut node_type = NodeType::All;
-
-        *seldepth = std::cmp::max(*seldepth, ply);
 
         let mut tt_move = SimpleMove {
             from: 0,
             to: 0,
             promotion: Piece::King,
         };
-        // if game.half_move_clock >= 50 || game.has_three_fold_rep() {
-        //     return NegamaxResult {
-        //         score: 0,
-        //         // mate: 0,
-        //         // mated: false,
-        //     };
-        // }
 
         if let Some((simple_move, score, d)) = self.tt.probe(self.position.hash, alpha, beta) {
             if d >= depth {
@@ -236,74 +214,35 @@ impl Searcher {
 
             tt_move = simple_move;
         }
-        // handle base case
-        if ply == max_ply || controller.should_stop(true, player, *nodes, ply) {
-            *nodes += 1;
-            let color = if player == Player::White { 1 } else { -1 };
-            let score = color * psqt_tapered::eval(&self.position);
-            return score;
+
+        // handle base cases
+        if self.position.has_insufficient_material() {
+            return 0;
+        }
+        if ply == max_ply
+            || info
+                .controller
+                .should_stop(true, player, info.total_nodes, ply)
+        {
+            return self.position.score();
         }
         if depth <= 0 {
-            let score = quiescence(
-                &mut self.position,
-                ply,
-                max_ply,
-                alpha,
-                beta,
-                &self.cache,
-                search_cache,
-                nodes,
-                &self.zobrist,
-                seldepth,
-                controller.clone(),
-            );
-            // let interupted = controller.should_stop(true, player, *nodes, ply);
-            // tt.record(
-            //     game.hash,
-            //     SimpleMove {
-            //         from: 0,
-            //         to: 0,
-            //         promotion: Piece::King,
-            //     },
-            //     score,
-            //     depth,
-            //     NodeType::Pv,
-            //     interupted,
-            // );
-            return score;
-
-            // return quiescence(game, ply, max_ply, alpha, beta, cache, search_cache);
+            return self.quiescence(ply, max_ply, alpha, beta, info);
         }
 
-        *nodes += 1;
-
-        let in_check = is_in_check(player, &self.position, &self.cache);
-
-        // let color = if player == Player::White { 1 } else { -1 };
-        // let standpat = psqt_tapered::eval(game) * color;
+        let in_check = self
+            .position
+            .in_check(self.position.side_to_move, &self.cache);
 
         // null pruning
         if !in_check && depth >= 3 && ply != 0 && self.position.phase < 180
         // && standpat >= beta
-        // && game.bitboards.boards[player as usize][Piece::Pawn as usize] != 0
-        // && game.bitboards.boards[player.opponent() as usize][Piece::Pawn as usize] != 0
         {
             let r = 2;
             let prev_enpassant = self.position.make_null_move(&self.zobrist);
-            let null_score = -self.negamax(
-                depth - 1 - r,
-                ply + 1,
-                max_ply,
-                -beta,
-                -beta + 1,
-                search_cache,
-                nodes,
-                q_nodes,
-                seldepth,
-                controller.clone(),
-                best_move,
-            );
-            self.position.unmake_null_move(prev_enpassant, &self.zobrist);
+            let null_score = -self.negamax(depth - 1 - r, ply + 1, max_ply, -beta, -beta + 1, info);
+            self.position
+                .unmake_null_move(prev_enpassant, &self.zobrist);
 
             if null_score >= beta {
                 return beta;
@@ -320,7 +259,7 @@ impl Searcher {
 
         let mut moveslist = MoveList::new();
         generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, false);
-        score_moves(&mut moveslist, search_cache, ply as usize, player, tt_move);
+        score_moves(&mut moveslist, info, ply as usize, player, tt_move);
         let mut legal_moves_count: u8 = 0;
         let mut moves_searched = 0;
 
@@ -332,33 +271,23 @@ impl Searcher {
             let unmake_metadata = self.position.make_move(&move_item, &self.zobrist);
 
             // illegal move
-            if is_in_check(player, &self.position, &self.cache) {
-                self.position.unmake_move(&move_item, unmake_metadata, &self.zobrist);
+            if self
+                .position
+                .in_check(self.position.side_to_move.opponent(), &self.cache)
+            {
+                self.position
+                    .unmake_move(&move_item, unmake_metadata, &self.zobrist);
                 continue;
             };
 
             legal_moves_count += 1;
 
-            let mut score: i32;
+            let mut score: i32 = 0;
 
             let draw = self.position.has_three_fold_rep() || self.position.half_move_clock >= 50;
-            if draw {
-                score = 0;
-            } else {
+            if !draw {
                 if moves_searched == 0 {
-                    score = -self.negamax(
-                        depth - 1,
-                        ply + 1,
-                        max_ply,
-                        -beta,
-                        -alpha,
-                        search_cache,
-                        nodes,
-                        q_nodes,
-                        seldepth,
-                        controller.clone(),
-                        best_move,
-                    );
+                    score = -self.negamax(depth - 1, ply + 1, max_ply, -beta, -alpha, info);
                 } else {
                     if moves_searched >= FULL_DEPTH_MOVES
                         && depth >= REDUCTION_LIMIT
@@ -367,79 +296,44 @@ impl Searcher {
                         && !move_item.promoting
                         && !move_item.castling
                     {
-                        score = -self.negamax(
-                            depth - 2,
-                            ply + 1,
-                            max_ply,
-                            -(alpha + 1),
-                            -alpha,
-                            search_cache,
-                            nodes,
-                            q_nodes,
-                            seldepth,
-                            controller.clone(),
-                            best_move,
-                        );
+                        score =
+                            -self.negamax(depth - 2, ply + 1, max_ply, -(alpha + 1), -alpha, info);
                     } else {
                         score = alpha + 1; // done to trigger research
                     }
 
                     if score > alpha {
                         // like pvs
-                        score = -self.negamax(
-                            depth - 1,
-                            ply + 1,
-                            max_ply,
-                            -(alpha + 1),
-                            -alpha,
-                            search_cache,
-                            nodes,
-                            q_nodes,
-                            seldepth,
-                            controller.clone(),
-                            best_move,
-                        );
+                        score =
+                            -self.negamax(depth - 1, ply + 1, max_ply, -(alpha + 1), -alpha, info);
                         if score > alpha && score < beta {
-                            score = -self.negamax(
-                                depth - 1,
-                                ply + 1,
-                                max_ply,
-                                -beta,
-                                -alpha,
-                                search_cache,
-                                nodes,
-                                q_nodes,
-                                seldepth,
-                                controller.clone(),
-                                best_move,
-                            );
+                            score = -self.negamax(depth - 1, ply + 1, max_ply, -beta, -alpha, info);
                         }
                     }
                 }
             }
 
-            self.position.unmake_move(&move_item, unmake_metadata, &self.zobrist);
+            self.position
+                .unmake_move(&move_item, unmake_metadata, &self.zobrist);
 
             moves_searched += 1;
 
-            // if ply == 0 {
-            //     println!("{} {}", move_item.notation(), score);
-            // }
-
-            let interupted = controller.should_stop(true, player, *nodes, ply);
+            let interupted = info
+                .controller
+                .should_stop(true, player, info.total_nodes, ply);
 
             if score > best_score {
                 best_score = score;
                 best_move_idx = index as i32;
                 if ply == 0 {
-                    *best_move = Some(move_item.clone());
+                    info.best_move = Some(move_item.clone());
                 }
                 best_draw = draw;
             }
 
             if score >= beta {
                 if !move_item.capturing {
-                    store_killer_move(&mut search_cache.killer_moves, move_item, ply as usize);
+                    store_killer_move(&mut info.killer_moves, move_item, ply as usize);
                 }
 
                 self.tt.record(
@@ -456,19 +350,11 @@ impl Searcher {
 
             if score > alpha {
                 alpha = score;
-
                 node_type = NodeType::Pv;
-
-                // if !move_item.capturing {
-                //     search_cache.history_moves[player as usize][move_item.piece as usize]
-                //         [move_item.to_pos as usize] = search_cache.history_moves[player as usize]
-                //         [move_item.piece as usize][move_item.to_pos as usize]
-                //         + (depth as i16);
-                // }
             }
         }
 
-        let interupted = controller.should_stop(true, player, *nodes, ply);
+        // let interupted: bool = controller.should_stop(true, player, *nodes, ply);
 
         if legal_moves_count == 0 {
             let score = if in_check {
@@ -476,25 +362,12 @@ impl Searcher {
             } else {
                 STALEMATE
             };
-
-            // println!("checkmate! {}", score);
-
-            // tt.record(
-            //     game.hash,
-            //     SimpleMove {
-            //         to: 0,
-            //         from: 0,
-            //         promotion: Piece::King,
-            //     },
-            //     score,
-            //     depth,
-            //     NodeType::Pv,
-            //     interupted,
-            // );
-
             return score;
         }
 
+        let interupted = info
+            .controller
+            .should_stop(true, player, info.total_nodes, ply);
         self.tt.record(
             self.position.hash,
             (&moveslist.moves[(if best_move_idx >= 0 { best_move_idx } else { 0 }) as usize])
@@ -502,9 +375,81 @@ impl Searcher {
             best_score,
             depth,
             node_type,
-            best_draw,
+            best_draw || interupted,
         );
 
         best_score
+    }
+
+    pub fn quiescence(
+        &mut self,
+        ply: u8,
+        max_ply: u8,
+        mut alpha: i32,
+        beta: i32,
+        info: &mut SearchInfo,
+    ) -> i32 {
+        info.increment_node_counts(true);
+        info.maximize_seldepth(ply);
+
+        let player = self.position.side_to_move;
+        let color = if player == Player::White { 1 } else { -1 };
+
+        let stand_pat = color * psqt_tapered::eval(&self.position);
+
+        if ply >= max_ply
+            || info
+                .controller
+                .should_stop(true, player, info.total_nodes, ply)
+        {
+            return stand_pat;
+        }
+
+        // stand-pat here
+        if stand_pat >= beta {
+            return stand_pat;
+        }
+
+        // position better than alpha already
+        if stand_pat > alpha {
+            alpha = stand_pat
+        }
+
+        let mut moveslist = MoveList::new();
+        generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, true);
+        score_captures(&mut moveslist);
+
+        for i in 0..moveslist.len() {
+            moveslist.sort_move(i);
+            let move_item: &MoveItem = &moveslist.moves[i];
+
+            let unmake_metadata = self.position.make_move(move_item, &self.zobrist);
+
+            if self
+                .position
+                .in_check(self.position.side_to_move.opponent(), &self.cache)
+            {
+                self.position
+                    .unmake_move(move_item, unmake_metadata, &self.zobrist);
+                continue;
+            }
+
+            // The position is not yet quiet. Go one ply deeper.
+            let score = -self.quiescence(ply + 1, max_ply, -beta, -alpha, info);
+
+            self.position
+                .unmake_move(move_item, unmake_metadata, &self.zobrist);
+
+            // beta cutoff
+            if score >= beta {
+                return beta;
+            }
+
+            if score > alpha {
+                alpha = score;
+            }
+        }
+
+        alpha
     }
 }

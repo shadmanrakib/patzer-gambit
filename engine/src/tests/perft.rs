@@ -5,7 +5,7 @@ mod tests {
             self,
             perft::{perft, perft_unmake},
         },
-        search::zobrist::ZobristHasher,
+        zobrist::ZobristHasher,
         state,
     };
 

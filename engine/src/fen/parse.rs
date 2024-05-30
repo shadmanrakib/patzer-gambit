@@ -1,7 +1,7 @@
 use regex::Regex;
 
 use crate::{
-    search::zobrist::ZobristHasher,
+    zobrist::ZobristHasher,
     state::{
         boards::Boards, game::CastlePermissions, pieces::Piece, player::Player, square::Square,
     },
@@ -193,8 +193,9 @@ pub fn parse_fen_side(part: &str) -> Result<Player, String> {
         _ => Err("Invalid player character".into()),
     }
 }
+
 pub fn parse_fen_enpassant(part: &str) -> Result<u64, String> {
-    let re = Regex::new(r"^[a-h][1-8]$").unwrap();
+    let re = Regex::new(r"^[a-h][1-8]$") .unwrap();
     match part {
         "-" => Ok(0),
         part3 if re.is_match(part3) => {

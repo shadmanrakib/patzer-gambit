@@ -3,16 +3,17 @@ use regex::Regex;
 use super::{boards::Boards, pieces::Piece, player::Player, square::Square};
 use crate::{
     constants::masks::SQUARE_MASKS,
-    evaluation::psqt_tapered::{PHASE_INCREMENT_BY_PIECE, TOTAL_PHASE},
+    evaluation::psqt_tapered::{self, PHASE_INCREMENT_BY_PIECE, TOTAL_PHASE},
     fen,
     moves::{
         data::{MoveItem, UnmakeMoveMetadata},
         generator::{
-            movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
+            movegen::generate_pseudolegal_moves,
+            precalculated_lookups::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
         },
     },
-    search::zobrist::ZobristHasher,
     state::{boards::BitBoard, moves::MoveList},
+    zobrist::ZobristHasher,
 };
 
 // we will make this a bitmap
@@ -210,6 +211,13 @@ impl GameState {
         }
 
         return true;
+    }
+
+    #[inline(always)]
+    pub fn score(&self) -> i32 {
+        let player = self.side_to_move;
+        let color = if player == Player::White { 1 } else { -1 };
+        color * psqt_tapered::eval(self)
     }
 
     pub fn make_move(
@@ -707,6 +715,78 @@ impl GameState {
         return enpassant;
     }
 
+    #[inline(always)]
+    pub fn is_square_attacked(
+        &self,
+        pos: i8,
+        attacker: Player,
+        cache: &PrecalculatedCache,
+    ) -> bool {
+        let occupied = self.bitboards.occupied;
+
+        // knight
+        let knight_move_mask = cache.knight_moves_masks[pos as usize];
+        let attacking_knights =
+            knight_move_mask & self.bitboards.get_board_by_piece(attacker, Piece::Knight);
+        if attacking_knights != 0 {
+            return true;
+        }
+
+        // rook and queen vertical and horizontal
+        let rook_magic_index = hash_with_magic(cache.rook_magics[pos as usize], occupied);
+        let rook_moves_mask = cache.rook_magic_attack_tables[rook_magic_index];
+        let attacking_rooks =
+            rook_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Rook);
+        let attacking_queens_straight =
+            rook_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Queen);
+
+        if attacking_rooks != 0 || attacking_queens_straight != 0 {
+            return true;
+        }
+
+        // bishop and queen diagonal
+        let bishop_magic_index = hash_with_magic(cache.bishop_magics[pos as usize], occupied);
+        let bishop_moves_mask = cache.bishop_magic_attack_tables[bishop_magic_index];
+
+        let attacking_bishops =
+            bishop_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Bishop);
+        let attacking_queens_diagonal =
+            bishop_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Queen);
+
+        if attacking_bishops != 0 || attacking_queens_diagonal != 0 {
+            return true;
+        }
+
+        // pawn attack
+        let opponent_pawns = self.bitboards.get_board_by_piece(attacker, Piece::Pawn);
+        let attacking_mask =
+            cache.pawn_attack_moves_mask[attacker.opponent() as usize][pos as usize];
+        let attacking_pawns = opponent_pawns & attacking_mask;
+        if attacking_pawns != 0 {
+            return true;
+        }
+
+        // king attack
+        let king_move_mask = cache.king_moves_masks[pos as usize];
+        let attacking_king =
+            king_move_mask & self.bitboards.get_board_by_piece(attacker, Piece::King);
+        if attacking_king != 0 {
+            return true;
+        }
+
+        return false;
+    }
+
+    // #[inline(always)]
+    pub fn in_check(&self, player: Player, cache: &PrecalculatedCache) -> bool {
+        let king = self
+            .bitboards
+            .get_board_by_piece(player, Piece::King)
+            .trailing_zeros() as i8;
+
+        return self.is_square_attacked(king, player.opponent(), cache);
+    }
+
     #[allow(dead_code)]
     pub fn new(key: &ZobristHasher) -> GameState {
         let start_board_fen =
@@ -799,5 +879,6 @@ impl GameState {
         println!();
         println!("fen: {}", self.to_fen());
         println!("zobrist: {}", self.hash);
+        println!("score: {}", self.score());
     }
 }

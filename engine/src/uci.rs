@@ -13,7 +13,7 @@ pub struct UciSearchController {
 }
 
 impl Controller for UciSearchController {
-    fn should_stop(&self, _: bool, _: Player, _: u128, _: u8) -> bool {
+    fn should_stop(&self, _: bool, _: Player, _: u64, _: u8) -> bool {
         self.terminated.load(Ordering::SeqCst)
     }
 }
@@ -133,7 +133,7 @@ fn parse_go(parts: Vec<String>, stop_controller: Arc<dyn Controller>) -> TimeCon
             }
             "nodes" => {
                 if let Some(value) = iter.next() {
-                    if let Ok(nodes_value) = value.parse::<u128>() {
+                    if let Ok(nodes_value) = value.parse::<u64>() {
                         time.set_nodes(nodes_value);
                     }
                 }
@@ -242,7 +242,7 @@ fn intro() {
     println!("╚═╝░░░░░╚═╝░░╚═╝░░░╚═╝░░░╚══════╝╚══════╝╚═╝░░╚═╝   ░╚═════╝░╚═╝░░╚═╝╚═╝░░░░░╚═╝╚═════╝░╚═╝░░░╚═╝░░░");
     println!("");
     println!("");
-    println!("A (partial) UCI chess engine that's a whole lot worser than drunk magnus but magnitudes better than me.");
+    println!("A partial UCI chess engine that's a whole lot worse than drunk magnus but magnitudes better than me.");
     println!("");
     println!("");
     println!("-------------------------------------------------------------------------------------------------------");

@@ -28,6 +28,19 @@ impl MoveItem {
         <rank number>   ::= '1'|'2'|'3'|'4'|'5'|'6'|'7'|'8'
         <promoted to>   ::= 'q'|'r'|'b'|'n'
     */
+    pub const NULL: MoveItem = MoveItem {
+        from_pos: 0,
+        to_pos: 0,
+        piece: Piece::Empty,
+        promotion_piece: Piece::Empty,
+        captured_piece: Piece::Empty,
+        promoting: false,
+        capturing: false,
+        double: false,
+        enpassant: false,
+        castling: false,
+        score: 0,
+    };
     pub fn notation(&self) -> String {
         let from_square = Square::from(self.from_pos).stringify();
         let to_square = Square::from(self.to_pos).stringify();
@@ -51,12 +64,4 @@ pub struct UnmakeMoveMetadata {
     pub prev_half_move_clock: u32,
     // pub prev_zorbist_hash
     pub captured_piece: Piece,
-}
-
-// we will convert this to our standard move item
-#[derive(Debug, Clone)]
-pub struct SimpleMoveItem {
-    pub from: Square,
-    pub to: Square,
-    pub promotion_piece: Piece,
 }

@@ -1,5 +1,5 @@
 use crate::state::pieces::Piece;
-use super::killer::SimpleMove;
+use crate::search::killer::SimpleMove;
 
 /**
  * Transposition Table
@@ -48,7 +48,7 @@ impl TTable {
                     promotion: Piece::Empty,
                 },
                 node: NodeType::None,
-                ancient: true, // another way to remove it instead of an empty field
+                ancient: false, // another way to remove it instead of an empty field
             });
         }
 

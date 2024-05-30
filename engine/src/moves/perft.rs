@@ -1,8 +1,7 @@
 use crate::{
     moves::generator::precalculated_lookups::cache::PrecalculatedCache,
-    search::zobrist::ZobristHasher,
     state::{game::GameState, moves::MoveList},
-    utils::in_check::is_in_check,
+    zobrist::ZobristHasher,
 };
 
 use std::time::Instant;
@@ -37,7 +36,7 @@ pub fn perft(
         let player = game.side_to_move;
         let _unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
-        if !is_in_check(player, game, cache) {
+        if !game.in_check(player, cache) {
             let move_nodes = _perft(game, cache, depth - 1, keys);
             nodes += move_nodes;
             println!("{}: {}", move_item.notation(), move_nodes);
@@ -80,7 +79,7 @@ fn _perft(
         let player = game.side_to_move;
         let _unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
-        if !is_in_check(player, game, cache) {
+        if !game.in_check(player, cache) {
             let move_nodes = _perft(game, cache, depth - 1, keys);
             nodes += move_nodes;
         }
@@ -122,7 +121,7 @@ pub fn perft_unmake(
         let player = game.side_to_move;
         let unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
-        if !is_in_check(player, game, cache) {
+        if !game.in_check(player, cache) {
             let move_nodes = _perft_unmake(game, cache, depth - 1, keys);
             nodes += move_nodes;
             println!("{}: {}", move_item.notation(), move_nodes);
@@ -164,7 +163,7 @@ fn _perft_unmake(
         let player = game.side_to_move;
         let unmake_metadata = game.make_move(move_item, keys);
         // must do opponent since make move toggles opponents
-        if !is_in_check(player, game, cache) {
+        if !game.in_check(player, cache) {
             let move_nodes = _perft_unmake(game, cache, depth - 1, keys);
             nodes += move_nodes;
         }

@@ -3,7 +3,7 @@ use crate::{
     evaluation::psqt_tapered::{
         ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
     },
-    search::zobrist::ZobristHasher,
+    zobrist::ZobristHasher,
 };
 
 use super::{pieces::Piece, player::Player};
