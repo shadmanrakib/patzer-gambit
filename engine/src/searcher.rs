@@ -4,7 +4,6 @@ use crate::{
     constants::search::{
         FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS,
     },
-    evaluation,
     moves::{
         data::MoveItem,
         generator::{
@@ -15,7 +14,7 @@ use crate::{
     perft,
     search::killer::{store_killer_move, SimpleMove},
     searchinfo::SearchInfo,
-    state::{game::GameState, moves::MoveList, pieces::Piece, player::Player},
+    state::{game::GameState, moves::MoveList, pieces::Piece},
     time::{TeriminationStatus, TimeControl},
     transposition::{NodeType, TTable},
     zobrist::ZobristHasher,
@@ -132,12 +131,23 @@ impl Searcher {
 
             let nps = (info.iteration_nodes as u128) * 10_u128.pow(9) / (ns + 1);
 
-            let pv = self.get_pv(depth);
+            let mut pv = self.get_pv(depth);
+            if pv.len() > 0 {
+                best_move = Some(pv[0]);
+            } else if let Some(ref mv) = info.best_move {
+                // this might be an value gotten from an interuption
+                let smv = SimpleMove {
+                    to: mv.to_pos,
+                    from: mv.from_pos,
+                    promotion: mv.promotion_piece,
+                };
+                best_move = Some(smv);
+                pv = vec![smv];
+            }
+
             let pv_str_vec: Vec<String> = pv.iter().map(|x| x.to_string()).collect();
             let pv_str = pv_str_vec.join(" ");
-            if pv.len() > 0 {
-                best_move = Some(SimpleMove::from(pv[0]));
-            }
+
 
             let nodes = info.iteration_nodes;
             let seldepth = info.seldepth;
@@ -159,30 +169,19 @@ impl Searcher {
         }
 
         // get occupancy and mark non-empty nodes as ancient so that they don't linger around
-        let mut occ: u64 = 0;
         for i in 0..self.tt.table.len() {
             let entry = &mut self.tt.table[i];
             if entry.best_move.to != entry.best_move.from {
                 entry.ancient = true;
-                occ += 1;
             }
         }
 
         if let Some(move_item) = &best_move {
             let short = move_item.to_string();
             println!("bestmove {short}");
-            // if let Some(mv) = &info.best_move {
-            //     let short2 = mv.notation();
-            //     println!(
-            //         "apples bestmove correct {} {short} {short2}",
-            //         short == short2
-            //     );
-            // }
         } else {
             println!("bestmove");
         }
-
-        println!("occ {occ} of {}", self.tt.size);
 
         return best_move;
     }
