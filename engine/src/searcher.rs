@@ -61,7 +61,7 @@ impl Searcher {
         self.position.make_null_move(&self.zobrist)
     }
     pub fn unmake_null_move(&mut self, enpassant: u64) {
-        self.position.unmake_null_move(enpassant, &self.zobrist);
+        self.position.unmake_null_move(enpassant);
     }
     pub fn play(&mut self, notation: String) -> bool {
         let m = self.position.notation_to_move(notation, &self.cache);

@@ -110,21 +110,21 @@ impl TimeControl {
         }
 
         // we implement Cray Blitz's time control
-        // let comms_overhead = 100;
-        // let time_left: u128 = self.times[side as usize];
-        // let num_book_moves = 0;
-        // let n_moves = std::cmp::min(num_book_moves, 10);
-        // let factor = 2 - n_moves / 10;
-        // let target = time_left / <usize as TryInto<u128>>::try_into(self.moves_to_go).unwrap();
-        // let allocated_time = factor * target - comms_overhead;
+        let comms_overhead = 100;
+        let time_left: u128 = self.times[side as usize];
+        let num_book_moves = 0;
+        let n_moves = std::cmp::min(num_book_moves, 10);
+        let factor = 2 - n_moves / 10;
+        let target = time_left / <usize as TryInto<u128>>::try_into(self.moves_to_go).unwrap();
+        let allocated_time = factor * target - comms_overhead;
 
-        // if elapsed >= allocated_time {
-        //     return TeriminationStatus::Terminated;
-        // }
-        // let stopping_overhead = 20;
-        // if elapsed >= allocated_time - stopping_overhead {
-        //     return TeriminationStatus::Soon;
-        // }
+        if elapsed >= allocated_time {
+            return TeriminationStatus::Terminated;
+        }
+        let stopping_overhead = 20;
+        if elapsed >= allocated_time - stopping_overhead {
+            return TeriminationStatus::Soon;
+        }
         return TeriminationStatus::Distant;
     }
 

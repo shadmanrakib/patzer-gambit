@@ -17,8 +17,6 @@ mod zobrist;
 #[cfg(test)]
 mod tests;
 
-use incremental::inc_test;
-use searcher::Searcher;
 use uci::uci_loop;
 
 fn main() {

@@ -373,40 +373,39 @@ impl GameState {
                     self.castle_permissions.revoke_black();
                 }
             }
-        }
-        if move_item.piece == Piece::Rook {
-            match (side_moving, move_item.from_pos) {
-                (Player::White, 0) => {
+        } else if move_item.piece == Piece::Rook {
+            match move_item.from_pos {
+                0 => {
                     self.castle_permissions.revoke(u8::WHITE_QUEEN_SIDE);
                 }
-                (Player::White, 7) => {
+                7 => {
                     self.castle_permissions.revoke(u8::WHITE_KING_SIDE);
                 }
-                (Player::Black, 56) => {
+                56 => {
                     self.castle_permissions.revoke(u8::BLACK_QUEEN_SIDE);
                 }
-                (Player::Black, 63) => {
+                63 => {
                     self.castle_permissions.revoke(u8::BLACK_KING_SIDE);
                 }
-                (_, _) => {}
+                _ => {}
             }
         }
         if move_item.captured_piece == Piece::Rook {
-            // match (opponent, move_item.to_pos) {
-            //     (Player::White, 0) => {
-            //         self.castle_permissions.revoke(u8::WHITE_QUEEN_SIDE);
-            //     }
-            //     (Player::White, 7) => {
-            //         self.castle_permissions.revoke(u8::WHITE_KING_SIDE);
-            //     }
-            //     (Player::Black, 56) => {
-            //         self.castle_permissions.revoke(u8::BLACK_QUEEN_SIDE);
-            //     }
-            //     (Player::Black, 63) => {
-            //         self.castle_permissions.revoke(u8::BLACK_KING_SIDE);
-            //     }
-            //     (_, _) => {}
-            // }
+            match move_item.to_pos {
+                0 => {
+                    self.castle_permissions.revoke(u8::WHITE_QUEEN_SIDE);
+                }
+                7 => {
+                    self.castle_permissions.revoke(u8::WHITE_KING_SIDE);
+                }
+                56 => {
+                    self.castle_permissions.revoke(u8::BLACK_QUEEN_SIDE);
+                }
+                63 => {
+                    self.castle_permissions.revoke(u8::BLACK_KING_SIDE);
+                }
+                _ => {}
+            }
         }
 
         // side to play needs to change to opposite
@@ -435,84 +434,84 @@ impl GameState {
     }
 
     pub fn unmake_move(&mut self, zobrist: &ZobristHasher) {
-        let (move_item, unmake_metadata, prev_hash) = self.history.pop().unwrap();
+        if let Some((move_item, unmake_metadata, prev_hash)) = self.history.pop() {
+            // lets handle the easy undos
+            self.castle_permissions = unmake_metadata.prev_castle_permissions;
 
-        // lets handle the easy undos
-        self.castle_permissions = unmake_metadata.prev_castle_permissions;
-
-        self.half_move_clock = unmake_metadata.prev_half_move_clock;
-        self.enpassant_square = unmake_metadata.prev_enpassant_square;
-        if self.side_to_move == Player::White {
-            self.full_move_number -= 1;
-        }
-        self.side_to_move = self.side_to_move.opponent();
-        self.color *= -1;
-
-        // lets move the original piece to its position
-        self.place_piece(
-            self.side_to_move,
-            move_item.piece,
-            move_item.from_pos,
-            zobrist,
-        );
-
-        // lets remove the to piece preliminarly
-        self.remove_piece(self.side_to_move, move_item.to_pos, zobrist);
-
-        // lets place back the captured piece, if not enpassant
-        if move_item.capturing {
-            if !move_item.enpassant {
-                self.place_piece(
-                    self.side_to_move.opponent(),
-                    unmake_metadata.captured_piece,
-                    move_item.to_pos,
-                    zobrist,
-                );
-            } else {
-                // we have an enpassant so we need to do a bit more calculation
-                // for where to place the captured piece
-                let from = Square::from(move_item.from_pos);
-                let to = Square::from(move_item.to_pos);
-
-                let rank = from.rank;
-                let file = to.file;
-
-                let captured_square = Square::index(rank, file);
-
-                self.place_piece(
-                    self.side_to_move.opponent(),
-                    unmake_metadata.captured_piece,
-                    captured_square.into(),
-                    zobrist,
-                );
+            self.half_move_clock = unmake_metadata.prev_half_move_clock;
+            self.enpassant_square = unmake_metadata.prev_enpassant_square;
+            if self.side_to_move == Player::White {
+                self.full_move_number -= 1;
             }
-        }
+            self.side_to_move = self.side_to_move.opponent();
+            self.color *= -1;
 
-        if move_item.castling {
-            match (self.side_to_move, move_item.to_pos) {
-                (Player::White, 2) => {
-                    self.place_piece(self.side_to_move, Piece::Rook, 0, zobrist);
-                    self.remove_piece(self.side_to_move, 3, zobrist);
-                }
-                (Player::White, 6) => {
-                    self.place_piece(self.side_to_move, Piece::Rook, 7, zobrist);
-                    self.remove_piece(self.side_to_move, 5, zobrist);
-                }
-                (Player::Black, 58) => {
-                    self.place_piece(self.side_to_move, Piece::Rook, 56, zobrist);
-                    self.remove_piece(self.side_to_move, 59, zobrist);
-                }
-                (Player::Black, 62) => {
-                    self.place_piece(self.side_to_move, Piece::Rook, 63, zobrist);
-                    self.remove_piece(self.side_to_move, 61, zobrist);
-                }
-                (_, _) => {
-                    println!("{:?} {}", self.side_to_move, move_item.to_pos);
+            // lets move the original piece to its position
+            self.place_piece(
+                self.side_to_move,
+                move_item.piece,
+                move_item.from_pos,
+                zobrist,
+            );
+
+            // lets remove the to piece preliminarly
+            self.remove_piece(self.side_to_move, move_item.to_pos, zobrist);
+
+            // lets place back the captured piece, if not enpassant
+            if move_item.capturing {
+                if !move_item.enpassant {
+                    self.place_piece(
+                        self.side_to_move.opponent(),
+                        unmake_metadata.captured_piece,
+                        move_item.to_pos,
+                        zobrist,
+                    );
+                } else {
+                    // we have an enpassant so we need to do a bit more calculation
+                    // for where to place the captured piece
+                    let from = Square::from(move_item.from_pos);
+                    let to = Square::from(move_item.to_pos);
+
+                    let rank = from.rank;
+                    let file = to.file;
+
+                    let captured_square = Square::index(rank, file);
+
+                    self.place_piece(
+                        self.side_to_move.opponent(),
+                        unmake_metadata.captured_piece,
+                        captured_square.into(),
+                        zobrist,
+                    );
                 }
             }
-        }
 
-        self.hash = prev_hash;
+            if move_item.castling {
+                match move_item.to_pos {
+                    2 => {
+                        self.place_piece(self.side_to_move, Piece::Rook, 0, zobrist);
+                        self.remove_piece(self.side_to_move, 3, zobrist);
+                    }
+                    6 => {
+                        self.place_piece(self.side_to_move, Piece::Rook, 7, zobrist);
+                        self.remove_piece(self.side_to_move, 5, zobrist);
+                    }
+                    58 => {
+                        self.place_piece(self.side_to_move, Piece::Rook, 56, zobrist);
+                        self.remove_piece(self.side_to_move, 59, zobrist);
+                    }
+                    62 => {
+                        self.place_piece(self.side_to_move, Piece::Rook, 63, zobrist);
+                        self.remove_piece(self.side_to_move, 61, zobrist);
+                    }
+                    _ => {
+                        println!("{:?} {}", self.side_to_move, move_item.to_pos);
+                    }
+                }
+            }
+
+            self.hash = prev_hash;
+        }
     }
 
     pub fn make_null_move(&mut self, zobrist: &ZobristHasher) -> u64 {
@@ -532,22 +531,17 @@ impl GameState {
         let enpassant = self.enpassant_square;
         self.enpassant_square = 0;
 
-        // self.hash = zobrist.hash(self);
-
-        // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
-        // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
-        // self.hash ^= keys.enpassant[hash_enpassant_sq as usize]; // remove prev side from hash
-
         return enpassant;
     }
-    pub fn unmake_null_move(&mut self, enpassant: u64, zobrist: &ZobristHasher) {
-        let (move_item, unmake_metadata, prev_hash) = self.history.pop().unwrap();
+    pub fn unmake_null_move(&mut self, enpassant: u64) {
+        if let Some((move_item, unmake_metadata, prev_hash)) = self.history.pop() {
+            self.side_to_move = self.side_to_move.opponent();
+            self.enpassant_square = enpassant;
+            self.color *= -1;
+    
+            self.hash = prev_hash;
+        }
 
-        self.side_to_move = self.side_to_move.opponent();
-        self.enpassant_square = enpassant;
-        self.color *= -1;
-
-        self.hash = prev_hash;
     }
 
     #[inline(always)]

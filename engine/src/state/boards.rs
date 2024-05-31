@@ -90,14 +90,10 @@ impl Boards {
     }
     #[inline(always)]
     pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) {
-        // let removed = self.remove_piece(player.opponent(), pos);
-
         self.boards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
         self.pos_to_player[player as usize].set(pos);
         self.occupied.set(pos);
-
-        // return removed;
     }
 
     #[inline(always)]
