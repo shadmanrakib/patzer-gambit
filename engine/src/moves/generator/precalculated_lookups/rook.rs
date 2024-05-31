@@ -1,6 +1,6 @@
 use crate::{
     boards::BitBoard,
-    masks::{FILE_A_MASK, FILE_H_MASK, RANK_1_MASK, RANK_8_MASK, SQUARE_MASKS},
+    masks::{FILE_A_MASK, FILE_H_MASK, INVERTED_SQUARE_MASKS, RANK_1_MASK, RANK_8_MASK},
     square::Square,
 };
 
@@ -13,7 +13,7 @@ pub fn create_rook_potential_blockers_mask(pos: i8) -> u64 {
 
     let rank_mask = (RANK_1_MASK << (rank * 8)) & NOT_FILE_A_OR_H_MASK;
     let file_mask = (FILE_A_MASK << file) & NOT_RANK_1_OR_8_MASK;
-    let not_square = !SQUARE_MASKS[pos as usize];
+    let not_square = INVERTED_SQUARE_MASKS[pos as usize];
     let mask: u64 = (rank_mask | file_mask) & not_square;
 
     return mask;
