@@ -3,7 +3,10 @@ use regex::Regex;
 use super::{boards::Boards, pieces::Piece, player::Player, square::Square};
 use crate::{
     constants::masks::SQUARE_MASKS,
-    evaluation::{self, PHASE_INCREMENT_BY_PIECE, TOTAL_PHASE},
+    evaluation::{
+        self, ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
+        TOTAL_PHASE,
+    },
     fen,
     moves::{
         data::{MoveItem, UnmakeMoveMetadata},
@@ -13,16 +16,16 @@ use crate::{
         },
     },
     state::{boards::BitBoard, moves::MoveList},
-    zobrist::ZobristHasher,
+    zobrist::{self, ZobristHasher},
 };
 
 // we will make this a bitmap
 // abcd, a - white_queen_side, b - white_king_side, c - black_queen_side, d - black_king_side
 // ex 1100 -> KQ
 pub trait CastlePermissions {
-    const WHITE_KING_SIDE: u8 = (1 << 3);
-    const WHITE_QUEEN_SIDE: u8 = (1 << 3);
-    const BLACK_KING_SIDE: u8 = (1 << 3);
+    const WHITE_KING_SIDE: u8 = (1 << 0);
+    const WHITE_QUEEN_SIDE: u8 = (1 << 1);
+    const BLACK_KING_SIDE: u8 = (1 << 2);
     const BLACK_QUEEN_SIDE: u8 = (1 << 3);
     fn is_allowed(&self, perm: u8) -> bool;
     fn grant(&mut self, perm: u8);
@@ -59,7 +62,7 @@ pub struct EnpassantSquare {
 }
 
 // inspired by FEN notation
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct GameState {
     pub bitboards: Boards,
     pub side_to_move: Player,
@@ -71,15 +74,13 @@ pub struct GameState {
     // It marks the number of full moves. It starts at 1 and is incremented after black's move.
     pub full_move_number: u32,
 
-    // for 3 fold repetion
-    pub history: Vec<u64>,
+    // for 3 fold repetion and undoing
+    pub history: Vec<(MoveItem, UnmakeMoveMetadata, u64)>,
 
     // for pqst
     pub phase: i32,
     pub opening: [i32; 2],
     pub endgame: [i32; 2],
-    pub opening_pqst_score: i32,
-    pub endgame_pqst_score: i32,
     pub color: i32,
     pub hash: u64,
 }
@@ -94,8 +95,6 @@ impl GameState {
         self.half_move_clock = other.half_move_clock;
         self.full_move_number = other.full_move_number;
         self.phase = other.phase;
-        self.opening_pqst_score = other.opening_pqst_score;
-        self.endgame_pqst_score = other.endgame_pqst_score;
         self.color = other.color;
         self.opening = other.opening;
         self.endgame = other.endgame;
@@ -132,7 +131,13 @@ impl GameState {
         let last = self.history.last().unwrap();
         let mut count = 0;
         for i in (0..size).rev().step_by(2) {
-            if self.history[i] == *last {
+            // a piece was captured so the piece count got altered, so no way for same position to arise
+            // only way for that piece to reappear is potentially pawn promotion
+            // but that means we lose a pawn, so still unequal positions
+            if self.history[i].0.captured_piece != Piece::Empty {
+                return false;
+            }
+            if self.history[i].1 == last.1 {
                 count += 1;
 
                 if count >= 3 {
@@ -215,40 +220,66 @@ impl GameState {
 
     #[inline(always)]
     pub fn score(&self) -> i32 {
-        let player = self.side_to_move;
-        let color = if player == Player::White { 1 } else { -1 };
-        color * evaluation::eval(self)
+        self.color * evaluation::eval(self)
+    }
+
+    pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8, zobrist: &ZobristHasher) {
+        let removed = self.bitboards.place_piece(player, piece, pos);
+
+        // make incremental updates
+        // // removed piece updates
+        // let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
+        // self.opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
+        // self.endgame[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
+        // self.phase += PHASE_INCREMENT_BY_PIECE[removed as usize];
+        // self.hash ^= zobrist.pieces[player as usize][removed as usize][pos as usize];
+
+        // places piece updates
+        let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
+        self.opening[player as usize] += OPENING_PSQT_TABLES[piece as usize][pqst_pos];
+        self.endgame[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];
+        self.phase -= PHASE_INCREMENT_BY_PIECE[piece as usize];
+        self.hash ^= zobrist.pieces[player as usize][piece as usize][pos as usize];
+
+        // return removed;
+    }
+
+    #[inline(always)]
+    pub fn remove_piece(&mut self, player: Player, pos: i8, zobrist: &ZobristHasher) -> Piece {
+        let removed = self.bitboards.remove_piece(player, pos);
+
+        let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
+        self.opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
+        self.endgame[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
+        self.phase += PHASE_INCREMENT_BY_PIECE[removed as usize];
+        self.hash ^= zobrist.pieces[player as usize][removed as usize][pos as usize];
+
+        return removed;
     }
 
     pub fn make_move(
         &mut self,
-        move_item: &MoveItem,
+        move_item: MoveItem,
+        cache: &PrecalculatedCache,
         zobrist: &ZobristHasher,
-    ) -> UnmakeMoveMetadata {
-        // remove prev from hash
-        self.hash ^= zobrist.castling[self.castle_permissions as usize];
-        self.hash ^= zobrist.enpassant[self.enpassant_square.trailing_zeros() as usize];
-
+    ) -> bool {
+        // keep copies for undoing metadata
+        let prev_hash = self.hash;
         let prev_castle_permissions = self.castle_permissions.clone();
         let prev_enpassant_square = self.enpassant_square;
         let prev_half_move_clock = self.half_move_clock;
 
-        // ==============================================
+        // remove prev from hash
+        self.hash ^= zobrist.castling[self.castle_permissions as usize];
+        self.hash ^= zobrist.enpassant[self.enpassant_square.trailing_zeros() as usize];
 
+        // start making the move
         let side_moving = self.side_to_move;
         let opponent = side_moving.opponent();
 
         // lets now make the move
         // all other moves get handled
-        self.bitboards.remove_piece(
-            side_moving,
-            move_item.from_pos,
-            &mut self.phase,
-            &mut self.opening,
-            &mut self.endgame,
-            &mut self.hash,
-            zobrist,
-        );
+        self.remove_piece(side_moving, move_item.from_pos, zobrist);
 
         if move_item.piece == Piece::Pawn {
             let final_piece = if !move_item.promoting {
@@ -264,145 +295,34 @@ impl GameState {
 
                 let leftover = Square::index(rank, file);
 
-                self.bitboards.remove_piece(
-                    opponent,
-                    leftover,
-                    &mut self.phase,
-                    &mut self.opening,
-                    &mut self.endgame,
-                    &mut self.hash,
-                    zobrist,
-                );
+                self.remove_piece(opponent, leftover, zobrist);
             } else {
-                self.bitboards.remove_piece(
-                    opponent,
-                    move_item.to_pos,
-                    &mut self.phase,
-                    &mut self.opening,
-                    &mut self.endgame,
-                    &mut self.hash,
-                    zobrist,
-                );
+                self.remove_piece(opponent, move_item.to_pos, zobrist);
             }
 
-            self.bitboards.place_piece(
-                side_moving,
-                final_piece,
-                move_item.to_pos,
-                &mut self.phase,
-                &mut self.opening,
-                &mut self.endgame,
-                &mut self.hash,
-                zobrist,
-            );
+            self.place_piece(side_moving, final_piece, move_item.to_pos, zobrist);
         } else {
-            self.bitboards.remove_piece(
-                opponent,
-                move_item.to_pos,
-                &mut self.phase,
-                &mut self.opening,
-                &mut self.endgame,
-                &mut self.hash,
-                zobrist,
-            );
-
-            self.bitboards.place_piece(
-                side_moving,
-                move_item.piece,
-                move_item.to_pos,
-                &mut self.phase,
-                &mut self.opening,
-                &mut self.endgame,
-                &mut self.hash,
-                zobrist,
-            );
+            self.remove_piece(opponent, move_item.to_pos, zobrist);
+            self.place_piece(side_moving, move_item.piece, move_item.to_pos, zobrist);
 
             if move_item.castling {
                 // move rook to place
                 match (self.side_to_move, move_item.to_pos) {
                     (Player::White, 2) => {
-                        self.bitboards.remove_piece(
-                            side_moving,
-                            0,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
-                        self.bitboards.place_piece(
-                            side_moving,
-                            Piece::Rook,
-                            3,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
+                        self.remove_piece(side_moving, 0, zobrist);
+                        self.place_piece(side_moving, Piece::Rook, 3, zobrist);
                     }
                     (Player::White, 6) => {
-                        self.bitboards.remove_piece(
-                            side_moving,
-                            7,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
-                        self.bitboards.place_piece(
-                            side_moving,
-                            Piece::Rook,
-                            5,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
+                        self.remove_piece(side_moving, 7, zobrist);
+                        self.place_piece(side_moving, Piece::Rook, 5, zobrist);
                     }
                     (Player::Black, 58) => {
-                        self.bitboards.remove_piece(
-                            side_moving,
-                            56,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
-                        self.bitboards.place_piece(
-                            side_moving,
-                            Piece::Rook,
-                            59,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
+                        self.remove_piece(side_moving, 56, zobrist);
+                        self.place_piece(side_moving, Piece::Rook, 59, zobrist);
                     }
                     (Player::Black, 62) => {
-                        self.bitboards.remove_piece(
-                            side_moving,
-                            63,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
-                        self.bitboards.place_piece(
-                            side_moving,
-                            Piece::Rook,
-                            61,
-                            &mut self.phase,
-                            &mut self.opening,
-                            &mut self.endgame,
-                            &mut self.hash,
-                            zobrist,
-                        );
+                        self.remove_piece(side_moving, 63, zobrist);
+                        self.place_piece(side_moving, Piece::Rook, 61, zobrist);
                     }
                     (_, _) => {
                         // TODO: handle error
@@ -432,7 +352,7 @@ impl GameState {
                     to_rank + 1
                 }
             };
-            self.enpassant_square = SQUARE_MASKS[Square::index(enpassant_rank, file) as usize];
+            self.enpassant_square = 1 << Square::index(enpassant_rank, file);
         } else {
             self.enpassant_square = 0;
         }
@@ -472,21 +392,21 @@ impl GameState {
             }
         }
         if move_item.captured_piece == Piece::Rook {
-            match (opponent, move_item.to_pos) {
-                (Player::White, 0) => {
-                    self.castle_permissions.revoke(u8::WHITE_QUEEN_SIDE);
-                }
-                (Player::White, 7) => {
-                    self.castle_permissions.revoke(u8::WHITE_KING_SIDE);
-                }
-                (Player::Black, 56) => {
-                    self.castle_permissions.revoke(u8::BLACK_QUEEN_SIDE);
-                }
-                (Player::Black, 63) => {
-                    self.castle_permissions.revoke(u8::BLACK_KING_SIDE);
-                }
-                (_, _) => {}
-            }
+            // match (opponent, move_item.to_pos) {
+            //     (Player::White, 0) => {
+            //         self.castle_permissions.revoke(u8::WHITE_QUEEN_SIDE);
+            //     }
+            //     (Player::White, 7) => {
+            //         self.castle_permissions.revoke(u8::WHITE_KING_SIDE);
+            //     }
+            //     (Player::Black, 56) => {
+            //         self.castle_permissions.revoke(u8::BLACK_QUEEN_SIDE);
+            //     }
+            //     (Player::Black, 63) => {
+            //         self.castle_permissions.revoke(u8::BLACK_KING_SIDE);
+            //     }
+            //     (_, _) => {}
+            // }
         }
 
         // side to play needs to change to opposite
@@ -498,23 +418,25 @@ impl GameState {
         self.hash ^= zobrist.enpassant[self.enpassant_square.trailing_zeros() as usize];
         self.hash ^= zobrist.side_to_move;
 
-        // self.hash = zobrist.hash(self);
-        self.history.push(self.hash);
-
-        UnmakeMoveMetadata {
+        let unmake_metadata = UnmakeMoveMetadata {
             captured_piece: move_item.captured_piece,
             prev_castle_permissions,
             prev_enpassant_square,
             prev_half_move_clock,
+        };
+        self.history.push((move_item, unmake_metadata, prev_hash));
+
+        if self.in_check(self.side_to_move.opponent(), cache) {
+            self.unmake_move(zobrist);
+            return false;
         }
+
+        true
     }
 
-    pub fn unmake_move(
-        &mut self,
-        move_item: &MoveItem,
-        unmake_metadata: UnmakeMoveMetadata,
-        zobrist: &ZobristHasher,
-    ) {
+    pub fn unmake_move(&mut self, zobrist: &ZobristHasher) {
+        let (move_item, unmake_metadata, prev_hash) = self.history.pop().unwrap();
+
         // lets handle the easy undos
         self.castle_permissions = unmake_metadata.prev_castle_permissions;
 
@@ -527,39 +449,23 @@ impl GameState {
         self.color *= -1;
 
         // lets move the original piece to its position
-        self.bitboards.place_piece(
+        self.place_piece(
             self.side_to_move,
             move_item.piece,
             move_item.from_pos,
-            &mut self.phase,
-            &mut self.opening,
-            &mut self.endgame,
-            &mut self.hash,
             zobrist,
         );
 
         // lets remove the to piece preliminarly
-        self.bitboards.remove_piece(
-            self.side_to_move,
-            move_item.to_pos,
-            &mut self.phase,
-            &mut self.opening,
-            &mut self.endgame,
-            &mut self.hash,
-            zobrist,
-        );
+        self.remove_piece(self.side_to_move, move_item.to_pos, zobrist);
 
         // lets place back the captured piece, if not enpassant
         if move_item.capturing {
             if !move_item.enpassant {
-                self.bitboards.place_piece(
+                self.place_piece(
                     self.side_to_move.opponent(),
                     unmake_metadata.captured_piece,
                     move_item.to_pos,
-                    &mut self.phase,
-                    &mut self.opening,
-                    &mut self.endgame,
-                    &mut self.hash,
                     zobrist,
                 );
             } else {
@@ -573,14 +479,10 @@ impl GameState {
 
                 let captured_square = Square::index(rank, file);
 
-                self.bitboards.place_piece(
+                self.place_piece(
                     self.side_to_move.opponent(),
                     unmake_metadata.captured_piece,
                     captured_square.into(),
-                    &mut self.phase,
-                    &mut self.opening,
-                    &mut self.endgame,
-                    &mut self.hash,
                     zobrist,
                 );
             }
@@ -589,88 +491,20 @@ impl GameState {
         if move_item.castling {
             match (self.side_to_move, move_item.to_pos) {
                 (Player::White, 2) => {
-                    self.bitboards.place_piece(
-                        self.side_to_move,
-                        Piece::Rook,
-                        0,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
-                    self.bitboards.remove_piece(
-                        self.side_to_move,
-                        3,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
+                    self.place_piece(self.side_to_move, Piece::Rook, 0, zobrist);
+                    self.remove_piece(self.side_to_move, 3, zobrist);
                 }
                 (Player::White, 6) => {
-                    self.bitboards.place_piece(
-                        self.side_to_move,
-                        Piece::Rook,
-                        7,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
-                    self.bitboards.remove_piece(
-                        self.side_to_move,
-                        5,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
+                    self.place_piece(self.side_to_move, Piece::Rook, 7, zobrist);
+                    self.remove_piece(self.side_to_move, 5, zobrist);
                 }
                 (Player::Black, 58) => {
-                    self.bitboards.place_piece(
-                        self.side_to_move,
-                        Piece::Rook,
-                        56,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
-                    self.bitboards.remove_piece(
-                        self.side_to_move,
-                        59,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
+                    self.place_piece(self.side_to_move, Piece::Rook, 56, zobrist);
+                    self.remove_piece(self.side_to_move, 59, zobrist);
                 }
                 (Player::Black, 62) => {
-                    self.bitboards.place_piece(
-                        self.side_to_move,
-                        Piece::Rook,
-                        63,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
-                    self.bitboards.remove_piece(
-                        self.side_to_move,
-                        61,
-                        &mut self.phase,
-                        &mut self.opening,
-                        &mut self.endgame,
-                        &mut self.hash,
-                        zobrist,
-                    );
+                    self.place_piece(self.side_to_move, Piece::Rook, 63, zobrist);
+                    self.remove_piece(self.side_to_move, 61, zobrist);
                 }
                 (_, _) => {
                     println!("{:?} {}", self.side_to_move, move_item.to_pos);
@@ -678,22 +512,27 @@ impl GameState {
             }
         }
 
-        self.history.pop();
-        if let Some(hash) = self.history.last() {
-            self.hash = hash.clone();
-        }
+        self.hash = prev_hash;
     }
 
     pub fn make_null_move(&mut self, zobrist: &ZobristHasher) -> u64 {
+        let null_unmake = UnmakeMoveMetadata {
+            prev_castle_permissions: self.castle_permissions,
+            prev_enpassant_square: self.enpassant_square,
+            prev_half_move_clock: self.half_move_clock,
+            captured_piece: Piece::Empty,
+        };
+        self.history.push((MoveItem::NULL, null_unmake, self.hash));
+
         self.hash ^= zobrist.side_to_move; // change opponents
         self.hash ^= zobrist.enpassant[self.enpassant_square.trailing_zeros() as usize]; // remove enpassant from hash
+        self.color *= -1;
 
         self.side_to_move = self.side_to_move.opponent();
         let enpassant = self.enpassant_square;
         self.enpassant_square = 0;
 
         // self.hash = zobrist.hash(self);
-        self.history.push(self.hash);
 
         // self.hash ^= keys.side_to_move[self.side_to_move as usize]; // add new side to hash
         // let hash_enpassant_sq = std::cmp::min(self.enpassant_square.trailing_zeros(), 63) as usize;
@@ -701,16 +540,14 @@ impl GameState {
 
         return enpassant;
     }
-    pub fn unmake_null_move(&mut self, enpassant: u64, zobrist: &ZobristHasher) -> u64 {
+    pub fn unmake_null_move(&mut self, enpassant: u64, zobrist: &ZobristHasher) {
+        let (move_item, unmake_metadata, prev_hash) = self.history.pop().unwrap();
+
         self.side_to_move = self.side_to_move.opponent();
         self.enpassant_square = enpassant;
+        self.color *= -1;
 
-        self.history.pop();
-        if let Some(hash) = self.history.last() {
-            self.hash = hash.clone();
-        }
-
-        return enpassant;
+        self.hash = prev_hash;
     }
 
     #[inline(always)]
@@ -800,7 +637,7 @@ impl GameState {
         }
 
         let mut game = GameState {
-            bitboards: fen::parse_fen_board(parts[0], zobrist).unwrap(),
+            bitboards: fen::parse_fen_board(parts[0]).unwrap(),
             side_to_move: fen::parse_fen_side(parts[1]).unwrap(),
             castle_permissions: fen::parse_fen_castle(parts[2]).unwrap(),
             enpassant_square: fen::parse_fen_enpassant(parts[3]).unwrap(),
@@ -809,8 +646,6 @@ impl GameState {
             // temp values
             history: Vec::new(),
             phase: 0,
-            opening_pqst_score: 0,
-            endgame_pqst_score: 0,
             color: 0,
             opening: [0, 0],
             endgame: [0, 0],
@@ -821,8 +656,6 @@ impl GameState {
         game.phase = phase;
         game.opening = opening;
         game.endgame = endgame;
-        game.opening_pqst_score = opening[0] - opening[1];
-        game.endgame_pqst_score = endgame[0] - endgame[1];
         game.color = if game.side_to_move == Player::White {
             1
         } else {
@@ -830,7 +663,7 @@ impl GameState {
         };
 
         game.hash = zobrist.hash(&game);
-        game.history = vec![game.hash];
+        game.history = vec![];
 
         // need to make this cleaner
         return Ok(game);

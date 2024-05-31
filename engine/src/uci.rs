@@ -49,7 +49,9 @@ fn parse_position(searcher: &mut Searcher, parts: &Vec<&str>) {
             .position
             .notation_to_move(parts[idx].into(), &searcher.cache)
         {
-            Ok(move_item) => searcher.make_move(&move_item),
+            Ok(move_item) => {
+                searcher.make_move(move_item);
+            }
             Err(_) => {
                 searcher.position = old_pos;
                 break;
@@ -189,10 +191,7 @@ pub fn uci_loop() {
             "play" => {
                 let mut s = searcher.lock().unwrap();
                 if parts.len() > 1 {
-                    let m = s.position.notation_to_move(parts[1].into(), &s.cache);
-                    if let Ok(move_item) = m {
-                        s.make_move(&move_item);
-                    }
+                    s.play(parts[1].into());
                 }
             }
             _ => {}

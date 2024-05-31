@@ -87,7 +87,6 @@ mod tests {
 
         let stopped = Arc::new(AtomicBool::new(false));
         let searcher = Arc::new(Mutex::new(Searcher::new()));
-        println!("hey");
 
         for (mate4_fen, mate4_ans) in mate4s {
             searcher.lock().unwrap().fen(mate4_fen.into()).unwrap();

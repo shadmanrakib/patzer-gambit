@@ -55,7 +55,7 @@ impl MoveItem {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UnmakeMoveMetadata {
     pub prev_castle_permissions: u8,
     // 0-7 maps to columns A-H, 8 is none

@@ -71,12 +71,11 @@ fn inc_test_fn(
         false,
     );
     for index in 0..move_list.len() {
-        let move_item = &move_list.moves[index];
-        let unmake_metadata = game.make_move(move_item, zobrist);
-        if !game.in_check(game.side_to_move.opponent(), cache) {
+        let move_item = move_list.moves[index].clone();
+        if game.make_move(move_item, cache, zobrist) {
             _inc_test(game, cache, depth - 1, zobrist);
+            game.unmake_move(zobrist);
         }
-        game.unmake_move(&move_item, unmake_metadata, zobrist);
     }
 
     let elapsed = now.elapsed();
@@ -130,13 +129,10 @@ fn _inc_test(
         false,
     );
     for index in 0..move_list.len() {
-        let move_item = &move_list.moves[index];
-        let unmake_metadata = game.make_move(move_item, zobrist);
-        // must do opponent since make move toggles opponents
-        if !game.in_check(game.side_to_move.opponent(), cache) {
+        let move_item = move_list.moves[index].clone();
+        if game.make_move(move_item, cache, zobrist) {
             _inc_test(game, cache, depth - 1, zobrist);
+            game.unmake_move(zobrist);
         }
-        // replace with unset
-        game.unmake_move(&move_item, unmake_metadata, zobrist);
     }
 }

@@ -5,21 +5,22 @@ mod moves;
 mod search;
 mod state;
 
-mod searcher;
-mod uci;
-mod time;
 mod incremental;
-mod zobrist;
-mod transposition;
-mod searchinfo;
 mod perft;
+mod searcher;
+mod searchinfo;
+mod time;
+mod transposition;
+mod uci;
+mod zobrist;
 
 #[cfg(test)]
 mod tests;
 
+use incremental::inc_test;
+use searcher::Searcher;
 use uci::uci_loop;
 
 fn main() {
-    // inc_test();
     uci_loop();
 }

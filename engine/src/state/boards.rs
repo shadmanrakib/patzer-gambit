@@ -88,67 +88,26 @@ impl Boards {
     pub fn get_board_by_piece(&self, player: Player, piece: Piece) -> &u64 {
         return &self.boards[player as usize][piece as usize];
     }
-
     #[inline(always)]
-    pub fn place_piece(
-        &mut self,
-        player: Player,
-        piece: Piece,
-        pos: i8,
-        phase: &mut i32,
-        opening: &mut [i32; 2],
-        endgame: &mut [i32; 2],
-        hash: &mut u64,
-        keys: &ZobristHasher,
-    ) -> Piece {
-        let removed =
-            self.remove_piece(player.opponent(), pos, phase, opening, endgame, hash, keys);
+    pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) {
+        // let removed = self.remove_piece(player.opponent(), pos);
 
         self.boards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
         self.pos_to_player[player as usize].set(pos);
         self.occupied.set(pos);
 
-        let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
-        opening[player as usize] += OPENING_PSQT_TABLES[piece as usize][pqst_pos];
-        endgame[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];
-        *phase -= PHASE_INCREMENT_BY_PIECE[piece as usize];
-
-        *hash ^= keys.pieces[player as usize][piece as usize][pos as usize];
-        // *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
-
-        return removed;
+        // return removed;
     }
 
     #[inline(always)]
-    pub fn remove_piece(
-        &mut self,
-        player: Player,
-        pos: i8,
-        phase: &mut i32,
-        opening: &mut [i32; 2],
-        endgame: &mut [i32; 2],
-        hash: &mut u64,
-        keys: &ZobristHasher,
-    ) -> Piece {
+    pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
+        
         self.pos_to_piece[pos as usize] = Piece::Empty;
         self.boards[player as usize][removed as usize].unset(pos);
         self.pos_to_player[player as usize].unset(pos);
         self.occupied.unset(pos);
-
-        // let pqst_pos = if player == Player::White {
-        //     pos
-        // } else {
-        //     pos ^ 56
-        // } as usize;
-        let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
-        opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
-        endgame[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
-        *phase += PHASE_INCREMENT_BY_PIECE[removed as usize];
-
-        *hash ^= keys.pieces[player as usize][removed as usize][pos as usize];
-        // *hash ^= keys.pieces[player as usize][Piece::Empty as usize][pos as usize];
 
         return removed;
     }

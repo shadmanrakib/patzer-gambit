@@ -1,12 +1,14 @@
 use regex::Regex;
 
-use crate::{
-    state::{
-        boards::{BitBoard, Boards}, game::{CastlePermissions, GameState}, pieces::Piece, player::Player, square::Square,
-    }, zobrist::ZobristHasher
+use crate::state::{
+    boards::{BitBoard, Boards},
+    game::{CastlePermissions, GameState},
+    pieces::Piece,
+    player::Player,
+    square::Square,
 };
 
-pub fn parse_fen_board(part: &str, keys: &ZobristHasher) -> Result<Boards, String> {
+pub fn parse_fen_board(part: &str) -> Result<Boards, String> {
     let mut bitboards: Boards = Default::default();
     // part 1 parsing
     let splitted: Vec<&str> = part.split("/").collect();
@@ -20,159 +22,51 @@ pub fn parse_fen_board(part: &str, keys: &ZobristHasher) -> Result<Boards, Strin
         for c in rank_str.chars() {
             match c {
                 'p' => {
-                    bitboards.place_piece(
-                        Player::Black,
-                        Piece::Pawn,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::Black, Piece::Pawn, pos);
                     pos += 1;
                 }
                 'r' => {
-                    bitboards.place_piece(
-                        Player::Black,
-                        Piece::Rook,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::Black, Piece::Rook, pos);
                     pos += 1;
                 }
                 'n' => {
-                    bitboards.place_piece(
-                        Player::Black,
-                        Piece::Knight,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::Black, Piece::Knight, pos);
                     pos += 1;
                 }
                 'b' => {
-                    bitboards.place_piece(
-                        Player::Black,
-                        Piece::Bishop,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::Black, Piece::Bishop, pos);
                     pos += 1;
                 }
                 'q' => {
-                    bitboards.place_piece(
-                        Player::Black,
-                        Piece::Queen,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::Black, Piece::Queen, pos);
                     pos += 1;
                 }
                 'k' => {
-                    bitboards.place_piece(
-                        Player::Black,
-                        Piece::King,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::Black, Piece::King, pos);
                     pos += 1;
                 }
                 'P' => {
-                    bitboards.place_piece(
-                        Player::White,
-                        Piece::Pawn,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::White, Piece::Pawn, pos);
                     pos += 1;
                 }
                 'R' => {
-                    bitboards.place_piece(
-                        Player::White,
-                        Piece::Rook,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::White, Piece::Rook, pos);
                     pos += 1;
                 }
                 'N' => {
-                    bitboards.place_piece(
-                        Player::White,
-                        Piece::Knight,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::White, Piece::Knight, pos);
                     pos += 1;
                 }
                 'B' => {
-                    bitboards.place_piece(
-                        Player::White,
-                        Piece::Bishop,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::White, Piece::Bishop, pos);
                     pos += 1;
                 }
                 'Q' => {
-                    bitboards.place_piece(
-                        Player::White,
-                        Piece::Queen,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::White, Piece::Queen, pos);
                     pos += 1;
                 }
                 'K' => {
-                    bitboards.place_piece(
-                        Player::White,
-                        Piece::King,
-                        pos,
-                        &mut 0,
-                        &mut [0, 0],
-                        &mut [0, 0],
-                        &mut 0,
-                        keys,
-                    );
+                    bitboards.place_piece(Player::White, Piece::King, pos);
                     pos += 1;
                 }
                 '0'..='8' => {
@@ -194,7 +88,7 @@ pub fn parse_fen_side(part: &str) -> Result<Player, String> {
 }
 
 pub fn parse_fen_enpassant(part: &str) -> Result<u64, String> {
-    let re = Regex::new(r"^[a-h][1-8]$") .unwrap();
+    let re = Regex::new(r"^[a-h][1-8]$").unwrap();
     match part {
         "-" => Ok(0),
         part3 if re.is_match(part3) => {

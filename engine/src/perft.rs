@@ -10,7 +10,7 @@ pub fn perft(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristHasher,
+    zobrist: &ZobristHasher,
 ) -> u64 {
     let now = Instant::now();
 
@@ -28,18 +28,15 @@ pub fn perft(
         cache,
         false,
     );
+
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
-
-        let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item, keys);
-        // must do opponent since make move toggles opponents
-        if !game.in_check(player, cache) {
-            let move_nodes = _perft(game, cache, depth - 1, keys);
+        if game.make_move(move_item.clone(), cache, zobrist) {
+            let move_nodes = _perft(game, cache, depth - 1, zobrist);
             nodes += move_nodes;
             println!("{}: {}", move_item.notation(), move_nodes);
+            game.unmake_move(zobrist);
         }
-        game.unmake_move(&move_item, unmake_metadata, keys);
     }
 
     let elapsed = now.elapsed();
@@ -53,7 +50,7 @@ fn _perft(
     game: &mut GameState,
     cache: &PrecalculatedCache,
     depth: u16,
-    keys: &ZobristHasher,
+    zobrist: &ZobristHasher,
 ) -> u64 {
     let mut nodes = 0;
 
@@ -69,16 +66,14 @@ fn _perft(
         cache,
         false,
     );
+
     for index in 0..move_list.len() {
         let move_item = &move_list.moves[index];
-        let player = game.side_to_move;
-        let unmake_metadata = game.make_move(move_item, keys);
-        // must do opponent since make move toggles opponents
-        if !game.in_check(player, cache) {
-            let move_nodes = _perft(game, cache, depth - 1, keys);
+        if game.make_move(move_item.clone(), cache, zobrist) {
+            let move_nodes = _perft(game, cache, depth - 1, zobrist);
             nodes += move_nodes;
+            game.unmake_move(zobrist);
         }
-        game.unmake_move(&move_item, unmake_metadata, keys);
     }
 
     return nodes;

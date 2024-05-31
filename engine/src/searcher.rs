@@ -50,8 +50,25 @@ impl Searcher {
         self.position = GameState::from_fen(fen, &self.zobrist)?;
         Ok(())
     }
-    pub fn make_move(&mut self, move_item: &MoveItem) {
-        self.position.make_move(move_item, &self.zobrist);
+    pub fn make_move(&mut self, move_item: MoveItem) -> bool {
+        self.position
+            .make_move(move_item, &self.cache, &self.zobrist)
+    }
+    pub fn unmake_move(&mut self) {
+        self.position.unmake_move(&self.zobrist)
+    }
+    pub fn make_null_move(&mut self) -> u64 {
+        self.position.make_null_move(&self.zobrist)
+    }
+    pub fn unmake_null_move(&mut self, enpassant: u64) {
+        self.position.unmake_null_move(enpassant, &self.zobrist);
+    }
+    pub fn play(&mut self, notation: String) -> bool {
+        let m = self.position.notation_to_move(notation, &self.cache);
+        if let Ok(move_item) = m {
+            return self.make_move(move_item);
+        }
+        false
     }
     pub fn perft(&mut self, depth: u16) -> u64 {
         perft::perft(&mut self.position, &self.cache, depth, &self.zobrist)
@@ -73,7 +90,7 @@ impl Searcher {
                         if let Ok(move_item) =
                             position.notation_to_move(notation.clone(), &self.cache)
                         {
-                            position.make_move(&move_item, &self.zobrist);
+                            position.make_move(move_item, &self.cache, &self.zobrist);
                         } else {
                             println!("Not found {}", notation);
                         }
@@ -224,10 +241,9 @@ impl Searcher {
         // && standpat >= beta
         {
             let r = 2;
-            let prev_enpassant = self.position.make_null_move(&self.zobrist);
+            let prev_enpassant = self.make_null_move();
             let null_score = -self.negamax(depth - 1 - r, ply + 1, max_ply, -beta, -beta + 1, info);
-            self.position
-                .unmake_null_move(prev_enpassant, &self.zobrist);
+            self.unmake_null_move(prev_enpassant);
 
             if null_score >= beta {
                 return beta;
@@ -252,18 +268,12 @@ impl Searcher {
 
         for index in 0..moveslist.len() {
             moveslist.sort_move(index);
-            let move_item = &moveslist.moves[index];
-            let unmake_metadata = self.position.make_move(&move_item, &self.zobrist);
+            let move_item = moveslist.moves[index].clone();
 
             // illegal move
-            if self
-                .position
-                .in_check(self.position.side_to_move.opponent(), &self.cache)
-            {
-                self.position
-                    .unmake_move(&move_item, unmake_metadata, &self.zobrist);
+            if !self.make_move(move_item.clone()) {
                 continue;
-            };
+            }
 
             legal_moves_count += 1;
 
@@ -298,8 +308,7 @@ impl Searcher {
                 }
             }
 
-            self.position
-                .unmake_move(&move_item, unmake_metadata, &self.zobrist);
+            self.unmake_move();
 
             moves_searched += 1;
 
@@ -318,12 +327,12 @@ impl Searcher {
 
             if score >= beta {
                 if !move_item.capturing {
-                    store_killer_move(&mut info.killer_moves, move_item, ply as usize);
+                    store_killer_move(&mut info.killer_moves, &move_item, ply as usize);
                 }
 
                 self.tt.record(
                     self.position.hash,
-                    move_item.into(),
+                    (&move_item).into(),
                     score,
                     depth,
                     NodeType::Cut,
@@ -384,9 +393,7 @@ impl Searcher {
         info.maximize_seldepth(ply);
 
         let player = self.position.side_to_move;
-        let color = if player == Player::White { 1 } else { -1 };
-
-        let stand_pat = color * evaluation::eval(&self.position);
+        let stand_pat = self.position.score();
 
         if ply == max_ply {
             return stand_pat;
@@ -408,24 +415,16 @@ impl Searcher {
 
         for i in 0..moveslist.len() {
             moveslist.sort_move(i);
-            let move_item: &MoveItem = &moveslist.moves[i];
-
-            let unmake_metadata = self.position.make_move(move_item, &self.zobrist);
-
-            if self
-                .position
-                .in_check(self.position.side_to_move.opponent(), &self.cache)
-            {
-                self.position
-                    .unmake_move(move_item, unmake_metadata, &self.zobrist);
+            let move_item = moveslist.moves[i].clone();
+            // illegal move
+            if !self.make_move(move_item) {
                 continue;
             }
 
             // The position is not yet quiet. Go one ply deeper.
             let score = -self.quiescence(ply + 1, max_ply, -beta, -alpha, info);
 
-            self.position
-                .unmake_move(move_item, unmake_metadata, &self.zobrist);
+            self.unmake_move();
 
             // beta cutoff
             if score >= beta {
