@@ -1,14 +1,9 @@
 use std::time::Instant;
 
 use crate::{
-    moves::{
-        data::MoveItem,
-        generator::{
-            movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
-        },
-    },
-    movescoring::{score_captures, score_moves},
-    mv::{MoveList, SimpleMove},
+    lookups::Lookups,
+    moves::generator::movegen::generate_pseudolegal_moves,
+    mv::{Move, MoveList, SimpleMove},
     perft,
     pieces::Piece,
     position::GameState,
@@ -25,7 +20,7 @@ pub const STALEMATE: i32 = 0;
 pub const CHECKMATE: i32 = NEG_INF;
 
 pub struct Searcher {
-    pub cache: PrecalculatedCache,
+    pub cache: Lookups,
     pub zobrist: ZobristHasher,
     pub tt: TTable,
     pub position: GameState,
@@ -35,7 +30,7 @@ impl Searcher {
     pub fn new() -> Searcher {
         let zobrist = ZobristHasher::init();
         Searcher {
-            cache: PrecalculatedCache::create(),
+            cache: Lookups::create(),
             position: GameState::new(&zobrist),
             zobrist,
             tt: TTable::init(TRANSITION_TABLE_ADDRESSING_BITS),
@@ -48,7 +43,7 @@ impl Searcher {
         self.position = GameState::from_fen(fen, &self.zobrist)?;
         Ok(())
     }
-    pub fn make_move(&mut self, move_item: MoveItem) -> bool {
+    pub fn make_move(&mut self, move_item: Move) -> bool {
         self.position
             .make_move(move_item, &self.cache, &self.zobrist)
     }
@@ -244,9 +239,7 @@ impl Searcher {
             .in_check(self.position.side_to_move, &self.cache);
 
         // null pruning
-        if !in_check && depth >= 3 && ply != 0 && self.position.phase < 180
-        // && standpat >= beta
-        {
+        if !in_check && depth >= 3 && ply != 0 && self.position.phase < 180 {
             let r = 2;
             let prev_enpassant = self.make_null_move();
             let null_score = -self.negamax(depth - 1 - r, ply + 1, max_ply, -beta, -beta + 1, info);
@@ -267,7 +260,7 @@ impl Searcher {
 
         let mut moveslist = MoveList::new();
         generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, false);
-        score_moves(&mut moveslist, info, ply as usize, &tt_move);
+        moveslist.score_moves(info, ply as usize, &tt_move);
         let mut legal_moves_count: u8 = 0;
         let mut moves_searched = 0;
 
@@ -319,10 +312,6 @@ impl Searcher {
 
             moves_searched += 1;
 
-            // let interupted =
-            //     info.controller
-            //         .should_stop(true, player, info.total_nodes, ply, false);
-
             if score > best_score {
                 best_score = score;
                 best_move_idx = index as i32;
@@ -344,7 +333,6 @@ impl Searcher {
                     depth,
                     NodeType::Cut,
                     draw || info.terimination_status == TeriminationStatus::Terminated,
-                    // interupted || draw,
                 );
 
                 return score;
@@ -373,7 +361,6 @@ impl Searcher {
             depth,
             node_type,
             best_draw || info.terimination_status == TeriminationStatus::Terminated,
-            // best_draw || interupted,
         );
 
         best_score
@@ -420,7 +407,7 @@ impl Searcher {
 
         let mut moveslist = MoveList::new();
         generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, true);
-        score_captures(&mut moveslist);
+        moveslist.score_captures();
 
         for i in 0..moveslist.len() {
             moveslist.sort_move(i);

@@ -1,10 +1,13 @@
-use crate::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
-use crate::moves::data::MoveItem;
-use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
-use crate::boards::BitBoard;
-use crate::mv::MoveList;
-use crate::square::Square;
-use crate::{position::GameState, pieces::Piece, player::Player};
+use crate::{
+    boards::BitBoard,
+    lookups::Lookups,
+    masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK},
+    mv::{Move, MoveList},
+    pieces::Piece,
+    player::Player,
+    position::GameState,
+    square::Square,
+};
 
 // use crate::masks::RANK_1_MASK;
 
@@ -14,7 +17,7 @@ pub fn generate_pawn_moves(
     movelist: &mut MoveList,
     game: &GameState,
     player: Player,
-    cache: &PrecalculatedCache,
+    cache: &Lookups,
     only_captures: bool,
 ) {
     generate_pawn_attack_moves(movelist, game, player, cache);
@@ -56,7 +59,7 @@ pub fn generate_pawn_single_forward_moves(
             // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
             let promotion_pieces = [Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
             for promotion_piece in promotion_pieces {
-                movelist.push(MoveItem {
+                movelist.push(Move {
                     from_pos: from.into(),
                     to_pos: to.into(),
                     piece: Piece::Pawn,
@@ -71,7 +74,7 @@ pub fn generate_pawn_single_forward_moves(
                 })
             }
         } else {
-            movelist.push(MoveItem {
+            movelist.push(Move {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::Pawn,
@@ -120,7 +123,7 @@ pub fn generate_pawn_double_forward_moves(
             Player::Black => pos + 16,
         };
 
-        movelist.push(MoveItem {
+        movelist.push(Move {
             from_pos: from,
             to_pos: pos,
             piece: Piece::Pawn,
@@ -141,7 +144,7 @@ pub fn generate_pawn_attack_moves(
     movelist: &mut MoveList,
     game: &GameState,
     player: Player,
-    cache: &PrecalculatedCache,
+    cache: &Lookups,
 ) {
     let mut pawns = game
         .bitboards
@@ -175,15 +178,19 @@ pub fn generate_pawn_attack_moves_helper(
     to: i8,
     enpassant: bool,
 ) {
-    let captured_piece = if enpassant {Piece::Pawn} else {game.bitboards.pos_to_piece[to as usize]};
-    
+    let captured_piece = if enpassant {
+        Piece::Pawn
+    } else {
+        game.bitboards.pos_to_piece[to as usize]
+    };
+
     // promotion on capture
     if to <= 7 || to >= 56 {
         // we can prob only do queen and knight, should help reduce tree without hurting performance
         // let promotion_pieces = vec![Piece::Queen(player), Piece::Knight(player)];
         let promotion_pieces = [Piece::Queen, Piece::Rook, Piece::Knight, Piece::Bishop];
         for promotion_piece in promotion_pieces {
-            movelist.push(MoveItem {
+            movelist.push(Move {
                 from_pos,
                 to_pos: to,
                 piece: Piece::Pawn,
@@ -198,7 +205,7 @@ pub fn generate_pawn_attack_moves_helper(
             })
         }
     } else {
-        movelist.push(MoveItem {
+        movelist.push(Move {
             from_pos,
             to_pos: to,
             piece: Piece::Pawn,

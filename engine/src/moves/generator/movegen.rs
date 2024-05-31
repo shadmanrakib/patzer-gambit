@@ -1,5 +1,6 @@
 use crate::{
-    moves::generator::{pieces, precalculated_lookups::cache::PrecalculatedCache},
+    moves::generator::pieces,
+    lookups::Lookups,
     mv::MoveList,
     player::Player,
     position::GameState,
@@ -9,7 +10,7 @@ pub fn generate_pseudolegal_moves(
     movelist: &mut MoveList,
     game: &GameState,
     player: Player,
-    cache: &PrecalculatedCache,
+    cache: &Lookups,
     only_captures: bool,
 ) {
     pieces::queen::generate_queen_moves(movelist, game, player, cache, only_captures);

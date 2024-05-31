@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::{
     evaluation,
-    moves::{self, generator::precalculated_lookups::cache::PrecalculatedCache},
+    lookups::Lookups,
     mv::MoveList,
     position::{self, GameState},
     zobrist::ZobristHasher,
@@ -15,7 +15,7 @@ struct IncTest {
 
 #[allow(unused)]
 pub fn inc_test() {
-    let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
+    let cache = Lookups::create();
     let keys = ZobristHasher::init();
 
     let cases = [
@@ -54,12 +54,7 @@ pub fn inc_test() {
     }
 }
 
-fn inc_test_fn(
-    game: &mut GameState,
-    cache: &PrecalculatedCache,
-    depth: u16,
-    zobrist: &ZobristHasher,
-) -> () {
+fn inc_test_fn(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &ZobristHasher) -> () {
     let now = Instant::now();
 
     if depth == 0 {
@@ -86,12 +81,7 @@ fn inc_test_fn(
     println!("Elapsed: {} ms", elapsed.as_millis());
 }
 
-fn _inc_test(
-    game: &mut GameState,
-    cache: &PrecalculatedCache,
-    depth: u16,
-    zobrist: &ZobristHasher,
-) -> () {
+fn _inc_test(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &ZobristHasher) -> () {
     if game.hash != zobrist.hash(game) {
         println!("Fails to incrementally update hash");
         panic!();

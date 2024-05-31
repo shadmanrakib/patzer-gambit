@@ -1,7 +1,8 @@
-use crate::boards::BitBoard;
-use super::{
-    bishop::create_bishop_potential_moves_mask_on_the_fly,
-    rook::create_rook_potential_moves_mask_on_the_fly,
+use crate::{
+    boards::BitBoard,
+    masks::{
+        create_bishop_potential_moves_mask_on_the_fly, create_rook_potential_moves_mask_on_the_fly,
+    },
 };
 
 extern crate xorshift;
@@ -30,7 +31,7 @@ pub struct Magic {
     offset: u64,
 }
 
-// #[inline]
+#[inline(always)]
 pub fn hash_with_magic(magic: Magic, blockers: u64) -> usize {
     let blockers_on_path = blockers & magic.potential_blockers_mask;
     let hash = blockers_on_path.wrapping_mul(magic.magic_num);
@@ -105,6 +106,8 @@ pub fn find_bishop_magic_numbers(
 }
 
 pub fn generate_magic_number(rng: &mut Xoroshiro128) -> u64 {
+    // we want a number with few bits, so we "&" random numbers
+    // to make finding a number satifying our criteria faster
     return rng.next_u64() & rng.next_u64() & rng.next_u64();
 }
 #[derive(Debug)]

@@ -1,5 +1,6 @@
 use crate::{
-    mv::{MoveList, SimpleMove},
+    mv::{Move, MoveList, SimpleMove},
+    pieces::Piece,
     searchinfo::SearchInfo,
     settings::MAX_KILLER_MOVES,
 };
@@ -19,38 +20,36 @@ const MVV_LVA_SCORE: [[i16; 7]; 7] = [
     [0, 0, 0, 0, 0, 0, 0], // victim K, attacker K, Q, R, B, N, P, None
 ];
 
-pub fn score_captures(moveslist: &mut MoveList) {
-    for i in 0..moveslist.len() {
-        let move_item = &mut moveslist.moves[i];
-        if move_item.capturing {
-            move_item.score =
-                MVV_LVA_SCORE[move_item.captured_piece as usize][move_item.piece as usize];
-        } else {
-            move_item.score = MIN_SCORE;
-        }
+#[inline(always)]
+fn mmv_lva(victim: Piece, attacker: Piece) -> i16 {
+    return MVV_LVA_SCORE[victim as usize][attacker as usize];
+}
+
+pub fn score_mmv_lva(move_item: &mut Move) {
+    if move_item.capturing {
+        move_item.score = mmv_lva(move_item.captured_piece, move_item.piece);
+    } else {
+        move_item.score = MIN_SCORE;
     }
 }
 
-pub fn score_moves(
-    moveslist: &mut MoveList,
+pub fn score_tt_mmv_lva_killer(
+    move_item: &mut Move,
     search_cache: &mut SearchInfo,
     ply: usize,
     tt_move: &SimpleMove,
 ) {
-    for i in 0..moveslist.len() {
-        let move_item = &mut moveslist.moves[i];
-        if tt_move.is_similar(move_item) {
-            move_item.score = MAX_SCORE;
-        } else if move_item.capturing {
-            move_item.score = MVV_LVA_SCORE[move_item.captured_piece as usize]
-                [move_item.piece as usize]
-                + MMV_LVA_OFFSET;
-        } else {
-            for i in 0..MAX_KILLER_MOVES {
-                if search_cache.killer_moves[ply][i].is_similar(move_item) {
-                    move_item.score = MMV_LVA_OFFSET - 1000 - ((i * 10) as i16);
-                    break;
-                }
+    if tt_move.is_similar(move_item) {
+        move_item.score = MAX_SCORE;
+    } else if move_item.capturing {
+        move_item.score = MVV_LVA_SCORE[move_item.captured_piece as usize]
+            [move_item.piece as usize]
+            + MMV_LVA_OFFSET;
+    } else {
+        for i in 0..MAX_KILLER_MOVES {
+            if search_cache.killer_moves[ply][i].is_similar(move_item) {
+                move_item.score = MMV_LVA_OFFSET - 1000 - ((i * 10) as i16);
+                break;
             }
         }
     }

@@ -1,16 +1,8 @@
-use crate::{
-    moves::generator::precalculated_lookups::cache::PrecalculatedCache, mv::MoveList,
-    position::GameState, zobrist::ZobristHasher,
-};
+use crate::{lookups::Lookups, mv::MoveList, position::GameState, zobrist::ZobristHasher};
 
 use std::time::Instant;
 
-pub fn perft(
-    game: &mut GameState,
-    cache: &PrecalculatedCache,
-    depth: u16,
-    zobrist: &ZobristHasher,
-) -> u64 {
+pub fn perft(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &ZobristHasher) -> u64 {
     let now = Instant::now();
 
     let mut nodes = 0;
@@ -33,7 +25,7 @@ pub fn perft(
         if game.make_move(move_item.clone(), cache, zobrist) {
             let move_nodes = _perft(game, cache, depth - 1, zobrist);
             nodes += move_nodes;
-            println!("{}: {}", move_item.notation(), move_nodes);
+            println!("{}: {}", move_item.to_string(), move_nodes);
             game.unmake_move(zobrist);
         }
     }
@@ -45,12 +37,7 @@ pub fn perft(
     return nodes;
 }
 
-fn _perft(
-    game: &mut GameState,
-    cache: &PrecalculatedCache,
-    depth: u16,
-    zobrist: &ZobristHasher,
-) -> u64 {
+fn _perft(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &ZobristHasher) -> u64 {
     let mut nodes = 0;
 
     if depth == 0 {

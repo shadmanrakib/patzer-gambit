@@ -1,6 +1,5 @@
-use crate::moves::data::MoveItem;
 use crate::{
-    mv::SimpleMove,
+    mv::{SimpleMove, Move},
     player::Player,
     settings::{MAX_KILLER_MOVES, MAX_PLY},
     time::{TeriminationStatus, TimeControl},
@@ -17,7 +16,7 @@ pub struct SearchInfo {
     pub terimination_status: TeriminationStatus,
     pub check_termination_node_interval: u64,
     pub killer_moves: KillerMoves,
-    pub best_move: Option<MoveItem>,
+    pub best_move: Option<Move>,
 }
 
 impl SearchInfo {
@@ -71,7 +70,7 @@ impl SearchInfo {
         )
     }
     #[inline(always)]
-    pub fn store_killer_move(&mut self, current_move: &MoveItem, ply: usize) {
+    pub fn store_killer_move(&mut self, current_move: &Move, ply: usize) {
         let first_killer = self.killer_moves[ply as usize][0];
         // only place if current move isn't killer (to prevent it being filled with one move)
         if !first_killer.is_similar(current_move) {

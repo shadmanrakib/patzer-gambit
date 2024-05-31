@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{moves, perft::perft, position, zobrist::ZobristHasher};
+    use crate::{lookups::Lookups, perft::perft, position, zobrist::ZobristHasher};
 
     struct PerftTest {
         fen: String,
@@ -46,7 +46,7 @@ mod tests {
             },
         ];
 
-        let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
+        let cache = Lookups::create();
         let keys = ZobristHasher::init();
 
         for test in tests {

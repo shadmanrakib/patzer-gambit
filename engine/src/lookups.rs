@@ -2,21 +2,42 @@ use std::time::SystemTime;
 
 use xorshift::{Rand, SeedableRng, SplitMix64, Xoroshiro128};
 
-use super::{
-    bishop::calculate_bishop_bit_counts,
-    king::create_king_moves_masks,
-    knight::create_knight_moves_masks,
-    magic_bitboards::{find_bishop_magic_numbers, find_rook_magic_numbers, Magic},
-    pawn::create_pawn_attack_moves_masks,
-    rook::calculate_rook_bit_counts,
+use crate::{
+    magics::{find_bishop_magic_numbers, find_rook_magic_numbers, Magic},
+    masks::{
+        create_bishop_potential_blockers_mask, create_king_moves_masks, create_knight_moves_masks,
+        create_pawn_attack_moves_masks, create_rook_potential_blockers_mask,
+    },
 };
 
-use super::{
-    bishop::create_bishop_potential_blockers_mask, rook::create_rook_potential_blockers_mask,
-};
+pub fn calculate_bishop_bit_counts() -> [i8; 64] {
+    let mut bit_counts: [i8; 64] = [0; 64];
+
+    for pos in 0..64 {
+        bit_counts[pos] = create_bishop_potential_blockers_mask(pos.try_into().unwrap())
+            .count_ones()
+            .try_into()
+            .unwrap();
+    }
+
+    return bit_counts;
+}
+
+pub fn calculate_rook_bit_counts() -> [i8; 64] {
+    let mut bit_counts: [i8; 64] = [0; 64];
+
+    for pos in 0..64 {
+        bit_counts[pos] = create_rook_potential_blockers_mask(pos.try_into().unwrap())
+            .count_ones()
+            .try_into()
+            .unwrap();
+    }
+
+    return bit_counts;
+}
 
 #[derive(Debug)]
-pub struct PrecalculatedCache {
+pub struct Lookups {
     pub pawn_attack_moves_mask: [[u64; 64]; 2],
     pub knight_moves_masks: [u64; 64],
     pub king_moves_masks: [u64; 64],
@@ -26,8 +47,8 @@ pub struct PrecalculatedCache {
     pub bishop_magic_attack_tables: Vec<u64>,
 }
 
-impl PrecalculatedCache {
-    pub fn create() -> PrecalculatedCache {
+impl Lookups {
+    pub fn create() -> Lookups {
         let pawn_attack_moves_mask = create_pawn_attack_moves_masks();
 
         let king_moves_masks = create_king_moves_masks();
@@ -59,14 +80,10 @@ impl PrecalculatedCache {
             &bishop_potential_blockers_masks,
         );
 
-        PrecalculatedCache {
+        Lookups {
             pawn_attack_moves_mask,
             knight_moves_masks,
             king_moves_masks,
-            // rook_bit_counts,
-            // bishop_bit_counts,
-            // rook_potential_blockers_masks,
-            // bishop_potential_blockers_masks,
             rook_magics,
             rook_magic_attack_tables,
             bishop_magics,

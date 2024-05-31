@@ -1,23 +1,17 @@
 use crate::{
     boards::BitBoard,
-    mv::MoveList,
-    moves::{data::MoveItem, generator::precalculated_lookups::cache::PrecalculatedCache},
+    lookups::Lookups,
+    mv::{Move, MoveList},
     pieces::Piece,
     player::Player,
     position::{CastlePermissions, GameState},
 };
-// #[inline(always)]
-
-// const WHITE_KING_SIDE_CASTLE_PATH: u64 = (1 << 5) | (1 << 6);
-// const WHITE_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 1) | (1 << 2) | (1 << 3);
-// const BLACK_KING_SIDE_CASTLE_PATH: u64 = (1 << 61) | (1 << 62);
-// const BLACK_QUEEN_SIDE_CASTLE_PATH: u64 = (1 << 57) | (1 << 58) | (1 << 59);
 
 pub fn generate_castling_moves(
     movelist: &mut MoveList,
     game: &GameState,
     player: Player,
-    cache: &PrecalculatedCache,
+    cache: &Lookups,
 ) {
     // can't castle if in check
     if game.in_check(player, cache) {
@@ -42,7 +36,7 @@ pub fn generate_castling_moves(
             {
                 // we will mark the king movement
                 if game.bitboards.pos_to_piece[7] == Piece::Rook {
-                    movelist.push(MoveItem {
+                    movelist.push(Move {
                         from_pos: 4,
                         to_pos: 6,
                         piece: Piece::King,
@@ -67,7 +61,7 @@ pub fn generate_castling_moves(
             {
                 if game.bitboards.pos_to_piece[0] == Piece::Rook {
                     // TODO: need to change this to use king
-                    movelist.push(MoveItem {
+                    movelist.push(Move {
                         from_pos: 4,
                         to_pos: 2,
                         piece: Piece::King,
@@ -97,7 +91,7 @@ pub fn generate_castling_moves(
                 // make sure in between is also empty
 
                 if game.bitboards.pos_to_piece[63] == Piece::Rook {
-                    movelist.push(MoveItem {
+                    movelist.push(Move {
                         from_pos: 60,
                         to_pos: 62,
                         piece: Piece::King,
@@ -120,9 +114,8 @@ pub fn generate_castling_moves(
             {
                 // check if 58 is attacked, queen side between transition
                 // make sure in between is also empty
-
                 if game.bitboards.pos_to_piece[56] == Piece::Rook {
-                    movelist.push(MoveItem {
+                    movelist.push(Move {
                         from_pos: 60,
                         to_pos: 58,
                         piece: Piece::King,

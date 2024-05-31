@@ -1,12 +1,8 @@
 use crate::{
     boards::BitBoard,
-    mv::MoveList,
-    moves::{
-        data::MoveItem,
-        generator::precalculated_lookups::{
-            cache::PrecalculatedCache, magic_bitboards::hash_with_magic,
-        },
-    },
+    lookups::Lookups,
+    magics::hash_with_magic,
+    mv::{Move, MoveList},
     pieces::Piece,
     player::Player,
     position::GameState,
@@ -18,7 +14,7 @@ pub fn generate_rook_moves(
     movelist: &mut MoveList,
     game: &GameState,
     player: Player,
-    cache: &PrecalculatedCache,
+    cache: &Lookups,
     only_captures: bool,
 ) {
     let mut rooks = game
@@ -44,7 +40,7 @@ pub fn generate_rook_moves(
 
             let to = Square::from(capture_pos);
 
-            movelist.push(MoveItem {
+            movelist.push(Move {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::Rook,
@@ -68,7 +64,7 @@ pub fn generate_rook_moves(
 
             let to = Square::from(silent_pos);
 
-            movelist.push(MoveItem {
+            movelist.push(Move {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::Rook,

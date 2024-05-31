@@ -8,14 +8,10 @@ use crate::{
         TOTAL_PHASE,
     },
     fen,
-    mv::MoveList,
-    moves::{
-        data::{MoveItem, UnmakeMoveMetadata},
-        generator::{
-            movegen::generate_pseudolegal_moves,
-            precalculated_lookups::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
-        },
-    },
+    lookups::Lookups,
+    magics::hash_with_magic,
+    moves::generator::movegen::generate_pseudolegal_moves,
+    mv::{Move, MoveList, UnmakeMoveMetadata},
     square::Square,
     zobrist::ZobristHasher,
 };
@@ -76,7 +72,7 @@ pub struct GameState {
     pub full_move_number: u32,
 
     // for 3 fold repetion and undoing
-    pub history: Vec<(MoveItem, UnmakeMoveMetadata, u64)>,
+    pub history: Vec<(Move, UnmakeMoveMetadata, u64)>,
 
     // for pqst
     pub phase: i32,
@@ -102,11 +98,7 @@ impl GameState {
         self.history = other.history;
     }
     // TODO: will implement later
-    pub fn notation_to_move(
-        &self,
-        notation: String,
-        cache: &PrecalculatedCache,
-    ) -> Result<MoveItem, String> {
+    pub fn notation_to_move(&self, notation: String, cache: &Lookups) -> Result<Move, String> {
         let re = Regex::new(r"([a-h][1-8])([a-h][1-8])([nbrq])?").unwrap();
 
         if re.is_match(&notation) {
@@ -116,7 +108,7 @@ impl GameState {
             for index in 0..moveslist.len() {
                 let move_item = &moveslist.moves[index];
 
-                if move_item.notation() == notation {
+                if move_item.to_string() == notation {
                     return Ok(move_item.clone());
                 }
             }
@@ -249,12 +241,7 @@ impl GameState {
         return removed;
     }
 
-    pub fn make_move(
-        &mut self,
-        move_item: MoveItem,
-        cache: &PrecalculatedCache,
-        zobrist: &ZobristHasher,
-    ) -> bool {
+    pub fn make_move(&mut self, move_item: Move, cache: &Lookups, zobrist: &ZobristHasher) -> bool {
         // keep copies for undoing metadata
         let prev_hash = self.hash;
         let prev_castle_permissions = self.castle_permissions.clone();
@@ -512,7 +499,7 @@ impl GameState {
             prev_half_move_clock: self.half_move_clock,
             captured_piece: Piece::Empty,
         };
-        self.history.push((MoveItem::NULL, null_unmake, self.hash));
+        self.history.push((Move::NULL, null_unmake, self.hash));
 
         // incremental updates
         self.hash ^= zobrist.side_to_move;
@@ -537,12 +524,7 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn is_square_attacked(
-        &self,
-        pos: i8,
-        attacker: Player,
-        cache: &PrecalculatedCache,
-    ) -> bool {
+    pub fn is_square_attacked(&self, pos: i8, attacker: Player, cache: &Lookups) -> bool {
         let occupied = self.bitboards.occupied;
 
         // knight
@@ -599,7 +581,7 @@ impl GameState {
     }
 
     // #[inline(always)]
-    pub fn in_check(&self, player: Player, cache: &PrecalculatedCache) -> bool {
+    pub fn in_check(&self, player: Player, cache: &Lookups) -> bool {
         let king = self
             .bitboards
             .get_board_by_piece(player, Piece::King)

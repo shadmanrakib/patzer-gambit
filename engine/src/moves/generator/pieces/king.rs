@@ -1,11 +1,11 @@
-use crate::moves::data::MoveItem;
-use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
-use crate::boards::BitBoard;
-use crate::position::GameState;
-use crate::mv::MoveList;
-use crate::pieces::Piece;
-use crate::player::Player;
-use crate::square::Square;
+use crate::{
+    boards::BitBoard,
+    lookups::Lookups,
+    mv::{Move, MoveList},
+    pieces::Piece,
+    player::Player,
+    position::GameState, square::Square,
+};
 
 // single forward non promotion, double, promotion, capture
 // #[inline(always)]
@@ -13,7 +13,7 @@ pub fn generate_king_moves(
     movelist: &mut MoveList,
     game: &GameState,
     player: Player,
-    cache: &PrecalculatedCache,
+    cache: &Lookups,
     only_captures: bool,
 ) {
     let mut kings = game
@@ -37,7 +37,7 @@ pub fn generate_king_moves(
 
             let to = Square::from(capture_pos);
 
-            movelist.push(MoveItem {
+            movelist.push(Move {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::King,
@@ -61,7 +61,7 @@ pub fn generate_king_moves(
 
             let to = Square::from(silent_pos);
 
-            movelist.push(MoveItem {
+            movelist.push(Move {
                 from_pos: from.into(),
                 to_pos: to.into(),
                 piece: Piece::King,
