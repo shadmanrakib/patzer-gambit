@@ -1,5 +1,5 @@
-use crate::state::square::Square;
-use crate::state::boards::BitBoard;
+use crate::{boards::BitBoard, square::Square};
+
 
 pub fn create_king_moves_masks() -> [u64;64] {
     let mut masks: [u64; 64] = [0; 64];

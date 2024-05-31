@@ -1,10 +1,10 @@
 use regex::Regex;
 
-use crate::state::{
+use crate::{
     boards::{BitBoard, Boards},
-    game::{CastlePermissions, GameState},
     pieces::Piece,
     player::Player,
+    position::{CastlePermissions, GameState},
     square::Square,
 };
 

@@ -6,7 +6,7 @@ use std::{
     time::Instant,
 };
 
-use crate::state::player::Player;
+use crate::player::Player;
 
 #[derive(PartialEq)]
 pub enum TeriminationStatus {
@@ -19,7 +19,7 @@ pub enum TeriminationStatus {
 pub struct TimeControl {
     pub times: [u128; 2],
     pub increments: [u128; 2],
-    pub moves_to_go: usize, // moves left in current time control
+    pub moves_to_go: Option<usize>, // moves left in current time control
     pub ponder: bool,
     pub infinite: bool,
     pub start_time: Instant,
@@ -35,7 +35,7 @@ impl TimeControl {
         TimeControl {
             times: [0, 0],
             increments: [0, 0],
-            moves_to_go: 40,
+            moves_to_go: None,
             ponder: false,
             infinite: false,
             start_time: Instant::now(),
@@ -59,6 +59,7 @@ impl TimeControl {
         nodes: u64,
         check_node_interval: u64,
         check_depth: bool,
+        full_moves: u32,
     ) -> TeriminationStatus {
         if self.stopped.load(Ordering::SeqCst) {
             return TeriminationStatus::Terminated;
@@ -109,19 +110,21 @@ impl TimeControl {
             return TeriminationStatus::Distant;
         }
 
-        // we implement Cray Blitz's time control
         let comms_overhead = 100;
         let time_left: u128 = self.times[side as usize];
-        let num_book_moves = 0;
-        let n_moves = std::cmp::min(num_book_moves, 10);
-        let factor = 2 - n_moves / 10;
-        let target = time_left / <usize as TryInto<u128>>::try_into(self.moves_to_go).unwrap();
-        let allocated_time = factor * target - comms_overhead;
+        let moves_to_go = self.moves_to_go.unwrap_or_else(|| {
+            std::cmp::min(
+                45 - <u32 as TryInto<usize>>::try_into(full_moves).unwrap(),
+                20,
+            )
+        });
+        let target = time_left / <usize as TryInto<u128>>::try_into(moves_to_go).unwrap();
+        let allocated_time = std::cmp::min(2 * target, time_left) - comms_overhead;
 
         if elapsed >= allocated_time {
             return TeriminationStatus::Terminated;
         }
-        let stopping_overhead = 20;
+        let stopping_overhead = 70;
         if elapsed >= allocated_time - stopping_overhead {
             return TeriminationStatus::Soon;
         }
@@ -141,7 +144,7 @@ impl TimeControl {
         self.increments[Player::Black as usize] = inc;
     }
     pub fn set_moves_to_go(&mut self, moves: usize) {
-        self.moves_to_go = moves;
+        self.moves_to_go = Some(moves);
     }
     pub fn set_ponder(&mut self) {
         self.ponder = true;

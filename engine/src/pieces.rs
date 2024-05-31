@@ -9,20 +9,6 @@ pub enum Piece {
     King = 6,
 }
 
-// impl Piece {
-//     fn get_type(&self) -> Option<&Player> {
-//         match self {
-//             Piece::Empty => None,
-//             Piece::Pawn(t) => Some(t),
-//             Piece::Knight(t) => Some(t),
-//             Piece::Bishop(t) => Some(t),
-//             Piece::Rook(t) => Some(t),
-//             Piece::Queen(t) => Some(t),
-//             Piece::King(t) => Some(t),
-//         }
-//     }
-// }
-
 impl ToString for Piece {
     fn to_string(&self) -> String {
         match self {

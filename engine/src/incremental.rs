@@ -1,7 +1,11 @@
 use std::time::Instant;
 
 use crate::{
-    evaluation, moves::{self, generator::precalculated_lookups::cache::PrecalculatedCache}, state::{self, game::GameState, moves::MoveList}, zobrist::ZobristHasher
+    evaluation,
+    moves::{self, generator::precalculated_lookups::cache::PrecalculatedCache},
+    mv::MoveList,
+    position::{self, GameState},
+    zobrist::ZobristHasher,
 };
 
 struct IncTest {
@@ -44,7 +48,7 @@ pub fn inc_test() {
     println!("========= WITHOUT PRUNING =========");
     for case in &cases {
         println!("start case depth: {} \t fen: {}", case.depth, case.fen);
-        let mut game = state::game::GameState::from_fen(case.fen.to_string(), &keys).unwrap();
+        let mut game = position::GameState::from_fen(case.fen.to_string(), &keys).unwrap();
         inc_test_fn(&mut game, &cache, case.depth, &keys);
         println!("finish case depth: {} \t fen: {}", case.depth, case.fen);
     }

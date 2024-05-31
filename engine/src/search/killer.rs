@@ -1,9 +1,10 @@
 use std::fmt::Debug;
 
 use crate::{
-    settings::{MAX_KILLER_MOVES, MAX_PLY},
     moves::data::MoveItem,
-    state::{pieces::Piece, square::Square},
+    pieces::Piece,
+    settings::{MAX_KILLER_MOVES, MAX_PLY},
+    square::Square,
 };
 
 #[derive(Clone, Copy)]
@@ -71,7 +72,7 @@ pub fn store_killer_move(killers: &mut KillerMoves, current_move: &MoveItem, ply
     if !is_similar(&first_killer, current_move) {
         // Shift all the moves one index upward...
         for i in (1..MAX_KILLER_MOVES).rev() {
-            killers[ply][i] = killers[ply][i-1];
+            killers[ply][i] = killers[ply][i - 1];
         }
 
         // and add the new killer move in the first spot.

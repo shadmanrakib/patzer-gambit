@@ -1,7 +1,6 @@
 use crate::{
-    moves::generator::precalculated_lookups::cache::PrecalculatedCache,
-    state::{game::GameState, moves::MoveList},
-    zobrist::ZobristHasher,
+    moves::generator::precalculated_lookups::cache::PrecalculatedCache, mv::MoveList,
+    position::GameState, zobrist::ZobristHasher,
 };
 
 use std::time::Instant;

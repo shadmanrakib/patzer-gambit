@@ -1,11 +1,11 @@
 use crate::moves::data::MoveItem;
 use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
-use crate::state::boards::BitBoard;
-use crate::state::game::GameState;
-use crate::state::moves::MoveList;
-use crate::state::pieces::Piece;
-use crate::state::player::Player;
-use crate::state::square::Square;
+use crate::boards::BitBoard;
+use crate::position::GameState;
+use crate::mv::MoveList;
+use crate::pieces::Piece;
+use crate::player::Player;
+use crate::square::Square;
 
 // single forward non promotion, double, promotion, capture
 // #[inline(always)]

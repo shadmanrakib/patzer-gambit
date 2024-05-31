@@ -1,14 +1,16 @@
 use crate::{
+    boards::BitBoard,
     moves::{
+        data::MoveItem,
         generator::precalculated_lookups::{
             cache::PrecalculatedCache, magic_bitboards::hash_with_magic,
         },
-        data::MoveItem,
     },
-    state::{
-        boards::BitBoard, game::GameState, moves::MoveList, pieces::Piece, player::Player,
-        square::Square,
-    },
+    mv::MoveList,
+    pieces::Piece,
+    player::Player,
+    position::GameState,
+    square::Square,
 };
 
 // #[inline(always)]

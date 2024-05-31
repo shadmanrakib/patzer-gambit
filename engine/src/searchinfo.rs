@@ -1,6 +1,6 @@
-use crate::state::player::Player;
-use crate::time::{TeriminationStatus, TimeControl};
 use crate::moves::data::MoveItem;
+use crate::player::Player;
+use crate::time::{TeriminationStatus, TimeControl};
 
 use crate::search::killer::{init_killer_moves, KillerMoves};
 
@@ -50,13 +50,20 @@ impl SearchInfo {
     }
 
     #[inline(always)]
-    pub fn update_termination_status(&mut self, side: Player, ply: u8, check_depth: bool) {
+    pub fn update_termination_status(
+        &mut self,
+        side: Player,
+        ply: u8,
+        check_depth: bool,
+        full_moves: u32,
+    ) {
         self.terimination_status = self.timer.check_termination(
             side,
             ply,
             self.total_nodes,
             self.check_termination_node_interval,
-            check_depth
+            check_depth,
+            full_moves,
         )
     }
 }

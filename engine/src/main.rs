@@ -1,19 +1,24 @@
+mod boards;
 mod evaluation;
 mod fen;
-mod moves;
-mod search;
-mod state;
-
 mod incremental;
+mod masks;
+mod moves;
+mod mv;
 mod perft;
+mod pieces;
+mod player;
+mod position;
+mod scoring;
+mod search;
 mod searcher;
 mod searchinfo;
+mod settings;
+mod square;
 mod time;
 mod transposition;
 mod uci;
 mod zobrist;
-mod settings;
-mod masks;
 
 #[cfg(test)]
 mod tests;

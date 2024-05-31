@@ -1,20 +1,20 @@
 use std::time::Instant;
 
 use crate::{
-    settings::{
-        FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS,
-    },
     moves::{
         data::MoveItem,
         generator::{
             movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
         },
-        scoring::{score_captures, score_moves},
     },
+    mv::MoveList,
     perft,
+    pieces::Piece,
+    position::GameState,
+    scoring::{score_captures, score_moves},
     search::killer::{store_killer_move, SimpleMove},
     searchinfo::SearchInfo,
-    state::{game::GameState, moves::MoveList, pieces::Piece},
+    settings::{FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS},
     time::{TeriminationStatus, TimeControl},
     transposition::{NodeType, TTable},
     zobrist::ZobristHasher,
@@ -115,7 +115,12 @@ impl Searcher {
         let mut beta = INF;
 
         while depth <= main_search_depth {
-            info.update_termination_status(self.position.side_to_move, depth, true);
+            info.update_termination_status(
+                self.position.side_to_move,
+                depth,
+                true,
+                self.position.full_move_number,
+            );
             if info.terimination_status == TeriminationStatus::Terminated {
                 break;
             }
@@ -147,7 +152,6 @@ impl Searcher {
 
             let pv_str_vec: Vec<String> = pv.iter().map(|x| x.to_string()).collect();
             let pv_str = pv_str_vec.join(" ");
-
 
             let nodes = info.iteration_nodes;
             let seldepth = info.seldepth;
@@ -198,7 +202,12 @@ impl Searcher {
         if info.total_nodes & info.check_termination_node_interval == 0
             || info.terimination_status == TeriminationStatus::Soon
         {
-            info.update_termination_status(self.position.side_to_move, ply, false);
+            info.update_termination_status(
+                self.position.side_to_move,
+                ply,
+                false,
+                self.position.full_move_number,
+            );
         }
 
         info.maximize_seldepth(ply);
@@ -259,7 +268,7 @@ impl Searcher {
 
         let mut moveslist = MoveList::new();
         generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, false);
-        score_moves(&mut moveslist, info, ply as usize, player, tt_move);
+        score_moves(&mut moveslist, info, ply as usize, tt_move);
         let mut legal_moves_count: u8 = 0;
         let mut moves_searched = 0;
 
@@ -382,7 +391,12 @@ impl Searcher {
         if info.total_nodes & info.check_termination_node_interval == 0
             || info.terimination_status == TeriminationStatus::Soon
         {
-            info.update_termination_status(self.position.side_to_move, ply, false);
+            info.update_termination_status(
+                self.position.side_to_move,
+                ply,
+                false,
+                self.position.full_move_number,
+            );
         }
 
         info.increment_node_counts(true);

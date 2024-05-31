@@ -1,5 +1,4 @@
-use crate::state::pieces::Piece;
-use crate::search::killer::SimpleMove;
+use crate::{pieces::Piece, search::killer::SimpleMove};
 
 /**
  * Transposition Table

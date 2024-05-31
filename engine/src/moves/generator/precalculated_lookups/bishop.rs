@@ -1,5 +1,4 @@
-use crate::state::boards::BitBoard;
-use crate::state::square::Square;
+use crate::{boards::BitBoard, square::Square};
 
 pub fn create_bishop_potential_blockers_mask(pos: i8) -> u64 {
     let mut bitboard: u64 = 0;

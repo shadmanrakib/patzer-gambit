@@ -1,13 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{
-        moves::{
-            self,
-        },
-        perft::perft,
-        zobrist::ZobristHasher,
-        state,
-    };
+    use crate::{moves, perft::perft, position, zobrist::ZobristHasher};
 
     struct PerftTest {
         fen: String,
@@ -55,9 +48,9 @@ mod tests {
 
         let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
         let keys = ZobristHasher::init();
-        
+
         for test in tests {
-            let mut game = state::game::GameState::from_fen(test.fen.to_string(), &keys).unwrap();
+            let mut game = position::GameState::from_fen(test.fen.to_string(), &keys).unwrap();
             println!("Test {}", &test.fen);
             let nodes = perft(&mut game, &cache, test.depth, &keys);
             println!("Found: {}\tExpected: {}", nodes, test.expected_nodes);

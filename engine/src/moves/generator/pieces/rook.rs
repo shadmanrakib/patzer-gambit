@@ -1,9 +1,16 @@
 use crate::{
+    boards::BitBoard,
+    mv::MoveList,
     moves::{
         data::MoveItem,
-        generator::precalculated_lookups::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
+        generator::precalculated_lookups::{
+            cache::PrecalculatedCache, magic_bitboards::hash_with_magic,
+        },
     },
-    state::{boards::BitBoard, game::GameState, moves::MoveList, pieces::Piece, player::Player, square::Square},
+    pieces::Piece,
+    player::Player,
+    position::GameState,
+    square::Square,
 };
 
 // #[inline(always)]
@@ -26,10 +33,7 @@ pub fn generate_rook_moves(
 
         let from = Square::from(pos);
 
-        let magic_index = hash_with_magic(
-            cache.rook_magics[pos as usize],
-            occupied,
-        );
+        let magic_index = hash_with_magic(cache.rook_magics[pos as usize], occupied);
         let moves_mask = cache.rook_magic_attack_tables[magic_index];
 
         let mut valid_silents = moves_mask & !occupied;

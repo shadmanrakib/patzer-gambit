@@ -1,9 +1,16 @@
 use crate::{
+    boards::BitBoard,
     moves::{
         data::MoveItem,
-        generator::precalculated_lookups::{cache::PrecalculatedCache, magic_bitboards::hash_with_magic},
+        generator::precalculated_lookups::{
+            cache::PrecalculatedCache, magic_bitboards::hash_with_magic,
+        },
     },
-    state::{boards::BitBoard, game::GameState, moves::MoveList, pieces::Piece, player::Player, square::Square},
+    mv::MoveList,
+    pieces::Piece,
+    player::Player,
+    position::GameState,
+    square::Square,
 };
 
 // #[inline(always)]
@@ -26,16 +33,10 @@ pub fn generate_queen_moves(
 
         let from = Square::from(pos);
 
-        let rook_magic_index = hash_with_magic(
-            cache.rook_magics[pos as usize],
-            occupied,
-        );
+        let rook_magic_index = hash_with_magic(cache.rook_magics[pos as usize], occupied);
         let rook_moves_mask = cache.rook_magic_attack_tables[rook_magic_index];
 
-        let bishop_magic_index = hash_with_magic(
-            cache.bishop_magics[pos as usize],
-            occupied,
-        );
+        let bishop_magic_index = hash_with_magic(cache.bishop_magics[pos as usize], occupied);
         let bishop_moves_mask = cache.bishop_magic_attack_tables[bishop_magic_index];
 
         let moves_mask = rook_moves_mask | bishop_moves_mask;

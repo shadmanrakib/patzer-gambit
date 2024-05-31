@@ -1,4 +1,4 @@
-use crate::state::{pieces::Piece, square::Square};
+use crate::{pieces::Piece, square::Square};
 
 // rough draft as i figure out how i want to structure things
 // we will use more than needed initially

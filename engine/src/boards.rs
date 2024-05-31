@@ -2,7 +2,6 @@ use crate::masks::INVERTED_SQUARE_MASKS;
 
 use super::{pieces::Piece, player::Player};
 
-// #[derive(Default,Debug,Clone)]
 pub trait BitBoard {
     fn set(&mut self, index: i8);
     fn get(&self, index: i8) -> bool;

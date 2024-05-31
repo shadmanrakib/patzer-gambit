@@ -1,12 +1,10 @@
 use crate::{
+    boards::BitBoard,
+    mv::MoveList,
     moves::{data::MoveItem, generator::precalculated_lookups::cache::PrecalculatedCache},
-    state::{
-        boards::BitBoard,
-        game::{CastlePermissions, GameState},
-        moves::MoveList,
-        pieces::Piece,
-        player::Player,
-    },
+    pieces::Piece,
+    player::Player,
+    position::{CastlePermissions, GameState},
 };
 // #[inline(always)]
 

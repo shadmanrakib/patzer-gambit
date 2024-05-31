@@ -1,8 +1,8 @@
+use crate::boards::BitBoard;
 use super::{
     bishop::create_bishop_potential_moves_mask_on_the_fly,
     rook::create_rook_potential_moves_mask_on_the_fly,
 };
-use crate::state::boards::BitBoard;
 
 extern crate xorshift;
 use xorshift::{Rng, Xoroshiro128};
@@ -35,7 +35,6 @@ pub fn hash_with_magic(magic: Magic, blockers: u64) -> usize {
     let blockers_on_path = blockers & magic.potential_blockers_mask;
     let hash = blockers_on_path.wrapping_mul(magic.magic_num);
     let index = ((hash >> magic.shift) + magic.offset) as usize;
-
     return index;
 }
 
@@ -135,7 +134,7 @@ fn find_magic_number(
     }
 
     // try finding a magic number for this square
-    let max_attempt = 1000000;
+    let max_attempt = 10000000;
     for _ in 0..max_attempt {
         let magic_num: u64 = generate_magic_number(rng);
         let mut used_moves = vec![0_u64; num_subsets];
@@ -147,7 +146,6 @@ fn find_magic_number(
         }
 
         let mut fail = false;
-
         for bit_set in 0..num_subsets {
             let magic_index = hash_with_magic(
                 // temp magic

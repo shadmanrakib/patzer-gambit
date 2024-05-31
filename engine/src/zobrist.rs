@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use xorshift::{Rand, Rng, SeedableRng, SplitMix64, Xoroshiro128};
 
-use crate::state::{boards::BitBoard, game::GameState, pieces::Piece, player::Player};
+use crate::{boards::BitBoard, position::GameState, pieces::Piece, player::Player};
 
 pub struct ZobristHasher {
     pub pieces: [[[u64; 64]; 7]; 2],

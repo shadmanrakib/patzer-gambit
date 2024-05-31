@@ -1,6 +1,4 @@
-use crate::state::boards::BitBoard;
-use crate::state::player::Player;
-use crate::state::square::Square;
+use crate::{boards::BitBoard, player::Player, square::Square};
 
 pub fn create_pawn_attack_moves_masks() -> [[u64; 64]; 2] {
     let mut masks: [[u64; 64]; 2] = [[0; 64]; 2];
