@@ -2,7 +2,6 @@ use regex::Regex;
 
 use super::{boards::Boards, pieces::Piece, player::Player, square::Square};
 use crate::{
-    constants::masks::SQUARE_MASKS,
     evaluation::{
         self, ENDGAME_PSQT_TABLES, OPENING_PSQT_TABLES, PHASE_INCREMENT_BY_PIECE, PSQT_INDEX,
         TOTAL_PHASE,
@@ -16,7 +15,7 @@ use crate::{
         },
     },
     state::{boards::BitBoard, moves::MoveList},
-    zobrist::{self, ZobristHasher},
+    zobrist::ZobristHasher,
 };
 
 // we will make this a bitmap
@@ -129,7 +128,7 @@ impl GameState {
     pub fn has_three_fold_rep(&self) -> bool {
         let size = self.history.len();
         let mut count = 1;
-        for i in (0..size-1).rev().step_by(2) {
+        for i in (0..size - 1).rev().step_by(2) {
             // a piece was captured so the piece count got altered, so no way for same position to arise
             // only way for that piece to reappear is potentially pawn promotion
             // but that means we lose a pawn, so still unequal positions
@@ -537,10 +536,9 @@ impl GameState {
             self.side_to_move = self.side_to_move.opponent();
             self.enpassant_square = enpassant;
             self.color *= -1;
-    
+
             self.hash = prev_hash;
         }
-
     }
 
     #[inline(always)]
@@ -615,10 +613,8 @@ impl GameState {
         return self.is_square_attacked(king, player.opponent(), cache);
     }
 
-    #[allow(dead_code)]
     pub fn new(key: &ZobristHasher) -> GameState {
-        let start_board_fen =
-            String::from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        let start_board_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into();
         return Self::from_fen(start_board_fen, key).unwrap();
     }
 

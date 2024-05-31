@@ -1,5 +1,5 @@
 use crate::{
-    constants::search::MAX_KILLER_MOVES,
+    settings::MAX_KILLER_MOVES,
     search::killer::{is_similar, SimpleMove},
     searchinfo::SearchInfo,
     state::{moves::MoveList, player::Player},

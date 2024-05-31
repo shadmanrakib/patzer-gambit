@@ -1,4 +1,3 @@
-mod constants;
 mod evaluation;
 mod fen;
 mod moves;
@@ -13,6 +12,8 @@ mod time;
 mod transposition;
 mod uci;
 mod zobrist;
+mod settings;
+mod masks;
 
 #[cfg(test)]
 mod tests;

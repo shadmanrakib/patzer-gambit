@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::{
-    constants::search::{
+    settings::{
         FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS,
     },
     moves::{

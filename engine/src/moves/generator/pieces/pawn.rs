@@ -1,4 +1,4 @@
-use crate::constants::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
+use crate::masks::{RANK_1_MASK, RANK_2_MASK, RANK_7_MASK, RANK_8_MASK};
 use crate::moves::data::MoveItem;
 use crate::moves::generator::precalculated_lookups::cache::PrecalculatedCache;
 use crate::state::boards::BitBoard;

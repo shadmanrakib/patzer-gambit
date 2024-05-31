@@ -1,4 +1,4 @@
-use crate::constants::masks::{FILE_A_MASK, FILE_H_MASK, RANK_1_MASK, RANK_8_MASK, SQUARE_MASKS};
+use crate::masks::{FILE_A_MASK, FILE_H_MASK, RANK_1_MASK, RANK_8_MASK, SQUARE_MASKS};
 use crate::state::square::Square;
 use crate::state::boards::BitBoard;
 

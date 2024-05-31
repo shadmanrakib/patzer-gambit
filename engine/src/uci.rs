@@ -7,7 +7,7 @@ use std::{
     thread,
 };
 
-use crate::{searcher::Searcher, time::TimeControl};
+use crate::{searcher::Searcher, settings::MAX_MAIN_SEARCH_DEPTH, time::TimeControl};
 
 fn parse_position(searcher: &mut Searcher, parts: &Vec<&str>) {
     if parts.len() < 2 {
@@ -171,7 +171,7 @@ pub fn uci_loop() {
                 stopped.store(false, Ordering::SeqCst);
                 thread::spawn(move || {
                     let time = parse_go(p, stopped);
-                    s.lock().unwrap().go(100, time);
+                    s.lock().unwrap().go(MAX_MAIN_SEARCH_DEPTH, time);
                 });
             }
             "stop" => stopped.store(true, Ordering::SeqCst),

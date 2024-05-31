@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    constants::search::{MAX_KILLER_MOVES, MAX_PLY},
+    settings::{MAX_KILLER_MOVES, MAX_PLY},
     moves::data::MoveItem,
     state::{pieces::Piece, square::Square},
 };
