@@ -128,16 +128,15 @@ impl GameState {
 
     pub fn has_three_fold_rep(&self) -> bool {
         let size = self.history.len();
-        let last = self.history.last().unwrap();
-        let mut count = 0;
-        for i in (0..size).rev().step_by(2) {
+        let mut count = 1;
+        for i in (0..size-1).rev().step_by(2) {
             // a piece was captured so the piece count got altered, so no way for same position to arise
             // only way for that piece to reappear is potentially pawn promotion
             // but that means we lose a pawn, so still unequal positions
-            if self.history[i].0.captured_piece != Piece::Empty {
+            if self.history[i].0.capturing {
                 return false;
             }
-            if self.history[i].1 == last.1 {
+            if self.history[i].2 == self.hash {
                 count += 1;
 
                 if count >= 3 {

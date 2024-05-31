@@ -91,7 +91,7 @@ mod tests {
         for (mate4_fen, mate4_ans) in mate4s {
             searcher.lock().unwrap().fen(mate4_fen.into()).unwrap();
             let s = stopped.clone();
-            s.store(false, Ordering::Relaxed);
+            s.store(false, Ordering::SeqCst);
             let time = TimeControl::new(s);
             let result = searcher.lock().unwrap().go(10, time);
             println!("{}", mate4_fen);

@@ -168,7 +168,7 @@ pub fn uci_loop() {
                 let s = searcher.clone();
                 let stopped = stopped.clone();
                 let p: Vec<String> = parts.iter().map(|item| item.to_string()).collect();
-                stopped.store(false, Ordering::Relaxed);
+                stopped.store(false, Ordering::SeqCst);
                 thread::spawn(move || {
                     let time = parse_go(p, stopped);
                     s.lock().unwrap().go(100, time);

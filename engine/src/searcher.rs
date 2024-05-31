@@ -336,7 +336,7 @@ impl Searcher {
                     score,
                     depth,
                     NodeType::Cut,
-                    draw,
+                    draw || info.terimination_status == TeriminationStatus::Terminated,
                     // interupted || draw,
                 );
 
@@ -358,9 +358,6 @@ impl Searcher {
             return score;
         }
 
-        // let interupted = info
-        //     .controller
-        //     .should_stop(true, player, info.total_nodes, ply, false);
         self.tt.record(
             self.position.hash,
             (&moveslist.moves[(if best_move_idx >= 0 { best_move_idx } else { 0 }) as usize])
@@ -368,7 +365,7 @@ impl Searcher {
             best_score,
             depth,
             node_type,
-            best_draw,
+            best_draw || info.terimination_status == TeriminationStatus::Terminated,
             // best_draw || interupted,
         );
 
