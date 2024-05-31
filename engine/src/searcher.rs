@@ -7,12 +7,11 @@ use crate::{
             movegen::generate_pseudolegal_moves, precalculated_lookups::cache::PrecalculatedCache,
         },
     },
-    mv::MoveList,
+    movescoring::{score_captures, score_moves},
+    mv::{MoveList, SimpleMove},
     perft,
     pieces::Piece,
     position::GameState,
-    scoring::{score_captures, score_moves},
-    search::killer::{store_killer_move, SimpleMove},
     searchinfo::SearchInfo,
     settings::{FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS},
     time::{TeriminationStatus, TimeControl},
@@ -268,7 +267,7 @@ impl Searcher {
 
         let mut moveslist = MoveList::new();
         generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, false);
-        score_moves(&mut moveslist, info, ply as usize, tt_move);
+        score_moves(&mut moveslist, info, ply as usize, &tt_move);
         let mut legal_moves_count: u8 = 0;
         let mut moves_searched = 0;
 
@@ -335,7 +334,7 @@ impl Searcher {
 
             if score >= beta {
                 if !move_item.capturing {
-                    store_killer_move(&mut info.killer_moves, &move_item, ply as usize);
+                    info.store_killer_move(&move_item, ply as usize);
                 }
 
                 self.tt.record(

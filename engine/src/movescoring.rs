@@ -1,6 +1,5 @@
 use crate::{
-    mv::MoveList,
-    search::killer::{is_similar, SimpleMove},
+    mv::{MoveList, SimpleMove},
     searchinfo::SearchInfo,
     settings::MAX_KILLER_MOVES,
 };
@@ -36,11 +35,11 @@ pub fn score_moves(
     moveslist: &mut MoveList,
     search_cache: &mut SearchInfo,
     ply: usize,
-    tt_move: SimpleMove,
+    tt_move: &SimpleMove,
 ) {
     for i in 0..moveslist.len() {
         let move_item = &mut moveslist.moves[i];
-        if is_similar(&tt_move, move_item) {
+        if tt_move.is_similar(move_item) {
             move_item.score = MAX_SCORE;
         } else if move_item.capturing {
             move_item.score = MVV_LVA_SCORE[move_item.captured_piece as usize]
@@ -48,7 +47,7 @@ pub fn score_moves(
                 + MMV_LVA_OFFSET;
         } else {
             for i in 0..MAX_KILLER_MOVES {
-                if is_similar(&search_cache.killer_moves[ply][i], move_item) {
+                if search_cache.killer_moves[ply][i].is_similar(move_item) {
                     move_item.score = MMV_LVA_OFFSET - 1000 - ((i * 10) as i16);
                     break;
                 }

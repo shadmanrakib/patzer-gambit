@@ -2,16 +2,6 @@
 
 use crate::{boards::BitBoard, pieces::Piece, position::GameState};
 
-pub const STATIC_PIECE_POINTS: [i32; 7] = [
-    0,      // Empty
-    100,    // Pawn
-    300,    // Knight
-    325,    // Bishop
-    500,    // Rook
-    925,    // Queen
-    100000, // King
-];
-
 pub const OPENING_PIECE_POINTS: [i32; 7] = [
     0,       // Empty
     80,      // Pawn

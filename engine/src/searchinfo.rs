@@ -1,8 +1,12 @@
 use crate::moves::data::MoveItem;
-use crate::player::Player;
-use crate::time::{TeriminationStatus, TimeControl};
+use crate::{
+    mv::SimpleMove,
+    player::Player,
+    settings::{MAX_KILLER_MOVES, MAX_PLY},
+    time::{TeriminationStatus, TimeControl},
+};
 
-use crate::search::killer::{init_killer_moves, KillerMoves};
+pub type KillerMoves = [[SimpleMove; MAX_KILLER_MOVES]; MAX_PLY as usize];
 
 pub struct SearchInfo {
     pub total_nodes: u64,
@@ -19,7 +23,7 @@ pub struct SearchInfo {
 impl SearchInfo {
     pub fn init(timer: TimeControl) -> SearchInfo {
         SearchInfo {
-            killer_moves: init_killer_moves(),
+            killer_moves: [[SimpleMove::NULL_MOVE; MAX_KILLER_MOVES]; MAX_PLY as usize],
             total_nodes: 0,
             iteration_nodes: 0,
             iteration_qnodes: 0,
@@ -65,5 +69,18 @@ impl SearchInfo {
             check_depth,
             full_moves,
         )
+    }
+    #[inline(always)]
+    pub fn store_killer_move(&mut self, current_move: &MoveItem, ply: usize) {
+        let first_killer = self.killer_moves[ply as usize][0];
+        // only place if current move isn't killer (to prevent it being filled with one move)
+        if !first_killer.is_similar(current_move) {
+            // Shift all the moves one index upward...
+            for i in (1..MAX_KILLER_MOVES).rev() {
+                self.killer_moves[ply][i] = self.killer_moves[ply][i - 1];
+            }
+            // and add the new killer move in the first spot.
+            self.killer_moves[ply as usize][0] = current_move.into();
+        }
     }
 }

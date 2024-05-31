@@ -1,11 +1,11 @@
-use crate::{pieces::Piece, search::killer::SimpleMove};
+use crate::{mv::SimpleMove, pieces::Piece};
 
 /**
  * Transposition Table
  */
 #[derive(PartialEq, Debug)]
 pub enum NodeType {
-    Pv,  //
+    Pv,  // primary variant
     Cut, // fail-high nodes, are nodes in which a beta-cutoff was performed. The score returned is a lower bound (might be greater) on the exact score of the node
     All, // fail-low, otherwise known as fail-low nodes, are nodes in which no move's score exceeded alpha
     None,
