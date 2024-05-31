@@ -1,7 +1,6 @@
 mod boards;
 mod evaluation;
 mod fen;
-mod incremental;
 mod lookups;
 mod magics;
 mod masks;
