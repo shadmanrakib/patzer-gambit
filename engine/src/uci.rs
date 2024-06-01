@@ -217,7 +217,7 @@ fn intro() {
     println!("╚═╝░░░░░╚═╝░░╚═╝░░░╚═╝░░░╚══════╝╚══════╝╚═╝░░╚═╝   ░╚═════╝░╚═╝░░╚═╝╚═╝░░░░░╚═╝╚═════╝░╚═╝░░░╚═╝░░░");
     println!("");
     println!("");
-    println!("A partial UCI chess engine that's a whole lot worse than drunk magnus but magnitudes better than me");
+    println!("A partial UCI chess engine that's a whole lot worse than Drunk Magnus but magnitudes better than me");
     println!("");
     println!("");
     println!("-------------------------------------------------------------------------------------------------------");
