@@ -3,8 +3,9 @@ mod evaluation;
 mod fen;
 mod magics;
 mod masks;
+mod movegen;
 mod movescoring;
-mod mv;
+mod moves;
 mod perft;
 mod pieces;
 mod player;
@@ -17,7 +18,6 @@ mod time;
 mod transposition;
 mod uci;
 mod zobrist;
-mod movegen;
 
 #[cfg(test)]
 mod tests;

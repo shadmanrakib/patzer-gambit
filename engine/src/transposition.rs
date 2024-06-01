@@ -1,4 +1,4 @@
-use crate::{mv::SimpleMove, pieces::Piece};
+use crate::{moves::SimpleMove, pieces::Piece};
 
 /**
  * Transposition Table

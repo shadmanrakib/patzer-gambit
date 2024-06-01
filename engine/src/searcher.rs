@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::{
     movegen::MoveGenerator,
-    mv::{Move, SimpleMove},
+    moves::{Move, SimpleMove},
     perft,
     pieces::Piece,
     position::PositionState,

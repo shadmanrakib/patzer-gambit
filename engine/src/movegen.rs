@@ -5,7 +5,7 @@ use crate::{
         calculate_bishop_bit_counts, calculate_rook_bit_counts, RANK_1_MASK, RANK_2_MASK,
         RANK_7_MASK, RANK_8_MASK,
     },
-    mv::{Move, MoveList},
+    moves::{Move, MoveList},
     pieces::Piece,
     player::Player,
     position::{CastlePermissions, PositionState},

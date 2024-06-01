@@ -10,7 +10,7 @@ use crate::{
     fen,
     magics::hash_with_magic,
     movegen::MoveGenerator,
-    mv::{Move, UnmakeMoveMetadata},
+    moves::{Move, UnmakeMoveMetadata},
     square::Square,
     zobrist::ZobristHasher,
 };

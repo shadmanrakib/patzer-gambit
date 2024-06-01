@@ -1,5 +1,5 @@
 use crate::{
-    mv::{SimpleMove, Move},
+    moves::{SimpleMove, Move},
     player::Player,
     settings::{MAX_KILLER_MOVES, MAX_PLY},
     time::{TeriminationStatus, TimeControl},

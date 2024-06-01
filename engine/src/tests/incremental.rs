@@ -5,7 +5,6 @@ mod tests {
     use crate::{
         evaluation,
         movegen::MoveGenerator,
-        mv::MoveList,
         position::PositionState,
         zobrist::ZobristHasher,
     };

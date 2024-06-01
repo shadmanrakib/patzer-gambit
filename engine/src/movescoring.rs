@@ -1,5 +1,5 @@
 use crate::{
-    mv::{Move, SimpleMove},
+    moves::{Move, SimpleMove},
     pieces::Piece,
     searchinfo::SearchInfo,
     settings::MAX_KILLER_MOVES,
