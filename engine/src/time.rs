@@ -119,7 +119,10 @@ impl TimeControl {
             )
         });
         let target = time_left / <usize as TryInto<u128>>::try_into(moves_to_go).unwrap();
-        let allocated_time = std::cmp::min(2 * target, time_left) - comms_overhead;
+        let mut allocated_time = std::cmp::min(2 * target, time_left);
+        if allocated_time > 0 {
+            allocated_time -= comms_overhead;
+        }
 
         if elapsed >= allocated_time {
             return TeriminationStatus::Terminated;

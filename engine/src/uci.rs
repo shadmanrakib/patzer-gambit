@@ -7,7 +7,10 @@ use std::{
     thread,
 };
 
-use crate::{searcher::Searcher, settings::MAX_MAIN_SEARCH_DEPTH, time::TimeControl};
+use crate::{
+    movescoring::static_exchange_evaluation, searcher::Searcher, settings::MAX_MAIN_SEARCH_DEPTH,
+    square::Square, time::TimeControl,
+};
 
 fn parse_position(searcher: &mut Searcher, parts: &Vec<&str>) {
     if parts.len() < 2 {
@@ -193,6 +196,22 @@ pub fn uci_loop() {
                 if parts.len() > 1 {
                     s.play(parts[1].into());
                 }
+            }
+            "s" => {
+                let s = searcher.lock().unwrap();
+                let pos: i8 = Square::parse_string(parts[1].into()).unwrap().into();
+                let attacker_pos: i8 = Square::parse_string(parts[2].into()).unwrap().into();
+                let attacker = s.position.bitboards.pos_to_piece[attacker_pos as usize];
+                println!(
+                    "{}",
+                    static_exchange_evaluation(
+                        &s.position,
+                        pos,
+                        attacker,
+                        attacker_pos,
+                        &s.generator
+                    )
+                );
             }
             _ => {}
         }
