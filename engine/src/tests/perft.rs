@@ -1,9 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{
-        moves::{self, perft::perft},
-        state,
-    };
+    use crate::{movegen::MoveGenerator, perft::perft, position, zobrist::ZobristHasher};
 
     struct PerftTest {
         fen: String,
@@ -14,7 +11,13 @@ mod tests {
     #[test]
     fn perft_suite() {
         // from https://www.chessprogramming.org/Perft_Results and using stockfish perft for expected
+        println!("perft suite");
         let tests = [
+            PerftTest {
+                fen: "8/2p5/3p4/KP5r/4P2k/8/6p1/7R b - - 1 3".into(),
+                depth: 2,
+                expected_nodes: 62,
+            },
             PerftTest {
                 fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into(),
                 depth: 6,
@@ -43,13 +46,13 @@ mod tests {
             },
         ];
 
-        let cache = moves::precalculate::cache::PrecalculatedCache::create();
+        let generator = MoveGenerator::create();
+        let keys = ZobristHasher::init();
 
         for test in tests {
-            let mut game = state::game::GameState::from_fen(test.fen.clone()).unwrap();
-
+            let mut position = position::PositionState::from_fen(test.fen.to_string(), &keys).unwrap();
             println!("Test {}", &test.fen);
-            let nodes = perft(&mut game, &cache, test.depth);
+            let nodes = perft(&mut position, &generator, test.depth, &keys);
             println!("Found: {}\tExpected: {}", nodes, test.expected_nodes);
             assert_eq!(nodes, test.expected_nodes);
         }

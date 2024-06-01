@@ -5,6 +5,21 @@ pub struct Square {
 }
 
 impl Square {
+    pub fn rank(pos: i8) -> i8 {
+        pos / 8
+    }
+    pub fn file(pos: i8) -> i8 {
+        pos % 8
+    }
+    pub fn rank_and_file(pos: i8) -> (i8, i8){
+        let rank = pos / 8;
+        let file = pos % 8;
+        (rank, file)
+    }
+    pub fn index(rank: i8, file: i8) -> i8 {
+        rank * 8 + file
+    }
+  
     pub fn stringify(&self) -> String {
         let rank = (self.rank as u8 + '1' as u8) as char;
         let file = (self.file as u8 + 'a' as u8) as char;
