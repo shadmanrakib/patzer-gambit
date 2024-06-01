@@ -121,11 +121,11 @@ fn generate_bishop_moves(
     only_captures: bool,
 ) {
     let mut bishops = position
-        .bitboards
+        .boards
         .get_board_by_piece(player, Piece::Bishop)
         .clone();
-    let occupied = &position.bitboards.occupied;
-    let opponent_occupied = &position.bitboards.pos_to_player[player.opponent() as usize];
+    let occupied = &position.boards.occupied;
+    let opponent_occupied = &position.boards.pos_to_player[player.opponent() as usize];
 
     while bishops != 0 {
         let from = bishops.pop_mut();
@@ -133,7 +133,7 @@ fn generate_bishop_moves(
         let magic_index = hash_with_magic(generator.bishop_magics[from as usize], &occupied);
         let moves_mask = generator.bishop_magic_attack_tables[magic_index];
 
-        let valid_silents = moves_mask & !position.bitboards.occupied;
+        let valid_silents = moves_mask & !position.boards.occupied;
         let valid_captures = moves_mask & opponent_occupied;
 
         movelist.push_multiple_moves(
@@ -176,11 +176,11 @@ fn generate_rook_moves(
     only_captures: bool,
 ) {
     let mut rooks = position
-        .bitboards
+        .boards
         .get_board_by_piece(player, Piece::Rook)
         .clone();
-    let occupied = &position.bitboards.occupied;
-    let opponent_occupied = &position.bitboards.pos_to_player[player.opponent() as usize];
+    let occupied = &position.boards.occupied;
+    let opponent_occupied = &position.boards.pos_to_player[player.opponent() as usize];
 
     while rooks != 0 {
         let from = rooks.pop_mut();
@@ -231,11 +231,11 @@ fn generate_queen_moves(
     only_captures: bool,
 ) {
     let mut queens = position
-        .bitboards
+        .boards
         .get_board_by_piece(player, Piece::Queen)
         .clone();
-    let occupied = &position.bitboards.occupied;
-    let opponent_occupied = &position.bitboards.pos_to_player[player.opponent() as usize];
+    let occupied = &position.boards.occupied;
+    let opponent_occupied = &position.boards.pos_to_player[player.opponent() as usize];
 
     while queens != 0 {
         let from = queens.pop_mut();
@@ -248,7 +248,7 @@ fn generate_queen_moves(
 
         let moves_mask = rook_moves_mask | bishop_moves_mask;
 
-        let valid_silents = moves_mask & !position.bitboards.occupied;
+        let valid_silents = moves_mask & !position.boards.occupied;
         let valid_captures = moves_mask & opponent_occupied;
 
         movelist.push_multiple_moves(
@@ -291,16 +291,16 @@ fn generate_knight_moves(
     only_captures: bool,
 ) {
     let mut knights = position
-        .bitboards
+        .boards
         .get_board_by_piece(player, Piece::Knight)
         .clone();
-    let opponent_occupied = position.bitboards.pos_to_player[player.opponent() as usize];
+    let opponent_occupied = position.boards.pos_to_player[player.opponent() as usize];
 
     while knights != 0 {
         let from = knights.pop_mut();
 
         let moves_mask = generator.knight_moves_masks[from as usize];
-        let valid_silents = moves_mask & !position.bitboards.occupied;
+        let valid_silents = moves_mask & !position.boards.occupied;
         let valid_captures = moves_mask & opponent_occupied;
 
         movelist.push_multiple_moves(
@@ -355,13 +355,13 @@ fn generate_pawn_single_forward_moves(
     position: &PositionState,
     player: Player,
 ) {
-    let pawnboard = position.bitboards.get_board_by_piece(player, Piece::Pawn);
+    let pawnboard = position.boards.get_board_by_piece(player, Piece::Pawn);
     let can_move = pawnboard & !RANK_1_MASK & !RANK_8_MASK;
     let moved_forward = match player {
         Player::White => can_move << 8,
         Player::Black => can_move >> 8,
     };
-    let mut valid = moved_forward & !position.bitboards.occupied;
+    let mut valid = moved_forward & !position.boards.occupied;
 
     while valid != 0 {
         let pos = valid.pop_mut();
@@ -418,8 +418,8 @@ pub fn generate_pawn_double_forward_moves(
     position: &PositionState,
     player: Player,
 ) {
-    let pawnboard = position.bitboards.get_board_by_piece(player, Piece::Pawn);
-    let occupied = position.bitboards.occupied;
+    let pawnboard = position.boards.get_board_by_piece(player, Piece::Pawn);
+    let occupied = position.boards.occupied;
 
     let can_move = match player {
         Player::White => pawnboard & RANK_2_MASK,
@@ -468,10 +468,10 @@ pub fn generate_pawn_attack_moves(
     generator: &MoveGenerator,
 ) {
     let mut pawns = position
-        .bitboards
+        .boards
         .get_board_by_piece(player, Piece::Pawn)
         .clone();
-    let opposite_occupied = position.bitboards.pos_to_player[player.opponent() as usize];
+    let opposite_occupied = position.boards.pos_to_player[player.opponent() as usize];
     // pawns.print_board();
 
     while pawns != 0 {
@@ -502,7 +502,7 @@ pub fn generate_pawn_attack_moves_helper(
     let captured_piece = if enpassant {
         Piece::Pawn
     } else {
-        position.bitboards.pos_to_piece[to as usize]
+        position.boards.pos_to_piece[to as usize]
     };
 
     // promotion on capture
@@ -552,17 +552,17 @@ pub fn generate_king_moves(
     only_captures: bool,
 ) {
     let mut kings = position
-        .bitboards
+        .boards
         .get_board_by_piece(player, Piece::King)
         .clone();
-    let opponent_occupied = position.bitboards.pos_to_player[player.opponent() as usize];
+    let opponent_occupied = position.boards.pos_to_player[player.opponent() as usize];
 
     // should only really run once
     while kings != 0 {
         let from = kings.pop_mut();
 
         let moves_mask = generator.king_moves_masks[from as usize];
-        let valid_silents = moves_mask & !position.bitboards.occupied;
+        let valid_silents = moves_mask & !position.boards.occupied;
         let valid_captures = moves_mask & opponent_occupied;
 
         movelist.push_multiple_moves(
@@ -608,12 +608,12 @@ pub fn generate_castling_moves(
         return;
     }
 
-    let occupied = position.bitboards.occupied;
+    let occupied = position.boards.occupied;
     let opponent: Player = player.opponent();
 
     match player {
         Player::White => {
-            if position.bitboards.pos_to_piece[4] != Piece::King {
+            if position.boards.pos_to_piece[4] != Piece::King {
                 return;
             }
 
@@ -625,7 +625,7 @@ pub fn generate_castling_moves(
                 && !position.is_square_attacked(5, opponent, generator)
             {
                 // we will mark the king movement
-                if position.bitboards.pos_to_piece[7] == Piece::Rook {
+                if position.boards.pos_to_piece[7] == Piece::Rook {
                     movelist.push(Move {
                         from_pos: 4,
                         to_pos: 6,
@@ -649,7 +649,7 @@ pub fn generate_castling_moves(
                 && !occupied.get(3)
                 && !position.is_square_attacked(3, opponent, generator)
             {
-                if position.bitboards.pos_to_piece[0] == Piece::Rook {
+                if position.boards.pos_to_piece[0] == Piece::Rook {
                     // TODO: need to change this to use king
                     movelist.push(Move {
                         from_pos: 4,
@@ -668,7 +668,7 @@ pub fn generate_castling_moves(
             }
         }
         Player::Black => {
-            if position.bitboards.pos_to_piece[60] != Piece::King {
+            if position.boards.pos_to_piece[60] != Piece::King {
                 return;
             }
 
@@ -680,7 +680,7 @@ pub fn generate_castling_moves(
                 // check if 61 is attacked, king side between transition
                 // make sure in between is also empty
 
-                if position.bitboards.pos_to_piece[63] == Piece::Rook {
+                if position.boards.pos_to_piece[63] == Piece::Rook {
                     movelist.push(Move {
                         from_pos: 60,
                         to_pos: 62,
@@ -704,7 +704,7 @@ pub fn generate_castling_moves(
             {
                 // check if 58 is attacked, queen side between transition
                 // make sure in between is also empty
-                if position.bitboards.pos_to_piece[56] == Piece::Rook {
+                if position.boards.pos_to_piece[56] == Piece::Rook {
                     movelist.push(Move {
                         from_pos: 60,
                         to_pos: 58,

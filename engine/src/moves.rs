@@ -180,7 +180,7 @@ impl MoveList {
                 piece,
                 promotion_piece,
                 captured_piece: if capturing {
-                    position.bitboards.pos_to_piece[to as usize]
+                    position.boards.pos_to_piece[to as usize]
                 } else {
                     Piece::Empty
                 },

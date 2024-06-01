@@ -201,13 +201,11 @@ pub fn uci_loop() {
                 let s = searcher.lock().unwrap();
                 let pos: i8 = Square::parse_string(parts[1].into()).unwrap().into();
                 let attacker_pos: i8 = Square::parse_string(parts[2].into()).unwrap().into();
-                let attacker = s.position.bitboards.pos_to_piece[attacker_pos as usize];
                 println!(
                     "{}",
                     static_exchange_evaluation(
                         &s.position,
                         pos,
-                        attacker,
                         attacker_pos,
                         &s.generator
                     )

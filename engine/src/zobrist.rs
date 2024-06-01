@@ -70,9 +70,9 @@ impl ZobristHasher {
 
         // piece keys
         for sq in 0..64 {
-            if position.bitboards.pos_to_piece[sq] != Piece::Empty {
-                let piece = position.bitboards.pos_to_piece[sq] as usize;
-                let side = if position.bitboards.pos_to_player[Player::White as usize].get(sq as i8) {
+            if position.boards.pos_to_piece[sq] != Piece::Empty {
+                let piece = position.boards.pos_to_piece[sq] as usize;
+                let side = if position.boards.pos_to_player[Player::White as usize].get(sq as i8) {
                     Player::White as usize
                 } else {
                     Player::Black as usize

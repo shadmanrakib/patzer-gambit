@@ -1,5 +1,5 @@
 use crate::{
-    boards::BitBoard,
+    boards::{BitBoard, Boards},
     magics::hash_with_magic,
     movegen::MoveGenerator,
     moves::{Move, SimpleMove},
@@ -8,7 +8,6 @@ use crate::{
     position::PositionState,
     searchinfo::SearchInfo,
     settings::MAX_KILLER_MOVES,
-    square::Square,
 };
 
 const MAX_SCORE: i16 = std::i16::MAX;
@@ -64,208 +63,170 @@ pub fn score_tt_mmv_lva_killer(
 const PIECE_POINTS: [i16; 7] = [
     0,     // Empty
     100,   // Pawn
-    300,   // Knight
-    310,   // Bishop
+    320,   // Knight
+    325,   // Bishop
     500,   // Rook
-    900,   // Queen
+    925,   // Queen
     20000, // King
 ];
 
-#[derive(Debug, Clone, Copy)]
-enum RayDirection {
-    N,
-    S,
-    E,
-    W,
-    NE,
-    NW,
-    SE,
-    SW,
-    NONE,
-}
 pub fn static_exchange_evaluation(
     position: &PositionState,
-    pos: i8,
-    attacker: Piece,
+    to: i8,
     attacker_pos: i8,
     generator: &MoveGenerator,
 ) -> i16 {
-    let captured = position.bitboards.pos_to_piece[pos as usize];
-    let eval = PIECE_POINTS[captured as usize];
+    let boards = position.boards.clone();
 
-    let swap_list = Vec::<i16>::with_capacity(32);
+    let mut occ = boards.occupied;
 
-    let mut cur_piece = attacker;
+    let mut from_bitset: u64 = 1 << attacker_pos;
+    let mut from = attacker_pos;
 
-    // we will need to get all the attackers
-    let mut attackers = init_attackers(position, pos, generator);
-    println!("{:?}", attackers);
-    attackers = attackers
-        .into_iter()
-        .filter(|x| x.2 == attacker_pos)
-        .collect();
-    let mut white: Vec<&(Piece, RayDirection, i8)> = attackers
-        .iter()
-        .filter(|x| position.bitboards.pos_to_player[Player::White as usize].get(x.2))
-        .collect();
-    let black: Vec<&(Piece, RayDirection, i8)> = attackers
-        .iter()
-        .filter(|x| position.bitboards.pos_to_player[Player::Black as usize].get(x.2))
-        .collect();
+    let mut attacks = get_attacks_on_square(&boards, occ, to, generator);
+    let mut all_attackers = attacks;
 
-    println!("{:?}", attackers);
-    println!("{:?}", white);
-    println!("{:?}", black);
+    // create a swap list for us to calculate values of the attacks
+    // we will then use this swap list to get back the results
+    // of a negamax on the position (essentially a dp implementation of negamax)
+    // we are able to do this because the search does not branch
+    // and always takes the min attacker of the attacking side
+    let mut swap_list = [0_i16; 32];
+    let mut depth = 0;
+    let mut player = position.side_to_move.opponent();
 
-    eval
-}
+    // value of first piece to be captured
+    swap_list[0] = PIECE_POINTS[boards.pos_to_piece[to as usize] as usize];
 
-fn move_smallest_attacker_to_end(attackers: &mut Vec<&(Piece, RayDirection, i8)>) {
-    let mut i = 0;
-    let mut end = attackers.len() - 1;
+    while from_bitset != 0 && depth < 31 {
+        depth += 1;
 
-    while i < end {
-        if PIECE_POINTS[attackers[i].0 as usize] < PIECE_POINTS[attackers[i].1 as usize] {
-            attackers.swap(i, end);
-        }
-        i += 1;
+        // we will assume the attacker from last stage is captured
+        let captured = boards.pos_to_piece[from as usize];
+        swap_list[depth] = PIECE_POINTS[captured as usize] - swap_list[depth - 1];
+
+        // if captured == Piece::King {
+        //     break;
+        // }
+
+        // pruning, attacking would be always worse, so end now
+        // that is the opponent can just stop taking and be up
+        if std::cmp::max(-swap_list[depth - 1], swap_list[depth]) < 0 {
+            break;
+        };
+
+        // used up peice, so "remove", allowing for x-rays to be discovered
+        attacks ^= from_bitset;
+        occ ^= from_bitset;
+
+        let sliding = get_sliding_attacks(&boards, occ, to, generator);
+        attacks |= sliding;
+        all_attackers |= attacks;
+
+        // find the next attacker
+        (from_bitset, from) = get_least_valauble_attacker(&boards, &attacks, player);
+        player = player.opponent();
     }
-}
 
-fn ray_direction(a: i8, b: i8) -> RayDirection {
-    let a_sq = Square::from(a);
-    let b_sq = Square::from(b);
-
-    let (dr, df) = (a_sq.rank - b_sq.rank, a_sq.file - b_sq.file);
-
-    println!("{a} {b} {dr} {df}");
-
-    match (dr, df) {
-        (x, 0) if x > 0 => RayDirection::N, // Moving up a rank (North)
-        (x, 0) if x < 0 => RayDirection::S, // Moving down a rank (South)
-        (0, x) if x > 0 => RayDirection::E, // Moving right a file (East)
-        (0, x) if x < 0 => RayDirection::W, // Moving left a file (West)
-        (1, 1) => RayDirection::NE,         // Moving up a rank and right a file (Northeast)
-        (1, -1) => RayDirection::NW,        // Moving up a rank and left a file (Northwest)
-        (-1, 1) => RayDirection::SE,        // Moving down a rank and right a file (Southeast)
-        (-1, -1) => RayDirection::SW,       // Moving down a rank and left a file (Southwest)
-        _ => RayDirection::NONE,
+    // negamax
+    depth -= 1;
+    while depth > 0 {
+        swap_list[depth - 1] = -std::cmp::max(-swap_list[depth - 1], swap_list[depth]);
+        depth -= 1;
     }
+
+    swap_list[0]
 }
+// position fen 1k1r4/1pp4p/p7/4p3/8/P5P1/1PP4P/2K1R3 w - - 0 1
+// s e5 e1
+// position fen 1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - - 0 1
+// s e5 d3
+fn get_sliding_attacks(boards: &Boards, occ: u64, to: i8, generator: &MoveGenerator) -> u64 {
+    let mut attackers = 0;
+    let rooks = boards.get_board_by_piece(Player::White, Piece::Rook)
+        | boards.get_board_by_piece(Player::Black, Piece::Rook);
+    let bishops = boards.get_board_by_piece(Player::White, Piece::Bishop)
+        | boards.get_board_by_piece(Player::Black, Piece::Bishop);
+    let queens = boards.get_board_by_piece(Player::White, Piece::Queen)
+        | boards.get_board_by_piece(Player::Black, Piece::Queen);
 
-fn init_attackers(
-    position: &PositionState,
-    to: i8,
-    generator: &MoveGenerator,
-) -> Vec<(Piece, RayDirection, i8)> {
-    let mut attackers = vec![];
+    // rook and queen vertical and horizontal
+    let rook_magic_index = hash_with_magic(generator.rook_magics[to as usize], &occ);
+    let straight_moves_mask = generator.rook_magic_attack_tables[rook_magic_index];
+    attackers |= straight_moves_mask & (rooks | queens);
 
-    let occupied = position.bitboards.occupied;
+    // bishop and queen diagonal
+    let bishop_magic_index = hash_with_magic(generator.bishop_magics[to as usize], &occ);
+    let diagnol_moves_mask = generator.bishop_magic_attack_tables[bishop_magic_index];
+    attackers |= diagnol_moves_mask & (bishops | queens);
+
+    attackers & occ
+}
+fn get_attacks_on_square(boards: &Boards, occ: u64, to: i8, generator: &MoveGenerator) -> u64 {
+    let mut attackers = get_sliding_attacks(boards, occ, to, generator);
+
+    let kings = boards.get_board_by_piece(Player::White, Piece::King)
+        | boards.get_board_by_piece(Player::Black, Piece::King);
+    let knights = boards.get_board_by_piece(Player::White, Piece::Knight)
+        | boards.get_board_by_piece(Player::Black, Piece::Knight);
+    let wpawns = boards.get_board_by_piece(Player::White, Piece::Pawn);
+    let bpawns = boards.get_board_by_piece(Player::Black, Piece::Pawn);
 
     // knight
     let knight_move_mask = generator.knight_moves_masks[to as usize];
-    let mut attacking_knights = knight_move_mask
-        & (position
-            .bitboards
-            .get_board_by_piece(Player::White, Piece::Knight)
-            | position
-                .bitboards
-                .get_board_by_piece(Player::Black, Piece::Knight));
-    while attacking_knights != 0 {
-        let from = attacking_knights.pop_mut();
-        attackers.push((Piece::Knight, ray_direction(from, to), from))
-    }
-
-    // rook and queen vertical and horizontal
-    let rook_magic_index = hash_with_magic(generator.rook_magics[to as usize], &occupied);
-    let rook_moves_mask = generator.rook_magic_attack_tables[rook_magic_index];
-    let mut attacking_rooks = rook_moves_mask
-        & (position
-            .bitboards
-            .get_board_by_piece(Player::White, Piece::Rook)
-            | position
-                .bitboards
-                .get_board_by_piece(Player::Black, Piece::Rook));
-    let mut attacking_queens_straight = rook_moves_mask
-        & (position
-            .bitboards
-            .get_board_by_piece(Player::White, Piece::Queen)
-            | position
-                .bitboards
-                .get_board_by_piece(Player::Black, Piece::Queen));
-    while attacking_rooks != 0 {
-        let from = attacking_rooks.pop_mut();
-        attackers.push((Piece::Rook, ray_direction(from, to), from))
-    }
-    while attacking_queens_straight != 0 {
-        let from = attacking_queens_straight.pop_mut();
-        attackers.push((Piece::Queen, ray_direction(from, to), from))
-    }
-
-    // bishop and queen diagonal
-    let bishop_magic_index = hash_with_magic(generator.bishop_magics[to as usize], &occupied);
-    let bishop_moves_mask = generator.bishop_magic_attack_tables[bishop_magic_index];
-
-    let mut attacking_bishops = bishop_moves_mask
-        & (position
-            .bitboards
-            .get_board_by_piece(Player::White, Piece::Bishop)
-            | position
-                .bitboards
-                .get_board_by_piece(Player::Black, Piece::Bishop));
-    let mut attacking_queens_diagonal = bishop_moves_mask
-        & (position
-            .bitboards
-            .get_board_by_piece(Player::White, Piece::Queen)
-            | position
-                .bitboards
-                .get_board_by_piece(Player::Black, Piece::Queen));
-
-    while attacking_bishops != 0 {
-        let from = attacking_bishops.pop_mut();
-        attackers.push((Piece::Bishop, ray_direction(from, to), from))
-    }
-    while attacking_queens_diagonal != 0 {
-        let from = attacking_queens_diagonal.pop_mut();
-        attackers.push((Piece::Queen, ray_direction(from, to), from))
-    }
+    attackers |= knight_move_mask & knights;
 
     // pawn attack, doesn't include enpassants
-    let white_pawns = position
-        .bitboards
-        .get_board_by_piece(Player::White, Piece::Pawn);
-    let mut white_attacking_mask = generator.pawn_attack_moves_mask
-        [Player::White.opponent() as usize][to as usize]
-        & white_pawns;
-    let black_pawns = position
-        .bitboards
-        .get_board_by_piece(Player::Black, Piece::Pawn);
-    let mut black_attacking_mask = generator.pawn_attack_moves_mask
-        [Player::Black.opponent() as usize][to as usize]
-        & black_pawns;
-
-    while white_attacking_mask != 0 {
-        let from = white_attacking_mask.pop_mut();
-        attackers.push((Piece::Pawn, ray_direction(from, to), from))
-    }
-    while black_attacking_mask != 0 {
-        let from = black_attacking_mask.pop_mut();
-        attackers.push((Piece::Pawn, ray_direction(from, to), from))
-    }
+    let wpawn_attacking_mask =
+        generator.pawn_attack_moves_mask[Player::White.opponent() as usize][to as usize] & wpawns;
+    let bpawn_attacking_mask =
+        generator.pawn_attack_moves_mask[Player::Black.opponent() as usize][to as usize] & bpawns;
+    attackers |= wpawn_attacking_mask | bpawn_attacking_mask;
 
     // king attack
     let king_move_mask = generator.king_moves_masks[to as usize];
-    let mut attacking_king = king_move_mask
-        & (position
-            .bitboards
-            .get_board_by_piece(Player::White, Piece::King)
-            | position
-                .bitboards
-                .get_board_by_piece(Player::Black, Piece::King));
-    while attacking_king != 0 {
-        let from = attacking_king.pop_mut();
-        attackers.push((Piece::Pawn, ray_direction(from, to), from))
-    }
+    let attacking_king = king_move_mask & kings;
+    attackers |= attacking_king;
 
     attackers
+}
+
+fn get_least_valauble_attacker(boards: &Boards, attacks: &u64, player: Player) -> (u64, i8) {
+    let pawns = boards.get_board_by_piece(player, Piece::Pawn);
+    if pawns & attacks != 0 {
+        let pos = (pawns & attacks).pop_mut();
+        return (1 << pos, pos);
+    }
+
+    let knights = boards.get_board_by_piece(player, Piece::Knight);
+    if knights & attacks != 0 {
+        let pos = (knights & attacks).pop_mut();
+        return (1 << pos, pos);
+    }
+
+    let bishops = boards.get_board_by_piece(player, Piece::Bishop);
+    if bishops & attacks != 0 {
+        let pos = (bishops & attacks).pop_mut();
+        return (1 << pos, pos);
+    }
+
+    let rooks = boards.get_board_by_piece(player, Piece::Rook);
+    if rooks & attacks != 0 {
+        let pos = (rooks & attacks).pop_mut();
+        return (1 << pos, pos);
+    }
+
+    let queens = boards.get_board_by_piece(player, Piece::Queen);
+    if queens & attacks != 0 {
+        let pos = (queens & attacks).pop_mut();
+        return (1 << pos, pos);
+    }
+
+    let kings = boards.get_board_by_piece(player, Piece::King);
+    if kings & attacks != 0 {
+        let pos = (kings & attacks).pop_mut();
+        return (1 << pos, pos);
+    }
+
+    (0, 64)
 }
