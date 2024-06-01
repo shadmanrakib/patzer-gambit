@@ -1,3 +1,6 @@
+![50bfd8bc-027a-452c-b974-50d24aa2527a](https://github.com/shadmanrakib/patzer-gambit/assets/64807913/6b255289-253b-4fd6-8f76-99684e8202c5)
+
+
 # Patzer Gambit
 
 A partial UCI chess engine that's a whole lot worse than Drunk Magnus but magnitudes better than me
