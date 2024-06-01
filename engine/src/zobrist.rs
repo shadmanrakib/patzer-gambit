@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use xorshift::{Rand, Rng, SeedableRng, SplitMix64, Xoroshiro128};
 
-use crate::{boards::BitBoard, position::GameState, pieces::Piece, player::Player};
+use crate::{boards::BitBoard, position::PositionState, pieces::Piece, player::Player};
 
 pub struct ZobristHasher {
     pub pieces: [[[u64; 64]; 7]; 2],
@@ -58,21 +58,21 @@ impl ZobristHasher {
 }
 
 impl ZobristHasher {
-    pub fn hash(&self, game: &GameState) -> u64 {
+    pub fn hash(&self, position: &PositionState) -> u64 {
         let mut hash = 0;
 
-        hash ^= self.enpassant[game.enpassant_square.trailing_zeros() as usize];
-        hash ^= self.castling[game.castle_permissions as usize];
+        hash ^= self.enpassant[position.enpassant_square.trailing_zeros() as usize];
+        hash ^= self.castling[position.castle_permissions as usize];
 
-        if game.side_to_move == Player::White {
+        if position.side_to_move == Player::White {
             hash ^= self.side_to_move;
         }
 
         // piece keys
         for sq in 0..64 {
-            if game.bitboards.pos_to_piece[sq] != Piece::Empty {
-                let piece = game.bitboards.pos_to_piece[sq] as usize;
-                let side = if game.bitboards.pos_to_player[Player::White as usize].get(sq as i8) {
+            if position.bitboards.pos_to_piece[sq] != Piece::Empty {
+                let piece = position.bitboards.pos_to_piece[sq] as usize;
+                let side = if position.bitboards.pos_to_player[Player::White as usize].get(sq as i8) {
                     Player::White as usize
                 } else {
                     Player::Black as usize

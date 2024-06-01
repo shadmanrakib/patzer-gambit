@@ -10,7 +10,7 @@ mod tests {
     #[test]
     fn mate4s_suite() {
         // from https://wtharvey.com/m8n4.txt
-        // let cache = moves::generator::precalculated_lookups::cache::PrecalculatedCache::create();
+        // let generator = moves::generator::precalculated_lookups::generator::Precalculatedgenerator::create();
         // let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
         // let mut tt = TTable::init(TRANSITION_TABLE_ADDRESSING_BITS);
 

@@ -1,10 +1,8 @@
 mod boards;
 mod evaluation;
 mod fen;
-mod lookups;
 mod magics;
 mod masks;
-mod moves;
 mod movescoring;
 mod mv;
 mod perft;
@@ -19,6 +17,7 @@ mod time;
 mod transposition;
 mod uci;
 mod zobrist;
+mod movegen;
 
 #[cfg(test)]
 mod tests;

@@ -1,12 +1,11 @@
 use std::time::Instant;
 
 use crate::{
-    lookups::Lookups,
-    moves::generator::movegen::generate_pseudolegal_moves,
-    mv::{Move, MoveList, SimpleMove},
+    movegen::MoveGenerator,
+    mv::{Move, SimpleMove},
     perft,
     pieces::Piece,
-    position::GameState,
+    position::PositionState,
     searchinfo::SearchInfo,
     settings::{FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS},
     time::{TeriminationStatus, TimeControl},
@@ -20,32 +19,32 @@ pub const STALEMATE: i32 = 0;
 pub const CHECKMATE: i32 = NEG_INF;
 
 pub struct Searcher {
-    pub cache: Lookups,
+    pub generator: MoveGenerator,
     pub zobrist: ZobristHasher,
     pub tt: TTable,
-    pub position: GameState,
+    pub position: PositionState,
 }
 
 impl Searcher {
     pub fn new() -> Searcher {
         let zobrist = ZobristHasher::init();
         Searcher {
-            cache: Lookups::create(),
-            position: GameState::new(&zobrist),
+            generator: MoveGenerator::create(),
+            position: PositionState::new(&zobrist),
             zobrist,
             tt: TTable::init(TRANSITION_TABLE_ADDRESSING_BITS),
         }
     }
     pub fn startpos(&mut self) {
-        self.position = GameState::new(&self.zobrist)
+        self.position = PositionState::new(&self.zobrist)
     }
     pub fn fen(&mut self, fen: String) -> Result<(), String> {
-        self.position = GameState::from_fen(fen, &self.zobrist)?;
+        self.position = PositionState::from_fen(fen, &self.zobrist)?;
         Ok(())
     }
     pub fn make_move(&mut self, move_item: Move) -> bool {
         self.position
-            .make_move(move_item, &self.cache, &self.zobrist)
+            .make_move(move_item, &self.generator, &self.zobrist)
     }
     pub fn unmake_move(&mut self) {
         self.position.unmake_move(&self.zobrist)
@@ -57,14 +56,14 @@ impl Searcher {
         self.position.unmake_null_move(enpassant);
     }
     pub fn play(&mut self, notation: String) -> bool {
-        let m = self.position.notation_to_move(notation, &self.cache);
+        let m = self.position.notation_to_move(notation, &self.generator);
         if let Ok(move_item) = m {
             return self.make_move(move_item);
         }
         false
     }
     pub fn perft(&mut self, depth: u16) -> u64 {
-        perft::perft(&mut self.position, &self.cache, depth, &self.zobrist)
+        perft::perft(&mut self.position, &self.generator, depth, &self.zobrist)
     }
 
     pub fn get_pv(&mut self, depth: u8) -> Vec<SimpleMove> {
@@ -81,9 +80,9 @@ impl Searcher {
 
                     if d >= 1 {
                         if let Ok(move_item) =
-                            position.notation_to_move(notation.clone(), &self.cache)
+                            position.notation_to_move(notation.clone(), &self.generator)
                         {
-                            position.make_move(move_item, &self.cache, &self.zobrist);
+                            position.make_move(move_item, &self.generator, &self.zobrist);
                         } else {
                             println!("Not found {}", notation);
                         }
@@ -207,8 +206,6 @@ impl Searcher {
         info.maximize_seldepth(ply);
         info.increment_node_counts(false);
 
-        let player = self.position.side_to_move;
-
         let mut node_type = NodeType::All;
 
         let mut tt_move = SimpleMove {
@@ -236,7 +233,7 @@ impl Searcher {
 
         let in_check = self
             .position
-            .in_check(self.position.side_to_move, &self.cache);
+            .in_check(self.position.side_to_move, &self.generator);
 
         // null pruning
         if !in_check && depth >= 3 && ply != 0 && self.position.phase < 180 {
@@ -258,17 +255,17 @@ impl Searcher {
         let mut best_move_idx: i32 = -1;
         let mut best_score: i32 = -INF;
 
-        let mut moveslist = MoveList::new();
-        generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, false);
-        moveslist.score_moves(info, ply as usize, &tt_move);
+        let mut moves_list = self.generator.generate_moves(&self.position);
+        moves_list.score_moves(info, ply as usize, &tt_move);
+
         let mut legal_moves_count: u8 = 0;
         let mut moves_searched = 0;
 
         let mut best_draw = false;
 
-        for index in 0..moveslist.len() {
-            moveslist.sort_move(index);
-            let move_item = moveslist.moves[index].clone();
+        for index in 0..moves_list.len() {
+            moves_list.sort_move(index);
+            let move_item = moves_list.moves[index].clone();
 
             // illegal move
             if !self.make_move(move_item.clone()) {
@@ -355,7 +352,7 @@ impl Searcher {
 
         self.tt.record(
             self.position.hash,
-            (&moveslist.moves[(if best_move_idx >= 0 { best_move_idx } else { 0 }) as usize])
+            (&moves_list.moves[(if best_move_idx >= 0 { best_move_idx } else { 0 }) as usize])
                 .into(),
             best_score,
             depth,
@@ -388,7 +385,6 @@ impl Searcher {
         info.increment_node_counts(true);
         info.maximize_seldepth(ply);
 
-        let player = self.position.side_to_move;
         let stand_pat = self.position.score();
 
         if ply == max_ply {
@@ -405,13 +401,12 @@ impl Searcher {
             alpha = stand_pat
         }
 
-        let mut moveslist = MoveList::new();
-        generate_pseudolegal_moves(&mut moveslist, &self.position, player, &self.cache, true);
-        moveslist.score_captures();
+        let mut moves_list = self.generator.generate_captures(&self.position);
+        moves_list.score_captures();
 
-        for i in 0..moveslist.len() {
-            moveslist.sort_move(i);
-            let move_item = moveslist.moves[i].clone();
+        for i in 0..moves_list.len() {
+            moves_list.sort_move(i);
+            let move_item = moves_list.moves[i].clone();
             // illegal move
             if !self.make_move(move_item) {
                 continue;

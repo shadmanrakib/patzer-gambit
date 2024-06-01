@@ -4,7 +4,7 @@ use crate::{
     boards::{BitBoard, Boards},
     pieces::Piece,
     player::Player,
-    position::{CastlePermissions, GameState},
+    position::{CastlePermissions, PositionState},
     square::Square,
 };
 
@@ -125,13 +125,13 @@ pub fn parse_fen_castle(part: &str) -> Result<u8, String> {
     return Ok(permission);
 }
 
-pub fn stringify_board(game: &GameState) -> String {
+pub fn stringify_board(position: &PositionState) -> String {
     let mut stringified = String::new();
     for rank in (0..8).rev() {
         let mut contingious_empty = 0;
         for file in 0..8 {
             let pos: i8 = rank * 8 + file;
-            let piece = game.bitboards.pos_to_piece[pos as usize];
+            let piece = position.bitboards.pos_to_piece[pos as usize];
 
             match piece {
                 Piece::Empty => {
@@ -140,7 +140,7 @@ pub fn stringify_board(game: &GameState) -> String {
                 _ => {
                     let p = piece.to_string();
                     let colored =
-                        if game.bitboards.pos_to_player[Player::White as usize].get(pos as i8) {
+                        if position.bitboards.pos_to_player[Player::White as usize].get(pos as i8) {
                             p.to_uppercase()
                         } else {
                             p
@@ -169,33 +169,33 @@ pub fn stringify_board(game: &GameState) -> String {
 }
 
 // #[inline(always)]
-pub fn stringify_side(game: &GameState) -> String {
-    match game.side_to_move {
+pub fn stringify_side(position: &PositionState) -> String {
+    match position.side_to_move {
         Player::White => "w".into(),
         Player::Black => "b".into(),
     }
 }
 
 // #[inline(always)]
-pub fn stringify_enpassant(game: &GameState) -> String {
-    if game.enpassant_square == 0 {
+pub fn stringify_enpassant(position: &PositionState) -> String {
+    if position.enpassant_square == 0 {
         return "-".into();
     }
-    let (_, pos) = game.enpassant_square.pop();
+    let (_, pos) = position.enpassant_square.pop();
     return Square::from(pos).stringify();
 }
-pub fn stringify_castling(game: &GameState) -> String {
+pub fn stringify_castling(position: &PositionState) -> String {
     let mut stringified = String::from("");
-    if game.castle_permissions.is_allowed(u8::WHITE_KING_SIDE) {
+    if position.castle_permissions.is_allowed(u8::WHITE_KING_SIDE) {
         stringified += "K";
     }
-    if game.castle_permissions.is_allowed(u8::WHITE_QUEEN_SIDE) {
+    if position.castle_permissions.is_allowed(u8::WHITE_QUEEN_SIDE) {
         stringified += "Q";
     }
-    if game.castle_permissions.is_allowed(u8::BLACK_KING_SIDE) {
+    if position.castle_permissions.is_allowed(u8::BLACK_KING_SIDE) {
         stringified += "k";
     }
-    if game.castle_permissions.is_allowed(u8::BLACK_QUEEN_SIDE) {
+    if position.castle_permissions.is_allowed(u8::BLACK_QUEEN_SIDE) {
         stringified += "q";
     }
 

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{lookups::Lookups, perft::perft, position, zobrist::ZobristHasher};
+    use crate::{movegen::MoveGenerator, perft::perft, position, zobrist::ZobristHasher};
 
     struct PerftTest {
         fen: String,
@@ -46,13 +46,13 @@ mod tests {
             },
         ];
 
-        let cache = Lookups::create();
+        let generator = MoveGenerator::create();
         let keys = ZobristHasher::init();
 
         for test in tests {
-            let mut game = position::GameState::from_fen(test.fen.to_string(), &keys).unwrap();
+            let mut position = position::PositionState::from_fen(test.fen.to_string(), &keys).unwrap();
             println!("Test {}", &test.fen);
-            let nodes = perft(&mut game, &cache, test.depth, &keys);
+            let nodes = perft(&mut position, &generator, test.depth, &keys);
             println!("Found: {}\tExpected: {}", nodes, test.expected_nodes);
             assert_eq!(nodes, test.expected_nodes);
         }

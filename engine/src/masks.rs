@@ -184,3 +184,29 @@ pub fn create_pawn_attack_moves_masks() -> [[u64; 64]; 2] {
     }
     return masks;
 }
+
+pub fn calculate_bishop_bit_counts() -> [i8; 64] {
+    let mut bit_counts: [i8; 64] = [0; 64];
+
+    for pos in 0..64 {
+        bit_counts[pos] = create_bishop_potential_blockers_mask(pos.try_into().unwrap())
+            .count_ones()
+            .try_into()
+            .unwrap();
+    }
+
+    return bit_counts;
+}
+
+pub fn calculate_rook_bit_counts() -> [i8; 64] {
+    let mut bit_counts: [i8; 64] = [0; 64];
+
+    for pos in 0..64 {
+        bit_counts[pos] = create_rook_potential_blockers_mask(pos.try_into().unwrap())
+            .count_ones()
+            .try_into()
+            .unwrap();
+    }
+
+    return bit_counts;
+}

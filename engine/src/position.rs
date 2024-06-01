@@ -8,10 +8,9 @@ use crate::{
         TOTAL_PHASE,
     },
     fen,
-    lookups::Lookups,
     magics::hash_with_magic,
-    moves::generator::movegen::generate_pseudolegal_moves,
-    mv::{Move, MoveList, UnmakeMoveMetadata},
+    movegen::MoveGenerator,
+    mv::{Move, UnmakeMoveMetadata},
     square::Square,
     zobrist::ZobristHasher,
 };
@@ -60,7 +59,7 @@ pub struct EnpassantSquare {
 
 // inspired by FEN notation
 #[derive(Debug, Clone)]
-pub struct GameState {
+pub struct PositionState {
     pub bitboards: Boards,
     pub side_to_move: Player,
     pub castle_permissions: u8,
@@ -77,14 +76,14 @@ pub struct GameState {
     // for pqst
     pub phase: i32,
     pub opening: [i32; 2],
-    pub endgame: [i32; 2],
+    pub endposition: [i32; 2],
     pub color: i32,
     pub hash: u64,
 }
 
-impl GameState {
+impl PositionState {
     #[allow(dead_code)]
-    pub fn set(&mut self, other: GameState) {
+    pub fn set(&mut self, other: PositionState) {
         self.bitboards = other.bitboards;
         self.side_to_move = other.side_to_move;
         self.castle_permissions = other.castle_permissions;
@@ -94,19 +93,21 @@ impl GameState {
         self.phase = other.phase;
         self.color = other.color;
         self.opening = other.opening;
-        self.endgame = other.endgame;
+        self.endposition = other.endposition;
         self.history = other.history;
     }
     // TODO: will implement later
-    pub fn notation_to_move(&self, notation: String, cache: &Lookups) -> Result<Move, String> {
+    pub fn notation_to_move(
+        &self,
+        notation: String,
+        generator: &MoveGenerator,
+    ) -> Result<Move, String> {
         let re = Regex::new(r"([a-h][1-8])([a-h][1-8])([nbrq])?").unwrap();
 
         if re.is_match(&notation) {
-            let mut moveslist = MoveList::new();
-            generate_pseudolegal_moves(&mut moveslist, self, self.side_to_move, cache, false);
-
-            for index in 0..moveslist.len() {
-                let move_item = &moveslist.moves[index];
+            let moves_list = generator.generate_moves(self);
+            for index in 0..moves_list.len() {
+                let move_item = &moves_list.moves[index];
 
                 if move_item.to_string() == notation {
                     return Ok(move_item.clone());
@@ -223,7 +224,7 @@ impl GameState {
         // places piece updates
         let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
         self.opening[player as usize] += OPENING_PSQT_TABLES[piece as usize][pqst_pos];
-        self.endgame[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];
+        self.endposition[player as usize] += ENDGAME_PSQT_TABLES[piece as usize][pqst_pos];
         self.phase -= PHASE_INCREMENT_BY_PIECE[piece as usize];
         self.hash ^= zobrist.pieces[player as usize][piece as usize][pos as usize];
     }
@@ -234,14 +235,19 @@ impl GameState {
 
         let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
         self.opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
-        self.endgame[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
+        self.endposition[player as usize] -= ENDGAME_PSQT_TABLES[removed as usize][pqst_pos];
         self.phase += PHASE_INCREMENT_BY_PIECE[removed as usize];
         self.hash ^= zobrist.pieces[player as usize][removed as usize][pos as usize];
 
         return removed;
     }
 
-    pub fn make_move(&mut self, move_item: Move, cache: &Lookups, zobrist: &ZobristHasher) -> bool {
+    pub fn make_move(
+        &mut self,
+        move_item: Move,
+        generator: &MoveGenerator,
+        zobrist: &ZobristHasher,
+    ) -> bool {
         // keep copies for undoing metadata
         let prev_hash = self.hash;
         let prev_castle_permissions = self.castle_permissions.clone();
@@ -405,7 +411,7 @@ impl GameState {
         };
         self.history.push((move_item, unmake_metadata, prev_hash));
 
-        if self.in_check(self.side_to_move.opponent(), cache) {
+        if self.in_check(self.side_to_move.opponent(), generator) {
             self.unmake_move(zobrist);
             return false;
         }
@@ -524,11 +530,11 @@ impl GameState {
     }
 
     #[inline(always)]
-    pub fn is_square_attacked(&self, pos: i8, attacker: Player, cache: &Lookups) -> bool {
-        let occupied = self.bitboards.occupied;
+    pub fn is_square_attacked(&self, pos: i8, attacker: Player, generator: &MoveGenerator) -> bool {
+        let occupied = &self.bitboards.occupied;
 
         // knight
-        let knight_move_mask = cache.knight_moves_masks[pos as usize];
+        let knight_move_mask = generator.knight_moves_masks[pos as usize];
         let attacking_knights =
             knight_move_mask & self.bitboards.get_board_by_piece(attacker, Piece::Knight);
         if attacking_knights != 0 {
@@ -536,8 +542,8 @@ impl GameState {
         }
 
         // rook and queen vertical and horizontal
-        let rook_magic_index = hash_with_magic(cache.rook_magics[pos as usize], occupied);
-        let rook_moves_mask = cache.rook_magic_attack_tables[rook_magic_index];
+        let rook_magic_index = hash_with_magic(generator.rook_magics[pos as usize], occupied);
+        let rook_moves_mask = generator.rook_magic_attack_tables[rook_magic_index];
         let attacking_rooks =
             rook_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Rook);
         let attacking_queens_straight =
@@ -548,8 +554,8 @@ impl GameState {
         }
 
         // bishop and queen diagonal
-        let bishop_magic_index = hash_with_magic(cache.bishop_magics[pos as usize], occupied);
-        let bishop_moves_mask = cache.bishop_magic_attack_tables[bishop_magic_index];
+        let bishop_magic_index = hash_with_magic(generator.bishop_magics[pos as usize], occupied);
+        let bishop_moves_mask = generator.bishop_magic_attack_tables[bishop_magic_index];
 
         let attacking_bishops =
             bishop_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Bishop);
@@ -563,14 +569,14 @@ impl GameState {
         // pawn attack
         let opponent_pawns = self.bitboards.get_board_by_piece(attacker, Piece::Pawn);
         let attacking_mask =
-            cache.pawn_attack_moves_mask[attacker.opponent() as usize][pos as usize];
+            generator.pawn_attack_moves_mask[attacker.opponent() as usize][pos as usize];
         let attacking_pawns = opponent_pawns & attacking_mask;
         if attacking_pawns != 0 {
             return true;
         }
 
         // king attack
-        let king_move_mask = cache.king_moves_masks[pos as usize];
+        let king_move_mask = generator.king_moves_masks[pos as usize];
         let attacking_king =
             king_move_mask & self.bitboards.get_board_by_piece(attacker, Piece::King);
         if attacking_king != 0 {
@@ -581,28 +587,28 @@ impl GameState {
     }
 
     // #[inline(always)]
-    pub fn in_check(&self, player: Player, cache: &Lookups) -> bool {
+    pub fn in_check(&self, player: Player, generator: &MoveGenerator) -> bool {
         let king = self
             .bitboards
             .get_board_by_piece(player, Piece::King)
             .trailing_zeros() as i8;
 
-        return self.is_square_attacked(king, player.opponent(), cache);
+        return self.is_square_attacked(king, player.opponent(), generator);
     }
 
-    pub fn new(key: &ZobristHasher) -> GameState {
+    pub fn new(key: &ZobristHasher) -> PositionState {
         let start_board_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into();
         return Self::from_fen(start_board_fen, key).unwrap();
     }
 
-    pub fn from_fen(fen: String, zobrist: &ZobristHasher) -> Result<GameState, String> {
+    pub fn from_fen(fen: String, zobrist: &ZobristHasher) -> Result<PositionState, String> {
         let parts: Vec<&str> = fen.split(" ").collect();
 
         if parts.len() != 6 {
             return Err("Fen missing parts".to_string());
         }
 
-        let mut game = GameState {
+        let mut position = PositionState {
             bitboards: fen::parse_fen_board(parts[0]).unwrap(),
             side_to_move: fen::parse_fen_side(parts[1]).unwrap(),
             castle_permissions: fen::parse_fen_castle(parts[2]).unwrap(),
@@ -614,24 +620,24 @@ impl GameState {
             phase: 0,
             color: 0,
             opening: [0, 0],
-            endgame: [0, 0],
+            endposition: [0, 0],
             hash: 0,
         };
 
         // initialize values needed for scoring
-        let (phase, opening, endgame) = evaluation::init(&game);
-        game.phase = phase;
-        game.opening = opening;
-        game.endgame = endgame;
-        game.color = if game.side_to_move == Player::White {
+        let (phase, opening, endposition) = evaluation::init(&position);
+        position.phase = phase;
+        position.opening = opening;
+        position.endposition = endposition;
+        position.color = if position.side_to_move == Player::White {
             1
         } else {
             -1
         };
-        game.hash = zobrist.hash(&game);
-        game.history = vec![];
+        position.hash = zobrist.hash(&position);
+        position.history = vec![];
 
-        return Ok(game);
+        return Ok(position);
     }
 
     pub fn to_fen(&self) -> String {

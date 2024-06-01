@@ -1,6 +1,6 @@
 // https://www.chessprogramming.org/Tapered_Eval
 
-use crate::{boards::BitBoard, pieces::Piece, position::GameState};
+use crate::{boards::BitBoard, pieces::Piece, position::PositionState};
 
 pub const OPENING_PIECE_POINTS: [i32; 7] = [
     0,       // Empty
@@ -247,34 +247,34 @@ pub const TOTAL_PHASE: i32 = {
 };
 
 // inspired by Crafty engine
-pub fn eval(game: &GameState) -> i32 {
-    let phase = game.phase;
-    let opening = game.opening[0] - game.opening[1];
-    let endgame = game.endgame[0] - game.endgame[1];
+pub fn eval(position: &PositionState) -> i32 {
+    let phase = position.phase;
+    let opening = position.opening[0] - position.opening[1];
+    let endposition = position.endposition[0] - position.endposition[1];
     // return opening;
-    return ((opening * (TOTAL_PHASE - phase)) + (endgame * phase)) / TOTAL_PHASE;
-    // return position::simple(game);
+    return ((opening * (TOTAL_PHASE - phase)) + (endposition * phase)) / TOTAL_PHASE;
+    // return position::simple(position);
 }
 
-pub fn init(game: &GameState) -> (i32, [i32; 2], [i32; 2]) {
+pub fn init(position: &PositionState) -> (i32, [i32; 2], [i32; 2]) {
     let mut opening = [0; 2];
-    let mut endgame = [0; 2];
+    let mut endposition = [0; 2];
 
     let mut phase = TOTAL_PHASE;
-    let mut occupied = game.bitboards.occupied;
+    let mut occupied = position.bitboards.occupied;
     while occupied != 0 {
         let pos = occupied.pop_mut() as usize;
-        let piece = game.bitboards.pos_to_piece[pos] as usize;
+        let piece = position.bitboards.pos_to_piece[pos] as usize;
         phase -= PHASE_INCREMENT_BY_PIECE[piece as usize];
 
-        if game.bitboards.pos_to_player[0].get(pos as i8) {
+        if position.bitboards.pos_to_player[0].get(pos as i8) {
             opening[0] += OPENING_PSQT_TABLES[piece][pos];
-            endgame[0] += ENDGAME_PSQT_TABLES[piece][pos];
+            endposition[0] += ENDGAME_PSQT_TABLES[piece][pos];
         } else {
             opening[1] += OPENING_PSQT_TABLES[piece][pos ^ 56];
-            endgame[1] += ENDGAME_PSQT_TABLES[piece][pos ^ 56];
+            endposition[1] += ENDGAME_PSQT_TABLES[piece][pos ^ 56];
         }
     }
 
-    return (phase, opening, endgame);
+    return (phase, opening, endposition);
 }

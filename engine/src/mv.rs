@@ -1,5 +1,7 @@
+use crate::boards::BitBoard;
 use crate::movescoring::{score_mmv_lva, score_tt_mmv_lva_killer};
 use crate::pieces::Piece;
+use crate::position::PositionState;
 use crate::searchinfo::SearchInfo;
 use crate::square::Square;
 use std::fmt::Debug;
@@ -155,6 +157,41 @@ impl MoveList {
     pub fn push(&mut self, move_item: Move) {
         self.moves[self.end] = move_item;
         self.end += 1;
+    }
+    #[inline(always)]
+    pub fn push_multiple_moves(
+        &mut self,
+        position: &PositionState,
+        from: i8,
+        mut tos: u64,
+        piece: Piece,
+        promotion_piece: Piece,
+        promoting: bool,
+        capturing: bool,
+        double: bool,
+        enpassant: bool,
+        castling: bool,
+    ) {
+        while tos != 0 {
+            let to = tos.pop_mut();
+            self.push(Move {
+                from_pos: from,
+                to_pos: to,
+                piece,
+                promotion_piece,
+                captured_piece: if capturing {
+                    position.bitboards.pos_to_piece[to as usize]
+                } else {
+                    Piece::Empty
+                },
+                promoting,
+                capturing,
+                double,
+                enpassant,
+                castling,
+                score: 0,
+            })
+        }
     }
     pub fn len(&self) -> usize {
         self.end

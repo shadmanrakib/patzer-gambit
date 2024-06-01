@@ -32,7 +32,7 @@ pub struct Magic {
 }
 
 #[inline(always)]
-pub fn hash_with_magic(magic: Magic, blockers: u64) -> usize {
+pub fn hash_with_magic(magic: Magic, blockers: &u64) -> usize {
     let blockers_on_path = blockers & magic.potential_blockers_mask;
     let hash = blockers_on_path.wrapping_mul(magic.magic_num);
     let index = ((hash >> magic.shift) + magic.offset) as usize;
@@ -158,7 +158,7 @@ fn find_magic_number(
                     offset: 0,
                     shift: 64 - relevant_bits as u64,
                 },
-                occupancies[bit_set as usize],
+                &occupancies[bit_set as usize],
             );
             if used_moves[magic_index as usize] == 0 {
                 used_moves[magic_index as usize] = moves[bit_set as usize];

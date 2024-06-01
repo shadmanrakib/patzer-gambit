@@ -1,8 +1,13 @@
-use crate::{lookups::Lookups, mv::MoveList, position::GameState, zobrist::ZobristHasher};
+use crate::{movegen::MoveGenerator, position::PositionState, zobrist::ZobristHasher};
 
 use std::time::Instant;
 
-pub fn perft(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &ZobristHasher) -> u64 {
+pub fn perft(
+    position: &mut PositionState,
+    generator: &MoveGenerator,
+    depth: u16,
+    zobrist: &ZobristHasher,
+) -> u64 {
     let now = Instant::now();
 
     let mut nodes = 0;
@@ -11,22 +16,15 @@ pub fn perft(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &Zobris
         return 1;
     }
 
-    let mut move_list = MoveList::new();
-    crate::moves::generator::movegen::generate_pseudolegal_moves(
-        &mut move_list,
-        game,
-        game.side_to_move,
-        cache,
-        false,
-    );
+    let moves_list = generator.generate_moves(position);
 
-    for index in 0..move_list.len() {
-        let move_item = &move_list.moves[index];
-        if game.make_move(move_item.clone(), cache, zobrist) {
-            let move_nodes = _perft(game, cache, depth - 1, zobrist);
+    for index in 0..moves_list.len() {
+        let move_item = &moves_list.moves[index];
+        if position.make_move(move_item.clone(), generator, zobrist) {
+            let move_nodes = _perft(position, generator, depth - 1, zobrist);
             nodes += move_nodes;
             println!("{}: {}", move_item.to_string(), move_nodes);
-            game.unmake_move(zobrist);
+            position.unmake_move(zobrist);
         }
     }
 
@@ -37,28 +35,26 @@ pub fn perft(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &Zobris
     return nodes;
 }
 
-fn _perft(game: &mut GameState, cache: &Lookups, depth: u16, zobrist: &ZobristHasher) -> u64 {
+fn _perft(
+    position: &mut PositionState,
+    generator: &MoveGenerator,
+    depth: u16,
+    zobrist: &ZobristHasher,
+) -> u64 {
     let mut nodes = 0;
 
     if depth == 0 {
         return 1;
     }
 
-    let mut move_list = MoveList::new();
-    crate::moves::generator::movegen::generate_pseudolegal_moves(
-        &mut move_list,
-        game,
-        game.side_to_move,
-        cache,
-        false,
-    );
+    let moves_list = generator.generate_moves(position);
 
-    for index in 0..move_list.len() {
-        let move_item = &move_list.moves[index];
-        if game.make_move(move_item.clone(), cache, zobrist) {
-            let move_nodes = _perft(game, cache, depth - 1, zobrist);
+    for index in 0..moves_list.len() {
+        let move_item = &moves_list.moves[index];
+        if position.make_move(move_item.clone(), generator, zobrist) {
+            let move_nodes = _perft(position, generator, depth - 1, zobrist);
             nodes += move_nodes;
-            game.unmake_move(zobrist);
+            position.unmake_move(zobrist);
         }
     }
 
