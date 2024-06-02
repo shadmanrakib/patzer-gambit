@@ -104,8 +104,8 @@ impl Searcher {
         let mut depth = 1;
         let mut info = SearchInfo::init(time_control);
 
-        let mut alpha = NEG_INF;
-        let mut beta = INF;
+        let alpha = NEG_INF;
+        let beta = INF;
 
         while depth <= main_search_depth {
             info.update_termination_status(
@@ -121,7 +121,7 @@ impl Searcher {
             let iter_start = Instant::now();
 
             info.new_iteration(); // get clear older iterations useless info/stats
-            let score = self.negamax(depth, 0, MAX_PLY, alpha, beta, &mut info);
+            let score = self.negamax(depth, 0, MAX_PLY, alpha, beta, &mut info, false);
 
             let iter_elapsed = iter_start.elapsed();
             let ms = iter_elapsed.as_millis();
@@ -162,17 +162,6 @@ impl Searcher {
                 println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} pv {pv_str}");
             }
 
-            // the aspiration window was a bad idea, lets reset it and try again
-            if score < alpha || score > beta {
-                alpha = NEG_INF;
-                beta = INF;
-                continue;
-            }
-
-            // otherwise we create next aspiration window
-            alpha = score.saturating_sub(50);
-            beta = score.saturating_add(50);
-
             // increase depth
             depth += 1;
         }
@@ -203,6 +192,7 @@ impl Searcher {
         mut alpha: i32,
         beta: i32,
         info: &mut SearchInfo,
+        can_null_prune: bool,
     ) -> i32 {
         if info.total_nodes & info.check_termination_node_interval == 0
             || info.terimination_status == TeriminationStatus::Soon
@@ -255,10 +245,18 @@ impl Searcher {
         }
 
         // null pruning
-        if !in_check && depth >= 3 && ply != 0 && self.position.phase < 180 {
+        if can_null_prune && !in_check && depth >= 3 && self.position.phase < 180 {
             let r = 2;
             let prev_enpassant = self.make_null_move();
-            let null_score = -self.negamax(depth - 1 - r, ply + 1, max_ply, -beta, -beta + 1, info);
+            let null_score = -self.negamax(
+                depth - 1 - r,
+                ply + 1,
+                max_ply,
+                -beta,
+                -beta + 1,
+                info,
+                false,
+            );
             self.unmake_null_move(prev_enpassant);
 
             if null_score >= beta {
@@ -295,7 +293,7 @@ impl Searcher {
             let draw = self.position.has_three_fold_rep() || self.position.half_move_clock >= 50;
             if !draw {
                 if legal_moves_count == 0 {
-                    score = -self.negamax(depth - 1, ply + 1, max_ply, -beta, -alpha, info);
+                    score = -self.negamax(depth - 1, ply + 1, max_ply, -beta, -alpha, info, false);
                 } else {
                     if legal_moves_count >= FULL_DEPTH_MOVES
                         && depth >= REDUCTION_LIMIT
@@ -304,18 +302,40 @@ impl Searcher {
                         && !move_item.promoting
                         && !move_item.castling
                     {
-                        score =
-                            -self.negamax(depth - 2, ply + 1, max_ply, -(alpha + 1), -alpha, info);
+                        score = -self.negamax(
+                            depth - 2,
+                            ply + 1,
+                            max_ply,
+                            -(alpha + 1),
+                            -alpha,
+                            info,
+                            true,
+                        );
                     } else {
                         score = alpha + 1; // done to trigger research
                     }
 
                     if score > alpha {
                         // like pvs
-                        score =
-                            -self.negamax(depth - 1, ply + 1, max_ply, -(alpha + 1), -alpha, info);
+                        score = -self.negamax(
+                            depth - 1,
+                            ply + 1,
+                            max_ply,
+                            -(alpha + 1),
+                            -alpha,
+                            info,
+                            true,
+                        );
                         if score > alpha && score < beta {
-                            score = -self.negamax(depth - 1, ply + 1, max_ply, -beta, -alpha, info);
+                            score = -self.negamax(
+                                depth - 1,
+                                ply + 1,
+                                max_ply,
+                                -beta,
+                                -alpha,
+                                info,
+                                true,
+                            );
                         }
                     }
                 }

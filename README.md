@@ -50,7 +50,6 @@ Then, in the config.yml add your lichess OAuth token. Follow, the README in the 
   * Null Move Pruning
   * Principal Variation Search
   * Late Move Reduction
-  * Aspiration Windows
 * Move Ordering
   * Transposition Table Refutation/Best Move
   * Most Valuable Victim Least Valuable Attacker
@@ -63,6 +62,7 @@ Then, in the config.yml add your lichess OAuth token. Follow, the README in the 
 **Planned:**
 * Factor Pawn Structure, Mobility, and King Safety in Evaluation
 * Better Time Controls
+* Aspiration Windows
 
 ## Resources
 
