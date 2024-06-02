@@ -28,7 +28,6 @@ pub trait CastlePermissions {
     fn revoke(&mut self, perm: u8);
     fn revoke_white(&mut self);
     fn revoke_black(&mut self);
-    fn revoke_all(&mut self);
 }
 impl CastlePermissions for u8 {
     fn is_allowed(&self, perm: u8) -> bool {
@@ -46,15 +45,6 @@ impl CastlePermissions for u8 {
     fn revoke_black(&mut self) {
         *self &= Self::WHITE_KING_SIDE | Self::WHITE_QUEEN_SIDE;
     }
-    fn revoke_all(&mut self) {
-        *self = 0;
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct EnpassantSquare {
-    pub exists: bool,
-    pub pos: Square,
 }
 
 // inspired by FEN notation

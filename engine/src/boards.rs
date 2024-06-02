@@ -6,11 +6,13 @@ pub trait BitBoard {
     fn set(&mut self, index: i8);
     fn get(&self, index: i8) -> bool;
     fn unset(&mut self, index: i8);
+    #[allow(unused)]
     fn clear(&mut self);
     fn pop(&self) -> (Self, i8)
     where
         Self: Sized;
     fn pop_mut(&mut self) -> i8;
+    #[allow(unused)]
     fn print_board(&self);
 }
 
