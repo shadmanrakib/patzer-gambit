@@ -111,13 +111,10 @@ impl TimeControl {
         let comms_overhead = 100;
         let time_left: u128 = self.times[side as usize];
         let moves_to_go = self.moves_to_go.unwrap_or_else(|| {
-            std::cmp::min(
-                45 - <u32 as TryInto<usize>>::try_into(full_moves).unwrap(),
-                20,
-            )
-        });
+            40 - std::cmp::max(<u32 as TryInto<usize>>::try_into(full_moves).unwrap(), 40)
+        }) + 1;
         let target = time_left / <usize as TryInto<u128>>::try_into(moves_to_go).unwrap();
-        let mut allocated_time = target;
+        let mut allocated_time = std::cmp::min(target, 5000);
         if allocated_time > 0 {
             allocated_time -= comms_overhead;
         }
