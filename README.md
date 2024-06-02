@@ -5,6 +5,10 @@
 
 A partial UCI chess engine that's a whole lot worse than Drunk Magnus but magnitudes better than me.
 
+## Play Against Th Engine
+
+You can play against the engine on https://lichess.org/@/patzer-gambit. Make sure to press the challenge button (swords). You can also use a chess gui, like Arena or Encrossaint.
+
 ## Building & Running The Engine
 
 You will need to install rust, rustc, and cargo. You can install it here: https://www.rust-lang.org/.
@@ -58,6 +62,7 @@ Then, in the config.yml add your lichess OAuth token. Follow, the README in the 
 
 **Planned:**
 * Factor Pawn Structure, Mobility, and King Safety in Evaluation
+* Better Time Controls
 
 ## Resources
 
