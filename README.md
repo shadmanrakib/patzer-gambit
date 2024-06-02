@@ -24,6 +24,13 @@ Build and run the engine via cargo:
 cargo run --release
 ```
 
+To setup, the lichess bot after building, cd out of engine and copy the executable (engine/target/release/engine) to lichess-bot/engines/engine
+```
+cp engine/target/release/engine lichess-bot/engines/engine
+```
+
+Then, in the config.yml add your lichess OAuth token. Follow, the README in the lichess-bot directory for more instructions.
+
 
 ## Features
 
