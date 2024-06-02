@@ -3,7 +3,7 @@
 
 # Patzer Gambit
 
-A partial UCI chess engine that's a whole lot worse than Drunk Magnus but magnitudes better than me
+A partial UCI chess engine that's a whole lot worse than Drunk Magnus but magnitudes better than me.
 
 ## Building & Running The Engine
 
@@ -44,12 +44,12 @@ cargo run --release
   * Transposition Table Refutation/Best Move
   * Most Valuable Victim Least Valuable Attacker
   * Killer Move Heuristic
+  * Static Exchange Evaluation
 * Evaluation
   * Tapered Piece Square Tables
   * 50 Half-Moves, 3 Fold Repeition, Insufficient Material Draws (evaluated in negamax, not scoring function)
 
 **Planned:**
-* Static Exchange Evaluation
 * Factor Pawn Structure, Mobility, and King Safety in Evaluation
 
 ## Resources
