@@ -1,4 +1,5 @@
 *.yml
+!lib/versioning.yml
 **/__pycache__
 /engines/*
 !/engines/README.md
