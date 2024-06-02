@@ -5,7 +5,7 @@ mod tests {
         Arc, Mutex,
     };
 
-    use crate::{searcher::Searcher, time::TimeControl};
+    use crate::{searcher::Searcher, settings::MAX_MAIN_SEARCH_DEPTH, time::TimeControl};
 
     #[test]
     fn mate4s_suite() {
@@ -92,9 +92,10 @@ mod tests {
             searcher.lock().unwrap().fen(mate4_fen.into()).unwrap();
             let s = stopped.clone();
             s.store(false, Ordering::SeqCst);
-            let time = TimeControl::new(s);
-            let result = searcher.lock().unwrap().go(10, time);
-            println!("{}", mate4_fen);
+            let mut time = TimeControl::new(s);
+            time.set_depth(10);
+            println!("{} :", mate4_fen);
+            let result = searcher.lock().unwrap().go(MAX_MAIN_SEARCH_DEPTH, time);
             if let Some(m) = result {
                 let ans = m.to_string();
                 if mate4_ans == ans {
