@@ -111,9 +111,9 @@ impl PositionState {
     }
 
     pub fn has_three_fold_rep(&self) -> bool {
-        let size = self.history.len();
+        let end = self.history.len().saturating_sub(1);
         let mut count = 1;
-        for i in (0..size - 1).rev().step_by(2) {
+        for i in (0..end).rev().step_by(2) {
             // a piece was captured so the piece count got altered, so no way for same position to arise
             // only way for that piece to reappear is potentially pawn promotion
             // but that means we lose a pawn, so still unequal positions

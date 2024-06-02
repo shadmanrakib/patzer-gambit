@@ -148,18 +148,30 @@ impl Searcher {
 
             let nodes = info.iteration_nodes;
             let seldepth = info.seldepth;
-            println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} pv {pv_str}");
+
+            let is_checkmate =
+                CHECKMATE.abs() - 256 <= score.abs() && score.abs() <= CHECKMATE.abs();
+            if is_checkmate {
+                // we have a mate
+                let sign = if score.is_negative() { -1 } else { 1 };
+                let mate_diff = CHECKMATE.abs() - score.abs();
+                let mate_in = (mate_diff / 2 + mate_diff % 2) * (sign);
+                println!("info score mate {mate_in} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} pv {pv_str}");
+            } else {
+                // regular score
+                println!("info score cp {score} depth {depth} seldepth {seldepth} time {ms} nodes {nodes} nps {nps} pv {pv_str}");
+            }
 
             // the aspiration window was a bad idea, lets reset it and try again
-            if score <= alpha || score >= beta {
+            if score < alpha || score > beta {
                 alpha = NEG_INF;
                 beta = INF;
                 continue;
             }
 
             // otherwise we create next aspiration window
-            alpha = score.saturating_sub(70);
-            beta = score.saturating_add(70);
+            alpha = score.saturating_sub(50);
+            beta = score.saturating_add(50);
 
             // increase depth
             depth += 1;
@@ -228,20 +240,19 @@ impl Searcher {
 
             tt_move = simple_move;
         }
-        
+
         // we need to end
         if ply == max_ply || info.terimination_status == TeriminationStatus::Terminated {
             return self.position.score();
         }
 
-        // we need to extend for stability
-        if depth <= 0 {
-            return self.quiescence(ply, max_ply, alpha, beta, info);
-        }
-
         let in_check = self
             .position
             .in_check(self.position.side_to_move, &self.generator);
+
+        if depth <= 0 {
+            return self.quiescence(ply, max_ply, alpha, beta, info);
+        }
 
         // null pruning
         if !in_check && depth >= 3 && ply != 0 && self.position.phase < 180 {
@@ -266,8 +277,7 @@ impl Searcher {
         let mut moves_list = self.generator.generate_moves(&self.position);
         moves_list.score_moves(info, ply as usize, &tt_move);
 
-        let mut legal_moves_count: u8 = 0;
-        let mut moves_searched = 0;
+        let mut legal_moves_count: u16 = 0;
 
         let mut best_draw = false;
 
@@ -280,16 +290,14 @@ impl Searcher {
                 continue;
             }
 
-            legal_moves_count += 1;
-
             let mut score: i32 = 0;
 
             let draw = self.position.has_three_fold_rep() || self.position.half_move_clock >= 50;
             if !draw {
-                if moves_searched == 0 {
+                if legal_moves_count == 0 {
                     score = -self.negamax(depth - 1, ply + 1, max_ply, -beta, -alpha, info);
                 } else {
-                    if moves_searched >= FULL_DEPTH_MOVES
+                    if legal_moves_count >= FULL_DEPTH_MOVES
                         && depth >= REDUCTION_LIMIT
                         && !in_check
                         && !move_item.capturing
@@ -313,9 +321,9 @@ impl Searcher {
                 }
             }
 
-            self.unmake_move();
+            legal_moves_count += 1;
 
-            moves_searched += 1;
+            self.unmake_move();
 
             if score > best_score {
                 best_score = score;
