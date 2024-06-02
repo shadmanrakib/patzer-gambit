@@ -1,5 +1,6 @@
 use crate::boards::BitBoard;
-use crate::movescoring::{score_mmv_lva, score_tt_mmv_lva_killer};
+use crate::movegen::MoveGenerator;
+use crate::movescoring::{score_see, score_tt_mmv_lva_killer};
 use crate::pieces::Piece;
 use crate::position::PositionState;
 use crate::searchinfo::SearchInfo;
@@ -208,9 +209,10 @@ impl MoveList {
             score_tt_mmv_lva_killer(&mut self.moves[i], search_cache, ply, tt_move);
         }
     }
-    pub fn score_captures(&mut self) {
+    pub fn score_captures(&mut self, position: &PositionState, generator: &MoveGenerator) {
         for i in 0..self.len() {
-            score_mmv_lva(&mut self.moves[i]);
+            // score_mmv_lva(&mut self.moves[i]);
+            score_see(&mut self.moves[i], position, generator);
         }
     }
 }

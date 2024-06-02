@@ -25,14 +25,10 @@ const MVV_LVA_SCORE: [[i16; 7]; 7] = [
     [0, 0, 0, 0, 0, 0, 0], // victim K, attacker K, Q, R, B, N, P, None
 ];
 
-#[inline(always)]
-fn mmv_lva(victim: Piece, attacker: Piece) -> i16 {
-    return MVV_LVA_SCORE[victim as usize][attacker as usize];
-}
-
-pub fn score_mmv_lva(move_item: &mut Move) {
+pub fn score_see(move_item: &mut Move, position: &PositionState, generator: &MoveGenerator) {
     if move_item.capturing {
-        move_item.score = mmv_lva(move_item.captured_piece, move_item.piece);
+        move_item.score =
+            static_exchange_evaluation(position, move_item.to_pos, move_item.from_pos, generator);
     } else {
         move_item.score = MIN_SCORE;
     }
@@ -84,7 +80,6 @@ pub fn static_exchange_evaluation(
     let mut from = attacker_pos;
 
     let mut attacks = get_attacks_on_square(&boards, occ, to, generator);
-    let mut all_attackers = attacks;
 
     // create a swap list for us to calculate values of the attacks
     // we will then use this swap list to get back the results
@@ -98,6 +93,7 @@ pub fn static_exchange_evaluation(
     // value of first piece to be captured
     swap_list[0] = PIECE_POINTS[boards.pos_to_piece[to as usize] as usize];
 
+    // TODO: Implement pruning
     while from_bitset != 0 && depth < 31 {
         depth += 1;
 
@@ -105,23 +101,12 @@ pub fn static_exchange_evaluation(
         let captured = boards.pos_to_piece[from as usize];
         swap_list[depth] = PIECE_POINTS[captured as usize] - swap_list[depth - 1];
 
-        // if captured == Piece::King {
-        //     break;
-        // }
-
-        // pruning, attacking would be always worse, so end now
-        // that is the opponent can just stop taking and be up
-        if std::cmp::max(-swap_list[depth - 1], swap_list[depth]) < 0 {
-            break;
-        };
-
         // used up peice, so "remove", allowing for x-rays to be discovered
         attacks ^= from_bitset;
         occ ^= from_bitset;
 
         let sliding = get_sliding_attacks(&boards, occ, to, generator);
         attacks |= sliding;
-        all_attackers |= attacks;
 
         // find the next attacker
         (from_bitset, from) = get_least_valauble_attacker(&boards, &attacks, player);
@@ -137,10 +122,7 @@ pub fn static_exchange_evaluation(
 
     swap_list[0]
 }
-// position fen 1k1r4/1pp4p/p7/4p3/8/P5P1/1PP4P/2K1R3 w - - 0 1
-// s e5 e1
-// position fen 1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - - 0 1
-// s e5 d3
+
 fn get_sliding_attacks(boards: &Boards, occ: u64, to: i8, generator: &MoveGenerator) -> u64 {
     let mut attackers = 0;
     let rooks = boards.get_board_by_piece(Player::White, Piece::Rook)

@@ -213,6 +213,12 @@ impl PositionState {
 
     #[inline(always)]
     pub fn score(&self) -> i32 {
+        if self.has_insufficient_material()
+            || self.has_three_fold_rep()
+            || self.half_move_clock >= 50
+        {
+            return 0;
+        }
         self.color * evaluation::eval(self)
     }
 
@@ -577,8 +583,7 @@ impl PositionState {
 
         // king attack
         let king_move_mask = generator.king_moves_masks[pos as usize];
-        let attacking_king =
-            king_move_mask & self.boards.get_board_by_piece(attacker, Piece::King);
+        let attacking_king = king_move_mask & self.boards.get_board_by_piece(attacker, Piece::King);
         if attacking_king != 0 {
             return true;
         }
@@ -661,8 +666,7 @@ impl PositionState {
                 let pos = 8 * rank + file;
 
                 let piece = self.boards.pos_to_piece[pos];
-                let colored = if self.boards.pos_to_player[Player::White as usize].get(pos as i8)
-                {
+                let colored = if self.boards.pos_to_player[Player::White as usize].get(pos as i8) {
                     BLACK_PIECES[piece as usize]
                 } else {
                     WHITE_PIECES[piece as usize]
