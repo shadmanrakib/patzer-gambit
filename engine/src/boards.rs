@@ -54,7 +54,7 @@ impl BitBoard for u64 {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Boards {
     pub occupied: u64,
-    pub boards: [[u64; 7]; 2],
+    pub bitboards: [[u64; 7]; 2],
     pub pos_to_player: [u64; 2],
     pub pos_to_piece: [Piece; 64],
 }
@@ -64,7 +64,7 @@ impl Default for Boards {
         Self {
             pos_to_piece: [Piece::Empty; 64],
             pos_to_player: [0; 2],
-            boards: Default::default(),
+            bitboards: Default::default(),
             occupied: Default::default(),
         }
     }
@@ -72,11 +72,11 @@ impl Default for Boards {
 
 impl Boards {
     pub fn get_board_by_piece(&self, player: Player, piece: Piece) -> &u64 {
-        return &self.boards[player as usize][piece as usize];
+        return &self.bitboards[player as usize][piece as usize];
     }
     #[inline(always)]
     pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8) {
-        self.boards[player as usize][piece as usize].set(pos);
+        self.bitboards[player as usize][piece as usize].set(pos);
         self.pos_to_piece[pos as usize] = piece;
         self.pos_to_player[player as usize].set(pos);
         self.occupied.set(pos);
@@ -86,7 +86,7 @@ impl Boards {
     pub fn remove_piece(&mut self, player: Player, pos: i8) -> Piece {
         let removed = self.pos_to_piece[pos as usize];
         self.pos_to_piece[pos as usize] = Piece::Empty;
-        self.boards[player as usize][removed as usize].unset(pos);
+        self.bitboards[player as usize][removed as usize].unset(pos);
         self.pos_to_player[player as usize].unset(pos);
         self.occupied.unset(pos);
         return removed;

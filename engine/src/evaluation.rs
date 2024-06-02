@@ -261,13 +261,13 @@ pub fn init(position: &PositionState) -> (i32, [i32; 2], [i32; 2]) {
     let mut endposition = [0; 2];
 
     let mut phase = TOTAL_PHASE;
-    let mut occupied = position.bitboards.occupied;
+    let mut occupied = position.boards.occupied;
     while occupied != 0 {
         let pos = occupied.pop_mut() as usize;
-        let piece = position.bitboards.pos_to_piece[pos] as usize;
+        let piece = position.boards.pos_to_piece[pos] as usize;
         phase -= PHASE_INCREMENT_BY_PIECE[piece as usize];
 
-        if position.bitboards.pos_to_player[0].get(pos as i8) {
+        if position.boards.pos_to_player[0].get(pos as i8) {
             opening[0] += OPENING_PSQT_TABLES[piece][pos];
             endposition[0] += ENDGAME_PSQT_TABLES[piece][pos];
         } else {

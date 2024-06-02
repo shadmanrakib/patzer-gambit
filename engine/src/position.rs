@@ -60,7 +60,7 @@ pub struct EnpassantSquare {
 // inspired by FEN notation
 #[derive(Debug, Clone)]
 pub struct PositionState {
-    pub bitboards: Boards,
+    pub boards: Boards,
     pub side_to_move: Player,
     pub castle_permissions: u8,
     // 0-7 maps to columns A-H, 8 is none
@@ -84,7 +84,7 @@ pub struct PositionState {
 impl PositionState {
     #[allow(dead_code)]
     pub fn set(&mut self, other: PositionState) {
-        self.bitboards = other.bitboards;
+        self.boards = other.boards;
         self.side_to_move = other.side_to_move;
         self.castle_permissions = other.castle_permissions;
         self.enpassant_square = other.enpassant_square;
@@ -150,29 +150,29 @@ impl PositionState {
         }
 
         let num_wp =
-            self.bitboards.boards[Player::White as usize][Piece::Pawn as usize].count_ones();
+            self.boards.bitboards[Player::White as usize][Piece::Pawn as usize].count_ones();
         let num_bp =
-            self.bitboards.boards[Player::Black as usize][Piece::Pawn as usize].count_ones();
+            self.boards.bitboards[Player::Black as usize][Piece::Pawn as usize].count_ones();
 
         let num_wq =
-            self.bitboards.boards[Player::White as usize][Piece::Queen as usize].count_ones();
+            self.boards.bitboards[Player::White as usize][Piece::Queen as usize].count_ones();
         let num_bq =
-            self.bitboards.boards[Player::Black as usize][Piece::Queen as usize].count_ones();
+            self.boards.bitboards[Player::Black as usize][Piece::Queen as usize].count_ones();
 
         let num_wr =
-            self.bitboards.boards[Player::White as usize][Piece::Rook as usize].count_ones();
+            self.boards.bitboards[Player::White as usize][Piece::Rook as usize].count_ones();
         let num_br =
-            self.bitboards.boards[Player::Black as usize][Piece::Rook as usize].count_ones();
+            self.boards.bitboards[Player::Black as usize][Piece::Rook as usize].count_ones();
 
         let num_wn =
-            self.bitboards.boards[Player::White as usize][Piece::Knight as usize].count_ones();
+            self.boards.bitboards[Player::White as usize][Piece::Knight as usize].count_ones();
         let num_bn =
-            self.bitboards.boards[Player::Black as usize][Piece::Knight as usize].count_ones();
+            self.boards.bitboards[Player::Black as usize][Piece::Knight as usize].count_ones();
 
         let num_wb =
-            self.bitboards.boards[Player::White as usize][Piece::Bishop as usize].count_ones();
+            self.boards.bitboards[Player::White as usize][Piece::Bishop as usize].count_ones();
         let num_bb =
-            self.bitboards.boards[Player::Black as usize][Piece::Bishop as usize].count_ones();
+            self.boards.bitboards[Player::Black as usize][Piece::Bishop as usize].count_ones();
 
         // its possible to mate if you have a pawn, a rook, a queen, or bishop + knight
         // assuming pawn promotes
@@ -191,16 +191,16 @@ impl PositionState {
         // its possible to mate with two bishops of diff colors.
         let white_squares_mask = 0x55aa55aa55aa552a;
         let black_squares_mask = 0xaa55aa55aa55aa55;
-        let num_wwb = (self.bitboards.boards[Player::White as usize][Piece::Bishop as usize]
+        let num_wwb = (self.boards.bitboards[Player::White as usize][Piece::Bishop as usize]
             & white_squares_mask)
             .count_ones();
-        let num_wbb = (self.bitboards.boards[Player::White as usize][Piece::Bishop as usize]
+        let num_wbb = (self.boards.bitboards[Player::White as usize][Piece::Bishop as usize]
             & black_squares_mask)
             .count_ones();
-        let num_bwb = (self.bitboards.boards[Player::Black as usize][Piece::Bishop as usize]
+        let num_bwb = (self.boards.bitboards[Player::Black as usize][Piece::Bishop as usize]
             & white_squares_mask)
             .count_ones();
-        let num_bbb = (self.bitboards.boards[Player::Black as usize][Piece::Bishop as usize]
+        let num_bbb = (self.boards.bitboards[Player::Black as usize][Piece::Bishop as usize]
             & black_squares_mask)
             .count_ones();
 
@@ -213,12 +213,18 @@ impl PositionState {
 
     #[inline(always)]
     pub fn score(&self) -> i32 {
+        if self.has_insufficient_material()
+            || self.has_three_fold_rep()
+            || self.half_move_clock >= 50
+        {
+            return 0;
+        }
         self.color * evaluation::eval(self)
     }
 
     #[inline(always)]
     pub fn place_piece(&mut self, player: Player, piece: Piece, pos: i8, zobrist: &ZobristHasher) {
-        self.bitboards.place_piece(player, piece, pos);
+        self.boards.place_piece(player, piece, pos);
 
         // make incremental updates
         // places piece updates
@@ -231,7 +237,7 @@ impl PositionState {
 
     #[inline(always)]
     pub fn remove_piece(&mut self, player: Player, pos: i8, zobrist: &ZobristHasher) -> Piece {
-        let removed = self.bitboards.remove_piece(player, pos);
+        let removed = self.boards.remove_piece(player, pos);
 
         let pqst_pos = PSQT_INDEX[player as usize][pos as usize];
         self.opening[player as usize] -= OPENING_PSQT_TABLES[removed as usize][pqst_pos];
@@ -531,12 +537,12 @@ impl PositionState {
 
     #[inline(always)]
     pub fn is_square_attacked(&self, pos: i8, attacker: Player, generator: &MoveGenerator) -> bool {
-        let occupied = &self.bitboards.occupied;
+        let occupied = &self.boards.occupied;
 
         // knight
         let knight_move_mask = generator.knight_moves_masks[pos as usize];
         let attacking_knights =
-            knight_move_mask & self.bitboards.get_board_by_piece(attacker, Piece::Knight);
+            knight_move_mask & self.boards.get_board_by_piece(attacker, Piece::Knight);
         if attacking_knights != 0 {
             return true;
         }
@@ -545,9 +551,9 @@ impl PositionState {
         let rook_magic_index = hash_with_magic(generator.rook_magics[pos as usize], occupied);
         let rook_moves_mask = generator.rook_magic_attack_tables[rook_magic_index];
         let attacking_rooks =
-            rook_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Rook);
+            rook_moves_mask & self.boards.get_board_by_piece(attacker, Piece::Rook);
         let attacking_queens_straight =
-            rook_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Queen);
+            rook_moves_mask & self.boards.get_board_by_piece(attacker, Piece::Queen);
 
         if attacking_rooks != 0 || attacking_queens_straight != 0 {
             return true;
@@ -558,16 +564,16 @@ impl PositionState {
         let bishop_moves_mask = generator.bishop_magic_attack_tables[bishop_magic_index];
 
         let attacking_bishops =
-            bishop_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Bishop);
+            bishop_moves_mask & self.boards.get_board_by_piece(attacker, Piece::Bishop);
         let attacking_queens_diagonal =
-            bishop_moves_mask & self.bitboards.get_board_by_piece(attacker, Piece::Queen);
+            bishop_moves_mask & self.boards.get_board_by_piece(attacker, Piece::Queen);
 
         if attacking_bishops != 0 || attacking_queens_diagonal != 0 {
             return true;
         }
 
         // pawn attack
-        let opponent_pawns = self.bitboards.get_board_by_piece(attacker, Piece::Pawn);
+        let opponent_pawns = self.boards.get_board_by_piece(attacker, Piece::Pawn);
         let attacking_mask =
             generator.pawn_attack_moves_mask[attacker.opponent() as usize][pos as usize];
         let attacking_pawns = opponent_pawns & attacking_mask;
@@ -577,8 +583,7 @@ impl PositionState {
 
         // king attack
         let king_move_mask = generator.king_moves_masks[pos as usize];
-        let attacking_king =
-            king_move_mask & self.bitboards.get_board_by_piece(attacker, Piece::King);
+        let attacking_king = king_move_mask & self.boards.get_board_by_piece(attacker, Piece::King);
         if attacking_king != 0 {
             return true;
         }
@@ -589,7 +594,7 @@ impl PositionState {
     // #[inline(always)]
     pub fn in_check(&self, player: Player, generator: &MoveGenerator) -> bool {
         let king = self
-            .bitboards
+            .boards
             .get_board_by_piece(player, Piece::King)
             .trailing_zeros() as i8;
 
@@ -609,7 +614,7 @@ impl PositionState {
         }
 
         let mut position = PositionState {
-            bitboards: fen::parse_fen_board(parts[0]).unwrap(),
+            boards: fen::parse_fen_board(parts[0]).unwrap(),
             side_to_move: fen::parse_fen_side(parts[1]).unwrap(),
             castle_permissions: fen::parse_fen_castle(parts[2]).unwrap(),
             enpassant_square: fen::parse_fen_enpassant(parts[3]).unwrap(),
@@ -660,9 +665,8 @@ impl PositionState {
             for file in 0..8 {
                 let pos = 8 * rank + file;
 
-                let piece = self.bitboards.pos_to_piece[pos];
-                let colored = if self.bitboards.pos_to_player[Player::White as usize].get(pos as i8)
-                {
+                let piece = self.boards.pos_to_piece[pos];
+                let colored = if self.boards.pos_to_player[Player::White as usize].get(pos as i8) {
                     BLACK_PIECES[piece as usize]
                 } else {
                     WHITE_PIECES[piece as usize]

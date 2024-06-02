@@ -131,7 +131,7 @@ pub fn stringify_board(position: &PositionState) -> String {
         let mut contingious_empty = 0;
         for file in 0..8 {
             let pos: i8 = rank * 8 + file;
-            let piece = position.bitboards.pos_to_piece[pos as usize];
+            let piece = position.boards.pos_to_piece[pos as usize];
 
             match piece {
                 Piece::Empty => {
@@ -140,7 +140,7 @@ pub fn stringify_board(position: &PositionState) -> String {
                 _ => {
                     let p = piece.to_string();
                     let colored =
-                        if position.bitboards.pos_to_player[Player::White as usize].get(pos as i8) {
+                        if position.boards.pos_to_player[Player::White as usize].get(pos as i8) {
                             p.to_uppercase()
                         } else {
                             p

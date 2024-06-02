@@ -208,15 +208,19 @@ impl Searcher {
 
         let mut node_type = NodeType::All;
 
+        // handle base cases
+
+        // insufficient material
+        if self.position.has_insufficient_material() {
+            return 0;
+        }
+
+        // table might have useful info that we can use
         let mut tt_move = SimpleMove {
             from: 0,
             to: 0,
             promotion: Piece::King,
         };
-        // handle base cases
-        if self.position.has_insufficient_material() {
-            return 0;
-        }
         if let Some((simple_move, score, d)) = self.tt.probe(self.position.hash, alpha, beta) {
             if d >= depth {
                 return score;
@@ -224,9 +228,13 @@ impl Searcher {
 
             tt_move = simple_move;
         }
+        
+        // we need to end
         if ply == max_ply || info.terimination_status == TeriminationStatus::Terminated {
             return self.position.score();
         }
+
+        // we need to extend for stability
         if depth <= 0 {
             return self.quiescence(ply, max_ply, alpha, beta, info);
         }
@@ -396,25 +404,35 @@ impl Searcher {
             return stand_pat;
         }
 
-        // position better than alpha already
         if stand_pat > alpha {
             alpha = stand_pat
         }
 
         let mut moves_list = self.generator.generate_captures(&self.position);
-        moves_list.score_captures();
+        moves_list.score_captures(&self.position, &self.generator);
 
         for i in 0..moves_list.len() {
             moves_list.sort_move(i);
-            let move_item = moves_list.moves[i].clone();
+            let move_item = &moves_list.moves[i];
+
+            // likely a bad move
+            if move_item.score < 0 {
+                break; // all others after it will be bad too
+            };
+
             // illegal move
-            if !self.make_move(move_item) {
+            if !self.make_move(move_item.clone()) {
                 continue;
             }
 
-            // The position is not yet quiet. Go one ply deeper.
-            let score = -self.quiescence(ply + 1, max_ply, -beta, -alpha, info);
+            let draw = self.position.has_three_fold_rep() || self.position.half_move_clock >= 50;
+            let score = if !draw {
+                -self.quiescence(ply + 1, max_ply, -beta, -alpha, info)
+            } else {
+                0
+            };
 
+            // The position is not yet quiet. Go one ply deeper.
             self.unmake_move();
 
             // beta cutoff

@@ -69,13 +69,11 @@ impl TimeControl {
             return TeriminationStatus::Distant;
         }
 
-        if check_depth {
-            if let Some(depth) = self.depth {
-                if ply > depth {
-                    return TeriminationStatus::Terminated;
-                }
-                return TeriminationStatus::Distant;
+        if let Some(depth) = self.depth {
+            if check_depth && ply > depth {
+                return TeriminationStatus::Terminated;
             }
+            return TeriminationStatus::Distant;
         }
 
         let elapsed = self.elapsed();
@@ -119,7 +117,10 @@ impl TimeControl {
             )
         });
         let target = time_left / <usize as TryInto<u128>>::try_into(moves_to_go).unwrap();
-        let allocated_time = std::cmp::min(2 * target, time_left) - comms_overhead;
+        let mut allocated_time = target;
+        if allocated_time > 0 {
+            allocated_time -= comms_overhead;
+        }
 
         if elapsed >= allocated_time {
             return TeriminationStatus::Terminated;
