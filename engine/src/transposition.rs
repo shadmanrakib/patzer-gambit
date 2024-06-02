@@ -58,18 +58,21 @@ impl TTable {
             addressing_mask,
         }
     }
-    pub fn probe(&self, key: u64, alpha: i32, beta: i32) -> Option<(SimpleMove, i32, u8)> {
+    pub fn probe(&self, key: u64, depth: u8, alpha: i32, beta: i32) -> (SimpleMove, Option<i32>) {
         let entry = &self.table[key as usize & self.addressing_mask];
 
         if entry.key == key {
-            if entry.node == NodeType::Pv
-                || entry.node == NodeType::Cut && entry.score >= beta
-                || entry.node == NodeType::All && entry.score <= alpha
+            if entry.depth >= depth
+                && (entry.node == NodeType::Pv
+                    || entry.node == NodeType::Cut && entry.score >= beta
+                    || entry.node == NodeType::All && entry.score <= alpha)
             {
-                return Some((entry.best_move.clone(), entry.score, entry.depth));
+                return (entry.best_move.clone(), Some(entry.score));
             }
+
+            return (entry.best_move.clone(), None);
         }
-        return None;
+        return (SimpleMove::NULL_MOVE, None);
     }
     pub fn record(
         &mut self,

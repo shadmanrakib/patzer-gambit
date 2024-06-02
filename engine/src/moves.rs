@@ -84,7 +84,7 @@ pub struct UnmakeMoveMetadata {
  * TODO: evaluate whether to use bit encoding to make more compact
  */
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct SimpleMove {
     pub to: i8,
     pub from: i8,

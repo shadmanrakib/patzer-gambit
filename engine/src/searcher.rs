@@ -4,7 +4,6 @@ use crate::{
     movegen::MoveGenerator,
     moves::{Move, SimpleMove},
     perft,
-    pieces::Piece,
     position::PositionState,
     searchinfo::SearchInfo,
     settings::{FULL_DEPTH_MOVES, MAX_PLY, REDUCTION_LIMIT, TRANSITION_TABLE_ADDRESSING_BITS},
@@ -73,22 +72,19 @@ impl Searcher {
         let mut i = 0;
         while i < depth {
             i += 1;
-            if let Some((simple_move, _, d)) = self.tt.probe(position.hash, INF, -INF) {
-                if d > 0 {
-                    let notation = simple_move.to_string();
-                    moves.push(simple_move);
+            if let (tt_move, Some(_)) = self.tt.probe(position.hash, 1, INF, -INF) {
+                let notation = tt_move.to_string();
+                moves.push(tt_move);
 
-                    if d >= 1 {
-                        if let Ok(move_item) =
-                            position.notation_to_move(notation.clone(), &self.generator)
-                        {
-                            position.make_move(move_item, &self.generator, &self.zobrist);
-                        } else {
-                            println!("Not found {}", notation);
-                        }
-                        continue;
+                if tt_move != SimpleMove::NULL_MOVE {
+                    if let Ok(move_item) =
+                        position.notation_to_move(notation.clone(), &self.generator)
+                    {
+                        position.make_move(move_item, &self.generator, &self.zobrist);
                     }
+                    continue;
                 }
+
                 break;
             } else {
                 break;
@@ -218,17 +214,9 @@ impl Searcher {
         }
 
         // table might have useful info that we can use
-        let mut tt_move = SimpleMove {
-            from: 0,
-            to: 0,
-            promotion: Piece::King,
-        };
-        if let Some((simple_move, score, d)) = self.tt.probe(self.position.hash, alpha, beta) {
-            if d >= depth {
-                return score;
-            };
-
-            tt_move = simple_move;
+        let (tt_move, tt_score) = self.tt.probe(self.position.hash, depth, alpha, beta);
+        if let Some(score) = tt_score {
+            return score;
         }
 
         // we need to end
@@ -236,13 +224,13 @@ impl Searcher {
             return self.position.score();
         }
 
-        let in_check = self
-            .position
-            .in_check(self.position.side_to_move, &self.generator);
-
         if depth <= 0 {
             return self.quiescence(ply, max_ply, alpha, beta, info);
         }
+
+        let in_check = self
+            .position
+            .in_check(self.position.side_to_move, &self.generator);
 
         // null pruning
         if can_null_prune && !in_check && depth >= 3 && self.position.phase < 180 {
@@ -421,6 +409,10 @@ impl Searcher {
         info.increment_node_counts(true);
         info.maximize_seldepth(ply);
 
+        if self.position.has_insufficient_material() {
+            return 0;
+        }
+
         let stand_pat = self.position.score();
 
         if ply == max_ply {
@@ -453,12 +445,7 @@ impl Searcher {
                 continue;
             }
 
-            let draw = self.position.has_three_fold_rep() || self.position.half_move_clock >= 50;
-            let score = if !draw {
-                -self.quiescence(ply + 1, max_ply, -beta, -alpha, info)
-            } else {
-                0
-            };
+            let score = -self.quiescence(ply + 1, max_ply, -beta, -alpha, info);
 
             // The position is not yet quiet. Go one ply deeper.
             self.unmake_move();
